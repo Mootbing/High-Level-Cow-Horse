@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     GMAIL_REFRESH_TOKEN: str = ""
     GMAIL_SENDER_EMAIL: str = ""
 
+    # GitHub (bot account for generated website repos)
+    GITHUB_PAT: str = ""
+
     # Vercel
     VERCEL_TOKEN: str = ""
     VERCEL_TEAM_ID: str = ""
