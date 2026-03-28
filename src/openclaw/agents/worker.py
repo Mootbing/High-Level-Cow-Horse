@@ -46,37 +46,12 @@ def _load_agents():
     )
 
 
-async def run_worker(agent_type: str) -> None:
-    """Main worker loop for an agent."""
-    _load_agents()
-
-    if agent_type not in AGENT_REGISTRY:
-        logger.error(
-            "unknown_agent_type",
-            agent_type=agent_type,
-            available=list(AGENT_REGISTRY.keys()),
-        )
-        return
-
-    # Init Redis streams
-    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
-    await init_streams(r)
-    await r.aclose()
-
+async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
+    """Worker loop for a single agent type."""
     agent_cls = AGENT_REGISTRY[agent_type]
     agent = agent_cls()
     consumer = StreamConsumer(agent_type)
     await consumer.connect()
-
-    shutdown = asyncio.Event()
-
-    def handle_signal():
-        logger.info("shutdown_signal", agent=agent_type)
-        shutdown.set()
-
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGTERM, signal.SIGINT):
-        loop.add_signal_handler(sig, handle_signal)
 
     logger.info("worker_started", agent=agent_type, consumer=consumer.consumer_name)
 
@@ -131,11 +106,66 @@ async def run_worker(agent_type: str) -> None:
     logger.info("worker_stopped", agent=agent_type)
 
 
+async def run_worker(agent_type: str) -> None:
+    """Run a single agent worker."""
+    _load_agents()
+
+    if agent_type not in AGENT_REGISTRY:
+        logger.error(
+            "unknown_agent_type",
+            agent_type=agent_type,
+            available=list(AGENT_REGISTRY.keys()),
+        )
+        return
+
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    await init_streams(r)
+    await r.aclose()
+
+    shutdown = asyncio.Event()
+
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: shutdown.set())
+
+    await _run_single_worker(agent_type, shutdown)
+
+
+async def run_all_workers() -> None:
+    """Run ALL agent workers in a single process (for Railway / single-container deploy)."""
+    _load_agents()
+
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    await init_streams(r)
+    await r.aclose()
+
+    shutdown = asyncio.Event()
+
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: shutdown.set())
+
+    logger.info("starting_all_workers", agents=list(AGENT_REGISTRY.keys()))
+
+    tasks = [
+        asyncio.create_task(_run_single_worker(agent_type, shutdown))
+        for agent_type in AGENT_REGISTRY
+    ]
+
+    await asyncio.gather(*tasks)
+    logger.info("all_workers_stopped")
+
+
 def main():
     parser = argparse.ArgumentParser(description="OpenClaw Agent Worker")
-    parser.add_argument("--agent-type", required=True, help="Agent type to run")
+    parser.add_argument("--agent-type", default=None, help="Agent type to run (omit for all)")
+    parser.add_argument("--all", action="store_true", help="Run all agents in one process")
     args = parser.parse_args()
-    asyncio.run(run_worker(args.agent_type))
+
+    if args.all or args.agent_type is None:
+        asyncio.run(run_all_workers())
+    else:
+        asyncio.run(run_worker(args.agent_type))
 
 
 if __name__ == "__main__":
