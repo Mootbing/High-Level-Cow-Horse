@@ -11,10 +11,18 @@ Railway Project
 ├── PostgreSQL (plugin — managed)
 ├── Redis (plugin — managed)
 ├── api (service — FastAPI webhook + health)
-└── workers (service — all 10 agents in one process)
+├── workers-light (service — CEO, PM, Inbound, Outbound, Comms, Research, Learning + autoscaler)
+└── workers-heavy (service — Designer, Engineer, QA — auto-scales 1→5 replicas)
 ```
 
-Just 2 services + 2 plugins. Cost: ~$10-30/mo depending on API usage.
+3 services + 2 plugins. The light tier runs all the fast I/O-bound agents.
+The heavy tier runs the CPU/API-heavy agents and **auto-scales based on queue depth**:
+- 0 pending tasks → 1 replica
+- 3+ pending → 2 replicas
+- 6+ pending → 3 replicas
+- up to 5 max
+
+The autoscaler runs inside the light tier and adjusts heavy replicas via Railway's API.
 
 ---
 
@@ -55,20 +63,33 @@ Just 2 services + 2 plugins. Cost: ~$10-30/mo depending on API usage.
 
 ---
 
-## Step 5: Deploy the Workers Service
+## Step 5: Deploy the Worker Services
+
+### 5a: Light workers (always 1 instance)
 
 1. Click **+ New** → **GitHub Repo** → select `Mootbing/High-Level-Cow-Horse` again
 2. Click the service → **Settings**:
-   - **Service Name**: `workers`
-   - **Start Command**: `python -m openclaw.agents.worker --all`
-   - Do NOT generate a domain (workers don't need one)
-3. Go to **Variables** tab → **Raw Editor** → paste the same env vars as the API
+   - **Service Name**: `workers-light`
+   - **Start Command**: `python -m openclaw.agents.worker --tier light`
+   - Do NOT generate a domain
+3. Go to **Variables** tab → paste the same env vars as the API
+
+### 5b: Heavy workers (auto-scales)
+
+1. Click **+ New** → **GitHub Repo** → select `Mootbing/High-Level-Cow-Horse` again
+2. Click the service → **Settings**:
+   - **Service Name**: `workers-heavy`
+   - **Start Command**: `python -m openclaw.agents.worker --tier heavy`
+   - Do NOT generate a domain
+3. Go to **Variables** tab → paste the same env vars as the API
+4. **Note the Service ID** from the URL (it's in the Railway dashboard URL when viewing this service: `https://railway.app/project/.../service/<SERVICE_ID>`)
+   - Set this as `RAILWAY_HEAVY_SERVICE_ID` in the light worker's env vars
 
 ---
 
 ## Step 6: Set Environment Variables
 
-Go to each service (api + workers) → **Variables** → **Raw Editor**, paste:
+Go to each service (api, workers-light, workers-heavy) → **Variables** → **Raw Editor**, paste:
 
 ```env
 # Database — copy from Railway PostgreSQL plugin, change scheme
@@ -106,6 +127,17 @@ GMAIL_SENDER_EMAIL=you@gmail.com
 
 # Storage (Railway volume mount)
 STORAGE_PATH=/data/projects
+
+# Auto-Scaling (set these on workers-light only)
+# Get RAILWAY_API_TOKEN from https://railway.app/account/tokens
+RAILWAY_API_TOKEN=your-railway-api-token
+# Get RAILWAY_HEAVY_SERVICE_ID from the workers-heavy service URL in Railway dashboard
+RAILWAY_HEAVY_SERVICE_ID=the-service-id-from-url
+AUTOSCALE_ENABLED=true
+AUTOSCALE_MIN_REPLICAS=1
+AUTOSCALE_MAX_REPLICAS=5
+AUTOSCALE_QUEUE_THRESHOLD=3
+AUTOSCALE_POLL_SECONDS=60
 ```
 
 **Tip:** Railway lets you reference other services' variables. In the API and workers services, you can use:

@@ -42,9 +42,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  agent-ceo:
+  # Light tier: CEO, PM, Inbound, Outbound, Comms, Research, Learning + autoscaler
+  workers-light:
     build: .
-    command: python -m openclaw.agents.worker --agent-type ceo
+    command: python -m openclaw.agents.worker --tier light
     env_file: .env
     volumes:
       - projectdata:/data/projects
@@ -55,113 +56,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  agent-pm:
+  # Heavy tier: Designer, Engineer, QA (scale with --scale workers-heavy=N)
+  workers-heavy:
     build: .
-    command: python -m openclaw.agents.worker --agent-type project_manager
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-inbound:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type inbound
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-designer:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type designer
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-engineer:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type engineer
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-qa:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type qa
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-outbound:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type outbound
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-comms:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type client_comms
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-research:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type research
-    env_file: .env
-    volumes:
-      - projectdata:/data/projects
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  agent-learning:
-    build: .
-    command: python -m openclaw.agents.worker --agent-type learning
+    command: python -m openclaw.agents.worker --tier heavy
     env_file: .env
     volumes:
       - projectdata:/data/projects

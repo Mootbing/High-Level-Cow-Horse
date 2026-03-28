@@ -156,13 +156,67 @@ async def run_all_workers() -> None:
     logger.info("all_workers_stopped")
 
 
+async def run_tier(tier: str) -> None:
+    """Run agents for a specific tier (light or heavy).
+
+    Light tier: CEO, PM, Inbound, Outbound, Comms, Research, Learning + autoscaler
+    Heavy tier: Designer, Engineer, QA (horizontally scalable)
+    """
+    from openclaw.queue.streams import LIGHT_AGENTS, HEAVY_AGENTS
+
+    _load_agents()
+
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    await init_streams(r)
+    await r.aclose()
+
+    shutdown = asyncio.Event()
+
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, lambda: shutdown.set())
+
+    if tier == "light":
+        agent_types = [a for a in LIGHT_AGENTS if a in AGENT_REGISTRY]
+        logger.info("starting_light_tier", agents=agent_types)
+        tasks = [
+            asyncio.create_task(_run_single_worker(at, shutdown))
+            for at in agent_types
+        ]
+        # Run autoscaler alongside light workers
+        from openclaw.autoscaler import autoscale_loop
+        tasks.append(asyncio.create_task(autoscale_loop(shutdown)))
+
+    elif tier == "heavy":
+        agent_types = [a for a in HEAVY_AGENTS if a in AGENT_REGISTRY]
+        logger.info("starting_heavy_tier", agents=agent_types)
+        tasks = [
+            asyncio.create_task(_run_single_worker(at, shutdown))
+            for at in agent_types
+        ]
+    else:
+        logger.error("unknown_tier", tier=tier, available=["light", "heavy"])
+        return
+
+    await asyncio.gather(*tasks)
+    logger.info("tier_stopped", tier=tier)
+
+
 def main():
     parser = argparse.ArgumentParser(description="OpenClaw Agent Worker")
-    parser.add_argument("--agent-type", default=None, help="Agent type to run (omit for all)")
+    parser.add_argument("--agent-type", default=None, help="Single agent type to run")
     parser.add_argument("--all", action="store_true", help="Run all agents in one process")
+    parser.add_argument(
+        "--tier",
+        choices=["light", "heavy"],
+        default=None,
+        help="Run a tier: 'light' (CEO,PM,Comms + autoscaler) or 'heavy' (Designer,Engineer,QA)",
+    )
     args = parser.parse_args()
 
-    if args.all or args.agent_type is None:
+    if args.tier:
+        asyncio.run(run_tier(args.tier))
+    elif args.all or args.agent_type is None:
         asyncio.run(run_all_workers())
     else:
         asyncio.run(run_worker(args.agent_type))

@@ -54,6 +54,15 @@ class Settings(BaseSettings):
     LEARNING_DAILY_CRON: str = "03:00"
     RELEVANCE_DECAY_HALFLIFE_DAYS: int = 90
 
+    # Railway auto-scaling
+    RAILWAY_API_TOKEN: str = ""
+    RAILWAY_HEAVY_SERVICE_ID: str = ""  # Service ID for heavy workers
+    AUTOSCALE_ENABLED: bool = True
+    AUTOSCALE_MIN_REPLICAS: int = 1
+    AUTOSCALE_MAX_REPLICAS: int = 5
+    AUTOSCALE_QUEUE_THRESHOLD: int = 3  # Pending messages to trigger scale-up
+    AUTOSCALE_POLL_SECONDS: int = 60
+
     model_config = {"env_file": ".env", "extra": "ignore"}
 
 

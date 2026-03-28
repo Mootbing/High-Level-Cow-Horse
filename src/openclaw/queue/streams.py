@@ -17,6 +17,11 @@ AGENT_TYPES = [
     "learning",
 ]
 
+# Tiers for scaling. Light agents are I/O-bound and always run 1 instance.
+# Heavy agents are CPU/API-heavy and scale horizontally based on queue depth.
+LIGHT_AGENTS = ["ceo", "project_manager", "inbound", "outbound", "client_comms", "research", "learning"]
+HEAVY_AGENTS = ["designer", "engineer", "qa"]
+
 
 def stream_name(agent_type: str) -> str:
     return f"stream:agent:{agent_type}"
