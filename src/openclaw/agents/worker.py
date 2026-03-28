@@ -1,0 +1,142 @@
+"""Agent worker process. Run with: python -m openclaw.agents.worker --agent-type ceo"""
+
+from __future__ import annotations
+
+import argparse
+import asyncio
+import signal
+
+import structlog
+import redis.asyncio as redis
+
+from openclaw.config import settings
+from openclaw.queue.consumer import StreamConsumer
+from openclaw.queue.streams import init_streams
+
+logger = structlog.get_logger()
+
+# Agent registry -- maps agent_type to its class
+AGENT_REGISTRY: dict[str, type] = {}
+
+
+def register_agent(agent_type: str):
+    """Decorator to register an agent class."""
+
+    def decorator(cls):
+        AGENT_REGISTRY[agent_type] = cls
+        cls.agent_type = agent_type
+        return cls
+
+    return decorator
+
+
+def _load_agents():
+    """Import all agent modules to trigger registration."""
+    from openclaw.agents import (  # noqa: F401
+        ceo,
+        project_manager,
+        inbound,
+        designer,
+        engineer,
+        qa,
+        outbound,
+        client_comms,
+        research,
+        learning,
+    )
+
+
+async def run_worker(agent_type: str) -> None:
+    """Main worker loop for an agent."""
+    _load_agents()
+
+    if agent_type not in AGENT_REGISTRY:
+        logger.error(
+            "unknown_agent_type",
+            agent_type=agent_type,
+            available=list(AGENT_REGISTRY.keys()),
+        )
+        return
+
+    # Init Redis streams
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    await init_streams(r)
+    await r.aclose()
+
+    agent_cls = AGENT_REGISTRY[agent_type]
+    agent = agent_cls()
+    consumer = StreamConsumer(agent_type)
+    await consumer.connect()
+
+    shutdown = asyncio.Event()
+
+    def handle_signal():
+        logger.info("shutdown_signal", agent=agent_type)
+        shutdown.set()
+
+    loop = asyncio.get_event_loop()
+    for sig in (signal.SIGTERM, signal.SIGINT):
+        loop.add_signal_handler(sig, handle_signal)
+
+    logger.info("worker_started", agent=agent_type, consumer=consumer.consumer_name)
+
+    while not shutdown.is_set():
+        try:
+            messages = await consumer.read(count=1, block_ms=5000)
+
+            if not messages:
+                await consumer.heartbeat()
+                continue
+
+            for entry_id, data in messages:
+                logger.info(
+                    "processing_message", agent=agent_type, entry_id=entry_id
+                )
+                try:
+                    result = await agent.process_task(data)
+                    await consumer.ack(entry_id)
+                    logger.info(
+                        "message_processed", agent=agent_type, entry_id=entry_id
+                    )
+                except Exception as e:
+                    retry_count = data.get("_retry_count", 0)
+                    max_retries = data.get("_max_retries", 3)
+                    if retry_count < max_retries:
+                        data["_retry_count"] = retry_count + 1
+                        from openclaw.queue.producer import publish
+
+                        await publish(agent_type, data)
+                        await consumer.ack(entry_id)
+                        logger.warning(
+                            "message_retried",
+                            agent=agent_type,
+                            retry=retry_count + 1,
+                            error=str(e),
+                        )
+                    else:
+                        await consumer.send_to_deadletter(entry_id, data, str(e))
+                        logger.error(
+                            "message_deadlettered",
+                            agent=agent_type,
+                            error=str(e),
+                        )
+
+                await consumer.heartbeat()
+
+        except Exception as e:
+            logger.error("worker_error", agent=agent_type, error=str(e))
+            await asyncio.sleep(5)
+
+    await consumer.close()
+    logger.info("worker_stopped", agent=agent_type)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="OpenClaw Agent Worker")
+    parser.add_argument("--agent-type", required=True, help="Agent type to run")
+    args = parser.parse_args()
+    asyncio.run(run_worker(args.agent_type))
+
+
+if __name__ == "__main__":
+    main()

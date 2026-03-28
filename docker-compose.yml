@@ -1,0 +1,178 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: openclaw
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openclaw"]
+      interval: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build: .
+    command: uvicorn openclaw.main:app --host 0.0.0.0 --port 8000 --workers 2
+    ports:
+      - "8000:8000"
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-ceo:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type ceo
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-pm:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type project_manager
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-inbound:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type inbound
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-designer:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type designer
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-engineer:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type engineer
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-qa:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type qa
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-outbound:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type outbound
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-comms:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type client_comms
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-research:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type research
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  agent-learning:
+    build: .
+    command: python -m openclaw.agents.worker --agent-type learning
+    env_file: .env
+    volumes:
+      - projectdata:/data/projects
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  projectdata:
