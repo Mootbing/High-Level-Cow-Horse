@@ -10,7 +10,7 @@ import AgentsPage from "./pages/AgentsPage";
 import ProspectsPage from "./pages/ProspectsPage";
 import EmailsPage from "./pages/EmailsPage";
 import KnowledgePage from "./pages/KnowledgePage";
-import LogsPage from "./pages/LogsPage";
+import KanbanPage from "./pages/KanbanPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
@@ -35,7 +35,7 @@ export default function App() {
                 <Route path="/prospects" element={<ProspectsPage />} />
                 <Route path="/emails" element={<EmailsPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
-                <Route path="/logs" element={<LogsPage />} />
+                <Route path="/board" element={<KanbanPage />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

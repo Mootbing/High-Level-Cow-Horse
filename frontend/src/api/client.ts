@@ -91,6 +91,12 @@ export const api = {
       method: "DELETE",
     }),
 
+  kanbanGlobal: () =>
+    apiFetch<import("../types").KanbanBoardResponse>("/dashboard/kanban/global"),
+
+  kanbanProject: (projectId: string) =>
+    apiFetch<import("../types").KanbanBoardResponse>(`/dashboard/kanban/project/${projectId}`),
+
   agentLogs: (agentType?: string, limit = 100) =>
     apiFetch<import("../types").AgentLogEntry[]>(
       `/dashboard/agent-logs?limit=${limit}${agentType ? `&agent_type=${agentType}` : ""}`

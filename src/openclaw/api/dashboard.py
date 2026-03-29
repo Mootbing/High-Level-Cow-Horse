@@ -28,6 +28,9 @@ from openclaw.schemas.dashboard import (
     EmailDraftResponse,
     EmailDraftUpdate,
     EmailLogSummary,
+    KanbanBoardResponse,
+    KanbanColumn,
+    KanbanTaskCard,
     KnowledgeEntrySummary,
     MessageSummary,
     OverviewResponse,
@@ -189,6 +192,76 @@ async def delete_project(
     await session.commit()
 
     return {"status": "deleted", "slug": slug}
+
+
+# --- Kanban Board ---
+
+KANBAN_COLUMNS = [
+    ("pending", "Queued"),
+    ("in_progress", "In Progress"),
+    ("review", "Review"),
+    ("completed", "Done"),
+    ("failed", "Failed"),
+]
+
+
+async def _build_kanban_board(session: AsyncSession, project_id: str | None = None) -> KanbanBoardResponse:
+    base_q = (
+        select(Task, Project.name.label("project_name"))
+        .outerjoin(Project, Task.project_id == Project.id)
+        .order_by(Task.priority.asc(), Task.created_at.desc())
+    )
+    if project_id:
+        base_q = base_q.where(Task.project_id == project_id)
+
+    result = await session.execute(base_q)
+    rows = result.all()
+
+    columns = []
+    total = 0
+    for status, label in KANBAN_COLUMNS:
+        cards = []
+        for row in rows:
+            task = row.Task
+            if task.status != status:
+                continue
+            delegated_by = task.input_data.get("source_agent") if task.input_data else None
+            cards.append(KanbanTaskCard(
+                id=task.id,
+                project_id=task.project_id,
+                project_name=row.project_name,
+                agent_type=task.agent_type,
+                title=task.title,
+                status=task.status,
+                priority=task.priority,
+                delegated_by=delegated_by,
+                started_at=task.started_at,
+                completed_at=task.completed_at,
+                created_at=task.created_at,
+                error=task.error,
+                latest_log_id=None,
+            ))
+        total += len(cards)
+        columns.append(KanbanColumn(status=status, label=label, cards=cards, count=len(cards)))
+
+    return KanbanBoardResponse(columns=columns, total_tasks=total)
+
+
+@router.get("/kanban/global", response_model=KanbanBoardResponse)
+async def kanban_global(
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    return await _build_kanban_board(session)
+
+
+@router.get("/kanban/project/{project_id}", response_model=KanbanBoardResponse)
+async def kanban_project(
+    project_id: str,
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    return await _build_kanban_board(session, project_id=project_id)
 
 
 # --- Agents Status ---

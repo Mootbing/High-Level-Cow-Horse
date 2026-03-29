@@ -150,6 +150,38 @@ class KnowledgeEntrySummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- Kanban Board ---
+
+class KanbanTaskCard(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID | None
+    project_name: str | None
+    agent_type: str
+    title: str
+    status: str
+    priority: int
+    delegated_by: str | None
+    started_at: datetime.datetime | None
+    completed_at: datetime.datetime | None
+    created_at: datetime.datetime | None
+    error: str | None
+    latest_log_id: uuid.UUID | None
+
+    model_config = {"from_attributes": True}
+
+
+class KanbanColumn(BaseModel):
+    status: str
+    label: str
+    cards: list[KanbanTaskCard]
+    count: int
+
+
+class KanbanBoardResponse(BaseModel):
+    columns: list[KanbanColumn]
+    total_tasks: int
+
+
 # --- Agent Logs ---
 
 class AgentLogSummary(BaseModel):

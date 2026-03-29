@@ -10,7 +10,7 @@ import {
   Search,
   Mail,
   BookOpen,
-  ScrollText,
+  Columns3,
   LogOut,
 } from "lucide-react";
 
@@ -22,7 +22,7 @@ const NAV = [
   { to: "/prospects", label: "Prospects", icon: Search },
   { to: "/emails", label: "Emails", icon: Mail },
   { to: "/knowledge", label: "Knowledge", icon: BookOpen },
-  { to: "/logs", label: "Logs", icon: ScrollText },
+  { to: "/board", label: "Board", icon: Columns3 },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

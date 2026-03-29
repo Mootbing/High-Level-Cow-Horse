@@ -88,6 +88,34 @@ export interface KnowledgeEntry {
   created_at: string | null;
 }
 
+export interface KanbanTaskCard {
+  id: string;
+  project_id: string | null;
+  project_name: string | null;
+  agent_type: string;
+  title: string;
+  status: string;
+  priority: number;
+  delegated_by: string | null;
+  started_at: string | null;
+  completed_at: string | null;
+  created_at: string | null;
+  error: string | null;
+  latest_log_id: string | null;
+}
+
+export interface KanbanColumn {
+  status: string;
+  label: string;
+  cards: KanbanTaskCard[];
+  count: number;
+}
+
+export interface KanbanBoardResponse {
+  columns: KanbanColumn[];
+  total_tasks: number;
+}
+
 export interface AgentLogEntry {
   id: string;
   agent_type: string;
