@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import type { AgentLogEntry, AgentsStatusResponse, AgentStatus } from "../types";
-import { cn } from "@/lib/utils";
+import { cn, parseUTC } from "@/lib/utils";
 import { X } from "lucide-react";
 
 // --- Org hierarchy ---
@@ -388,7 +388,7 @@ export default function AgentsPage() {
                       </span>
                       {log.created_at && (
                         <span className="text-muted-foreground/50">
-                          {new Date(log.created_at).toLocaleTimeString()}
+                          {parseUTC(log.created_at)?.toLocaleTimeString()}
                         </span>
                       )}
                     </div>

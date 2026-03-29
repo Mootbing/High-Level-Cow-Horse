@@ -64,9 +64,21 @@ class ResearchAgent(BaseAgent):
     agent_type = "research"
     system_prompt = RESEARCH_SYSTEM_PROMPT
     tools = [SCRAPE_TOOL, STORE_KNOWLEDGE_TOOL]
+    max_turns = 5  # Limit research agent turns to conserve Firecrawl credits
+    _scrape_count = 0  # Track scrapes per task
+    MAX_SCRAPES_PER_TASK = 3  # Hard cap on Firecrawl calls per research task
+
+    async def process_task(self, message: dict) -> dict:
+        self._scrape_count = 0  # Reset per task
+        return await super().process_task(message)
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "research_scrape":
+            self._scrape_count += 1
+            if self._scrape_count > self.MAX_SCRAPES_PER_TASK:
+                self.log.warning("scrape_limit_reached", count=self._scrape_count, url=tool_input["url"])
+                return {"error": "Scrape limit reached for this task (max 3). Store what you have."}
+
             from openclaw.integrations.firecrawl_client import firecrawl_client
             result = await firecrawl_client.scrape(tool_input["url"])
             return result

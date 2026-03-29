@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
+import { parseUTC } from "@/lib/utils";
 import type { ProspectSummary } from "../types";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
@@ -176,7 +177,7 @@ function SiteCard({ group }: { group: SiteGroup }) {
                 </a>
                 {sp.scraped_at && (
                   <span className="text-xs text-muted-foreground">
-                    {new Date(sp.scraped_at).toLocaleDateString()}
+                    {parseUTC(sp.scraped_at)?.toLocaleDateString()}
                   </span>
                 )}
               </div>

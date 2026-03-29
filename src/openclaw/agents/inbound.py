@@ -13,9 +13,12 @@ INBOUND_SYSTEM_PROMPT = """You are the Inbound Research Agent of Clarmi Design S
 Your job is to deeply research prospect websites and extract EVERYTHING needed to rebuild them better.
 
 WORKFLOW:
-1. Use firecrawl_crawl to crawl the ENTIRE site (all subpages, up to 20 pages)
-2. Use firecrawl_extract to get structured branding data
-3. Use store_prospect to save all data
+1. Use firecrawl_crawl to crawl the site (up to 5 pages max)
+2. Analyze the crawled content yourself to extract branding data (colors, fonts, emails, etc.)
+3. Use store_prospect to save all extracted data
+
+IMPORTANT: Do NOT use firecrawl_scrape or firecrawl_extract — the crawl already captures all content.
+Only use ONE firecrawl_crawl call per prospect. Extract branding data from the crawled markdown yourself.
 
 WHAT TO EXTRACT:
 - Company name, tagline, mission statement
@@ -41,7 +44,7 @@ Store all raw page content in the prospect's raw_data field.
 
 FIRECRAWL_CRAWL_TOOL = {
     "name": "firecrawl_crawl",
-    "description": "Crawl an ENTIRE website including all subpages. Returns content from up to 20 pages. Use this instead of firecrawl_scrape to get the full site.",
+    "description": "Crawl a website including subpages. Returns content from up to 5 pages. This is the ONLY Firecrawl tool you should use.",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -102,7 +105,7 @@ STORE_PROSPECT_TOOL = {
 class InboundAgent(BaseAgent):
     agent_type = "inbound"
     system_prompt = INBOUND_SYSTEM_PROMPT
-    tools = [FIRECRAWL_CRAWL_TOOL, FIRECRAWL_SCRAPE_TOOL, FIRECRAWL_EXTRACT_TOOL, STORE_PROSPECT_TOOL]
+    tools = [FIRECRAWL_CRAWL_TOOL, STORE_PROSPECT_TOOL]
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "firecrawl_crawl":
@@ -110,6 +113,33 @@ class InboundAgent(BaseAgent):
             from openclaw.db.session import async_session_factory
             from openclaw.models.prospect import Prospect
             from sqlalchemy import select
+            from datetime import datetime, timedelta, timezone
+
+            # Check if we already have recent crawl data (< 24h old) to avoid re-crawling
+            async with async_session_factory() as session:
+                existing = await session.execute(
+                    select(Prospect).where(Prospect.url == tool_input["url"])
+                )
+                prospect = existing.scalar_one_or_none()
+                if prospect and prospect.raw_data and prospect.raw_data.get("pages"):
+                    crawled_at = prospect.raw_data.get("crawled_at")
+                    if crawled_at:
+                        crawl_time = datetime.fromisoformat(crawled_at)
+                        if datetime.now(timezone.utc) - crawl_time < timedelta(hours=24):
+                            self.log.info("crawl_skipped_cached", url=tool_input["url"])
+                            return {
+                                "success": True,
+                                "url": tool_input["url"],
+                                "pages_crawled": prospect.raw_data.get("pages_crawled", 0),
+                                "content_preview": "\n\n".join([
+                                    f"### {p['title']}\n{p['markdown'][:2000]}"
+                                    for p in prospect.raw_data.get("pages", [])[:5]
+                                ]),
+                                "images_found": len(prospect.raw_data.get("images", [])),
+                                "image_urls": prospect.raw_data.get("images", [])[:15],
+                                "stored_in_database": True,
+                                "note": "Using cached crawl data (less than 24h old). No Firecrawl credits used.",
+                            }
 
             max_pages = min(tool_input.get("max_pages", 5), 5)  # Cap at 5 to conserve Firecrawl credits
             result = await firecrawl_client.crawl(tool_input["url"], max_pages=max_pages)
@@ -167,6 +197,7 @@ class InboundAgent(BaseAgent):
                     "images": all_images,
                     "links": all_links,
                     "pages_crawled": len(pages),
+                    "crawled_at": datetime.now(timezone.utc).isoformat(),
                 }
                 if prospect:
                     prospect.raw_data = crawl_data
@@ -193,80 +224,6 @@ class InboundAgent(BaseAgent):
                 "stored_in_database": True,
                 "note": f"Full content ({total_chars:,} chars across {len(pages)} pages) stored in database.",
             }
-
-        elif tool_name == "firecrawl_scrape":
-            from openclaw.integrations.firecrawl_client import firecrawl_client
-            from openclaw.db.session import async_session_factory
-            from openclaw.models.prospect import Prospect
-            from sqlalchemy import select
-
-            result = await firecrawl_client.scrape(tool_input["url"])
-            data = result.get("data", {})
-
-            full_markdown = str(data.get("markdown", ""))
-            full_html = str(data.get("html", ""))
-            total_size = len(full_markdown) + len(full_html)
-
-            # Extract images
-            import re
-            images = re.findall(r'!\[.*?\]\((https?://[^\)]+)\)', full_markdown)
-            images += re.findall(r'src=["\']?(https?://[^"\'>\s]+)', full_html)
-            images = list(set(images))[:30]
-
-            async with async_session_factory() as session:
-                existing = await session.execute(
-                    select(Prospect).where(Prospect.url == tool_input["url"])
-                )
-                prospect = existing.scalar_one_or_none()
-                scrape_data = {
-                    "markdown": full_markdown,
-                    "html": full_html,
-                    "metadata": data.get("metadata", {}),
-                    "images": images,
-                }
-                if prospect:
-                    prospect.raw_data = {**prospect.raw_data, **scrape_data}
-                else:
-                    prospect = Prospect(url=tool_input["url"], raw_data=scrape_data)
-                    session.add(prospect)
-                await session.commit()
-
-            self.log.info("scrape_stored", url=tool_input["url"], total_chars=total_size, images=len(images))
-
-            metadata = data.get("metadata", {})
-            return {
-                "success": True,
-                "url": tool_input["url"],
-                "title": metadata.get("title", ""),
-                "description": metadata.get("description", ""),
-                "total_content_length": total_size,
-                "images_found": len(images),
-                "image_urls": images[:10],
-                "content_preview": full_markdown[:8000],
-                "stored_in_database": True,
-            }
-
-        elif tool_name == "firecrawl_extract":
-            from openclaw.integrations.firecrawl_client import firecrawl_client
-            schema = {
-                "type": "object",
-                "properties": {
-                    "company_name": {"type": "string"},
-                    "tagline": {"type": "string"},
-                    "contact_emails": {"type": "array", "items": {"type": "string"}},
-                    "brand_colors": {"type": "array", "items": {"type": "string"}},
-                    "fonts": {"type": "array", "items": {"type": "string"}},
-                    "logo_url": {"type": "string"},
-                    "social_links": {"type": "object"},
-                    "industry": {"type": "string"},
-                    "tech_stack": {"type": "array", "items": {"type": "string"}},
-                },
-            }
-            result = await firecrawl_client.extract(
-                [tool_input["url"]], schema,
-                prompt="Extract company branding information including colors, fonts, emails, and tech stack."
-            )
-            return result
 
         elif tool_name == "store_prospect":
             from openclaw.db.session import async_session_factory

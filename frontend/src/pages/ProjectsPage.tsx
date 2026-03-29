@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { parseUTC } from "@/lib/utils";
 import type { ProjectSummary, KanbanBoardResponse } from "../types";
 import StatusBadge from "../components/StatusBadge";
 import { Card } from "../components/ui/card";
@@ -84,7 +85,7 @@ export default function ProjectsPage() {
                     </a>
                   )}
                   {p.created_at && (
-                    <span>{new Date(p.created_at).toLocaleDateString()}</span>
+                    <span>{parseUTC(p.created_at)?.toLocaleDateString()}</span>
                   )}
                 </div>
               </Card>

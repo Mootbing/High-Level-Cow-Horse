@@ -7,6 +7,7 @@ import type {
   AgentLogEntry,
   AgentsStatusResponse,
 } from "../types";
+import { parseUTC } from "@/lib/utils";
 import StatusBadge from "../components/StatusBadge";
 import KanbanBoard from "../components/KanbanBoard";
 import { Button } from "../components/ui/button";
@@ -48,7 +49,8 @@ function timeAgo(dateStr: string | null): string {
 
 function formatTime(dateStr: string | null): string {
   if (!dateStr) return "";
-  const d = new Date(dateStr);
+  const d = parseUTC(dateStr);
+  if (!d) return "";
   return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 }
 

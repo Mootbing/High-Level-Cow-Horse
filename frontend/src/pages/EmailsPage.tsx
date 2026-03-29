@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { api } from "../api/client";
+import { parseUTC } from "@/lib/utils";
 import type { EmailLogSummary } from "../types";
 import StatusBadge from "../components/StatusBadge";
 import { Card } from "../components/ui/card";
@@ -158,7 +159,7 @@ export default function EmailsPage() {
                       </div>
                       <span className="text-muted-foreground text-xs">
                         {draft.created_at
-                          ? new Date(draft.created_at).toLocaleString()
+                          ? parseUTC(draft.created_at)?.toLocaleString()
                           : ""}
                       </span>
                     </div>
@@ -283,7 +284,7 @@ export default function EmailsPage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {e.sent_at
-                          ? new Date(e.sent_at).toLocaleString()
+                          ? parseUTC(e.sent_at)?.toLocaleString()
                           : "-"}
                       </TableCell>
                     </TableRow>

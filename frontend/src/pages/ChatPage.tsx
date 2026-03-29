@@ -4,7 +4,7 @@ import { api } from "../api/client";
 import type { ChatMessage } from "../types";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, parseUTC } from "@/lib/utils";
 import { Send } from "lucide-react";
 
 /**
@@ -211,7 +211,7 @@ export default function ChatPage() {
               )}
               <p className="text-[10px] text-muted-foreground mt-1 px-1">
                 {msg.created_at
-                  ? new Date(msg.created_at).toLocaleTimeString()
+                  ? parseUTC(msg.created_at)?.toLocaleTimeString()
                   : ""}
               </p>
             </div>
