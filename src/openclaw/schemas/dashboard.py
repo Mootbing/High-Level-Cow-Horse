@@ -150,6 +150,21 @@ class KnowledgeEntrySummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# --- Agent Logs ---
+
+class AgentLogSummary(BaseModel):
+    id: uuid.UUID
+    agent_type: str
+    role: str
+    content: str
+    token_count: int | None
+    project_id: uuid.UUID | None
+    task_id: uuid.UUID | None
+    created_at: datetime.datetime | None
+
+    model_config = {"from_attributes": True}
+
+
 # --- Messages (chat history) ---
 
 class MessageSummary(BaseModel):

@@ -13,6 +13,7 @@ from sqlalchemy.orm import selectinload
 from openclaw.api.auth import verify_dashboard_token
 from openclaw.config import settings
 from openclaw.db.session import get_session
+from openclaw.models.agent_log import AgentLog
 from openclaw.models.email_log import EmailLog
 from openclaw.models.knowledge import KnowledgeBase
 from openclaw.models.message import Message
@@ -21,6 +22,7 @@ from openclaw.models.prospect import Prospect
 from openclaw.models.task import Task
 from openclaw.queue.streams import AGENT_TYPES, LIGHT_AGENTS, HEAVY_AGENTS, stream_name, group_name
 from openclaw.schemas.dashboard import (
+    AgentLogSummary,
     AgentsStatusResponse,
     AgentStatus,
     EmailDraftResponse,
@@ -334,6 +336,23 @@ async def list_knowledge(
         q = q.where(KnowledgeBase.category == category)
     result = await session.execute(q)
     return [KnowledgeEntrySummary.model_validate(k) for k in result.scalars().all()]
+
+
+# --- Agent Logs ---
+
+@router.get("/agent-logs", response_model=list[AgentLogSummary])
+async def list_agent_logs(
+    agent_type: str | None = None,
+    limit: int = Query(100, le=500),
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """List agent logs, optionally filtered by agent type."""
+    q = select(AgentLog).order_by(AgentLog.created_at.desc()).limit(limit)
+    if agent_type:
+        q = q.where(AgentLog.agent_type == agent_type)
+    result = await session.execute(q)
+    return [AgentLogSummary.model_validate(a) for a in result.scalars().all()]
 
 
 # --- Chat History ---

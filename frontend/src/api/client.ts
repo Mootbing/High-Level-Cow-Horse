@@ -86,6 +86,11 @@ export const api = {
       method: "DELETE",
     }),
 
+  agentLogs: (agentType?: string, limit = 100) =>
+    apiFetch<import("../types").AgentLogEntry[]>(
+      `/dashboard/agent-logs?limit=${limit}${agentType ? `&agent_type=${agentType}` : ""}`
+    ),
+
   knowledge: (category?: string) =>
     apiFetch<import("../types").KnowledgeEntry[]>(
       `/dashboard/knowledge${category ? `?category=${category}` : ""}`

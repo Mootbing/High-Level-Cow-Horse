@@ -88,6 +88,17 @@ export interface KnowledgeEntry {
   created_at: string | null;
 }
 
+export interface AgentLogEntry {
+  id: string;
+  agent_type: string;
+  role: string;
+  content: string;
+  token_count: number | null;
+  project_id: string | null;
+  task_id: string | null;
+  created_at: string | null;
+}
+
 export interface ChatMessage {
   id: string;
   direction: string;
