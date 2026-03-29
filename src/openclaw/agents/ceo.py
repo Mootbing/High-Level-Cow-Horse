@@ -116,15 +116,10 @@ class CEOAgent(BaseAgent):
                 f"The {source} agent has completed a task and is reporting results back to you.\n"
                 f"Original task: {original}\n\n"
                 f"Result:\n{result_text[:4000]}\n\n"
-                f"Based on this result, decide what to do next:\n"
-                f"1. If this was a scraping/research task and the owner asked for a full project (website build), "
-                f"delegate to project_manager with the brand data to plan and execute the build.\n"
-                f"2. If this was a project_manager reporting the plan is done, update the owner.\n"
-                f"3. If the owner only asked for research, just summarize and send to owner.\n"
-                f"4. Always send a brief status update to the owner via whatsapp_send with to='owner'.\n"
-                f"5. If an email draft was requested and the outbound agent reports back, let the owner know a draft is ready for review.\n\n"
-                f"Use delegate_task to continue the pipeline if more work is needed. "
-                f"Use whatsapp_send to update the owner."
+                f"IMPORTANT: This task is ALREADY COMPLETE. Do NOT re-delegate it.\n"
+                f"Just summarize the result and send a status update to the owner via whatsapp_send with to='owner'.\n"
+                f"Only delegate NEW follow-up work if the result explicitly requires it (e.g., QA failed and needs a fix).\n"
+                f"If an email draft was saved, tell the owner it's ready for review in the dashboard."
             )
         else:
             payload = message.get("payload", {})

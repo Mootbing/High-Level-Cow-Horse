@@ -59,6 +59,16 @@ CODE QUALITY:
 - Mobile-first responsive
 - Proper semantic HTML and accessibility
 - Clean, modular components
+
+CRITICAL RULE — ALWAYS DEPLOY:
+You MUST call commit_and_deploy before your turn budget runs out.
+Do NOT spend all turns on generate_code. Prioritize:
+1. scaffold_nextjs (1 turn)
+2. generate_code for the MOST IMPORTANT components (max 8 turns)
+3. commit_and_deploy (1 turn) — THIS IS MANDATORY
+4. get_deploy_url (1 turn)
+If you have limited turns left, STOP generating code and deploy what you have.
+A deployed site with 5 sections is better than an undeployed site with 15 sections.
 """
 
 SCAFFOLD_TOOL = {
@@ -118,6 +128,7 @@ GET_DEPLOY_URL_TOOL = {
 class EngineerAgent(BaseAgent):
     agent_type = "engineer"
     system_prompt = ENGINEER_SYSTEM_PROMPT
+    max_turns = 50  # Needs many turns: scaffold + N sections + commit + deploy
     tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL]
 
     def _project_dir(self, project_name: str) -> str:
@@ -137,24 +148,24 @@ class EngineerAgent(BaseAgent):
                 os.makedirs(project_dir, exist_ok=True)
 
             # 2. Create GitHub repo
-            from openclaw.integrations.github_client import create_repo, get_authenticated_user, push_directory
+            from openclaw.integrations.github_client import create_repo, push_directory
             repo_data = await create_repo(
                 name=project_name,
                 description=tool_input.get("description", f"Website for {project_name} — built by OpenClaw"),
             )
             repo_full_name = repo_data["full_name"]
 
-            # 3. Push initial scaffold
+            # 3. Create Vercel project linked to GitHub BEFORE push
+            from openclaw.integrations.vercel_client import create_project_from_github
+            vercel_project = await create_project_from_github(project_name, repo_full_name)
+            vercel_linked = bool(vercel_project.get("link"))
+
+            # 4. Push initial scaffold (Vercel webhook is now active)
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
                 commit_message="Initial scaffold: Next.js 15 + GSAP + Lenis + Tailwind",
             )
-
-            # 4. Create Vercel project linked to GitHub (auto-deploys on push)
-            from openclaw.integrations.vercel_client import create_project_from_github
-            vercel_project = await create_project_from_github(project_name, repo_full_name)
-            vercel_linked = bool(vercel_project.get("link"))
 
             return {
                 "status": "scaffolded",
@@ -164,7 +175,6 @@ class EngineerAgent(BaseAgent):
                 "vercel_project": vercel_project.get("name"),
                 "vercel_auto_deploy": vercel_linked,
                 "commit": push_result.get("commit_sha", "")[:8],
-                "note": "Vercel auto-deploys on every GitHub push" if vercel_linked else "Vercel created but not linked to GitHub",
             }
 
         elif tool_name == "generate_code":

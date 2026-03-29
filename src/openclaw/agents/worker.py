@@ -55,6 +55,16 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                     "processing_message", agent=agent_type, entry_id=entry_id
                 )
                 try:
+                    # Dedup: skip if this task_id was already processed
+                    task_id = data.get("task_id")
+                    if task_id:
+                        dedup_key = f"openclaw:dedup:{agent_type}:{task_id}"
+                        is_new = await consumer.redis.set(dedup_key, "1", nx=True, ex=3600)
+                        if not is_new:
+                            logger.info("duplicate_task_skipped", agent=agent_type, task_id=task_id)
+                            await consumer.ack(entry_id)
+                            continue
+
                     result = await agent.process_task(data)
                     await consumer.ack(entry_id)
                     logger.info(

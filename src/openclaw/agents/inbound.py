@@ -163,21 +163,41 @@ class InboundAgent(BaseAgent):
         elif tool_name == "store_prospect":
             from openclaw.db.session import async_session_factory
             from openclaw.models.prospect import Prospect
+            from sqlalchemy import select
             async with async_session_factory() as session:
-                prospect = Prospect(
-                    url=tool_input["url"],
-                    company_name=tool_input.get("company_name"),
-                    tagline=tool_input.get("tagline"),
-                    contact_emails=tool_input.get("contact_emails", []),
-                    brand_colors=tool_input.get("brand_colors", []),
-                    fonts=tool_input.get("fonts", []),
-                    logo_url=tool_input.get("logo_url"),
-                    social_links=tool_input.get("social_links", {}),
-                    industry=tool_input.get("industry"),
-                    tech_stack=tool_input.get("tech_stack", []),
-                    raw_data=tool_input,
+                # Upsert: update existing or create new
+                existing = await session.execute(
+                    select(Prospect).where(Prospect.url == tool_input["url"])
                 )
-                session.add(prospect)
+                prospect = existing.scalar_one_or_none()
+                if prospect:
+                    # Update existing
+                    for field in ["company_name", "tagline", "logo_url", "industry"]:
+                        if tool_input.get(field):
+                            setattr(prospect, field, tool_input[field])
+                    for field in ["contact_emails", "brand_colors", "fonts", "tech_stack"]:
+                        if tool_input.get(field):
+                            setattr(prospect, field, tool_input[field])
+                    if tool_input.get("social_links"):
+                        prospect.social_links = tool_input["social_links"]
+                    prospect.raw_data = {**prospect.raw_data, **tool_input}
+                    status = "updated"
+                else:
+                    prospect = Prospect(
+                        url=tool_input["url"],
+                        company_name=tool_input.get("company_name"),
+                        tagline=tool_input.get("tagline"),
+                        contact_emails=tool_input.get("contact_emails", []),
+                        brand_colors=tool_input.get("brand_colors", []),
+                        fonts=tool_input.get("fonts", []),
+                        logo_url=tool_input.get("logo_url"),
+                        social_links=tool_input.get("social_links", {}),
+                        industry=tool_input.get("industry"),
+                        tech_stack=tool_input.get("tech_stack", []),
+                        raw_data=tool_input,
+                    )
+                    session.add(prospect)
+                    status = "stored"
                 await session.commit()
-                return {"status": "stored", "url": tool_input["url"]}
+                return {"status": status, "url": tool_input["url"]}
         return await super().handle_tool_call(tool_name, tool_input)

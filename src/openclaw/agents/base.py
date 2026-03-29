@@ -20,6 +20,7 @@ class BaseAgent:
     system_prompt: str = "You are a helpful assistant."
     model: str = ""
     max_context_messages: int = 50
+    max_turns: int = 10  # Safety limit; subclasses can override
     tools: list[dict] = []
 
     def __init__(self):
@@ -54,10 +55,9 @@ class BaseAgent:
 
         await self._persist_log("user", prompt)
 
-        max_turns = 10  # Safety limit
         final_text_parts = []
 
-        for turn in range(max_turns):
+        for turn in range(self.max_turns):
             self.log.info(
                 "claude_api_call",
                 model=self.model,
@@ -168,6 +168,11 @@ class BaseAgent:
         task_id: str | None = None,
     ) -> str:
         """Delegate a task to another agent via Redis Streams."""
+        import hashlib
+        if not task_id:
+            dedup_input = f"{self.agent_type}:{target_agent}:{payload.get('prompt', '')[:200]}"
+            task_id = hashlib.sha256(dedup_input.encode()).hexdigest()[:16]
+
         message = AgentMessage(
             type="task",
             source_agent=self.agent_type,
