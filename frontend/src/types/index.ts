@@ -45,6 +45,7 @@ export interface AgentStatus {
   status: string;
   queue_depth: number;
   last_heartbeat: string | null;
+  current_task: string | null;
 }
 
 export interface AgentsStatusResponse {

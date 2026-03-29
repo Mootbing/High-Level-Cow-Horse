@@ -268,9 +268,22 @@ async def kanban_project(
 
 @router.get("/agents/status", response_model=AgentsStatusResponse)
 async def agents_status(
+    session: AsyncSession = Depends(get_session),
     _: str = Depends(verify_dashboard_token),
 ):
     r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+
+    # Fetch current in-progress tasks per agent type
+    result = await session.execute(
+        select(Task.agent_type, Task.title)
+        .where(Task.status == "in_progress")
+        .order_by(Task.started_at.desc())
+    )
+    current_tasks: dict[str, str] = {}
+    for row in result.all():
+        if row.agent_type not in current_tasks:
+            current_tasks[row.agent_type] = row.title
+
     agents = []
     total_pending = 0
 
@@ -300,6 +313,7 @@ async def agents_status(
             status=status,
             queue_depth=depth,
             last_heartbeat=last_hb,
+            current_task=current_tasks.get(agent_type),
         ))
 
     await r.aclose()

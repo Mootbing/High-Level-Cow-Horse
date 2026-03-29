@@ -76,6 +76,7 @@ class AgentStatus(BaseModel):
     status: str  # "alive" or "dead"
     queue_depth: int
     last_heartbeat: str | None
+    current_task: str | None = None  # title of in_progress task, if any
 
 
 class AgentsStatusResponse(BaseModel):
