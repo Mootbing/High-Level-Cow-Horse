@@ -23,7 +23,7 @@ def _load_agents():
     import importlib
     agent_modules = [
         "ceo", "project_manager", "inbound", "designer", "engineer",
-        "qa", "outbound", "client_comms", "research", "learning",
+        "qa", "reviewer", "outbound", "client_comms", "research", "learning",
     ]
     for mod_name in agent_modules:
         try:
@@ -95,6 +95,32 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                             )
                         except Exception as re:
                             logger.error("auto_report_failed", agent=agent_type, error=str(re))
+
+                    # Send to reviewer for validation (skip reviewer reviewing itself)
+                    if agent_type not in ("reviewer", "ceo", "learning", "research"):
+                        try:
+                            result_preview = ""
+                            if isinstance(result, dict):
+                                result_preview = str(result)[:2000]
+                            else:
+                                result_preview = str(result)[:2000]
+                            await _publish("reviewer", {
+                                "type": "task",
+                                "source_agent": agent_type,
+                                "target_agent": "reviewer",
+                                "payload": {
+                                    "prompt": (
+                                        f"Review the output of the {agent_type} agent.\n"
+                                        f"Original task: {data.get('payload', {}).get('prompt', '')[:300]}\n\n"
+                                        f"Result:\n{result_preview}\n\n"
+                                        f"Verify this step completed correctly. Use verify_url or verify_file tools if needed."
+                                    ),
+                                    "source": agent_type,
+                                },
+                            })
+                            logger.info("sent_to_reviewer", agent=agent_type)
+                        except Exception as re:
+                            logger.warning("reviewer_send_failed", error=str(re))
 
                     # Publish event for dashboard
                     try:

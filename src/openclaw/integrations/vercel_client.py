@@ -142,45 +142,60 @@ async def delete_project(project_name: str) -> bool:
 async def deploy_directory(project_name: str, local_dir: str) -> dict:
     """Deploy a local directory to Vercel by uploading files directly.
 
-    This bypasses the GitHub integration entirely — no login connection needed.
+    Uses Vercel's two-step process: upload files first, then create deployment.
+    This bypasses the GitHub integration entirely.
     """
     import os
-    import base64
     import hashlib
 
-    # Collect all files
-    files = []
     skip_dirs = {"node_modules", ".next", ".git", "__pycache__", ".vercel"}
-    for root, dirs, filenames in os.walk(local_dir):
-        dirs[:] = [d for d in dirs if d not in skip_dirs]
-        for fname in filenames:
-            fpath = os.path.join(root, fname)
-            rel_path = os.path.relpath(fpath, local_dir)
-            with open(fpath, "rb") as f:
-                content = f.read()
-            # Vercel wants sha1 hash and base64 content
-            sha = hashlib.sha1(content).hexdigest()
-            files.append({
-                "file": rel_path,
-                "sha": sha,
-                "size": len(content),
-                "data": base64.b64encode(content).decode(),
-            })
-
-    if not files:
-        return {"error": "No files to deploy"}
-
-    # Ensure project exists
-    await create_project_from_github(project_name, "", "nextjs")
-
-    payload = {
-        "name": project_name,
-        "files": [{"file": f["file"], "data": f["data"]} for f in files],
-        "projectSettings": {"framework": "nextjs"},
-        "target": "production",
-    }
+    file_entries = []
 
     async with httpx.AsyncClient(timeout=300) as client:
+        # Step 1: Upload each file to Vercel's file API
+        for root, dirs, filenames in os.walk(local_dir):
+            dirs[:] = [d for d in dirs if d not in skip_dirs]
+            for fname in filenames:
+                fpath = os.path.join(root, fname)
+                rel_path = os.path.relpath(fpath, local_dir)
+                with open(fpath, "rb") as f:
+                    content = f.read()
+
+                sha = hashlib.sha1(content).hexdigest()
+
+                # Upload file blob
+                upload_resp = await client.post(
+                    f"{VERCEL_API}/v2/files",
+                    content=content,
+                    headers={
+                        **_headers(),
+                        "Content-Type": "application/octet-stream",
+                        "x-vercel-digest": sha,
+                    },
+                    params=_params(),
+                )
+                # 200 = uploaded, 409 = already exists (both are fine)
+                if upload_resp.status_code not in (200, 409):
+                    logger.warning("vercel_file_upload_failed", file=rel_path, status=upload_resp.status_code)
+                    continue
+
+                file_entries.append({
+                    "file": rel_path,
+                    "sha": sha,
+                    "size": len(content),
+                })
+
+        if not file_entries:
+            return {"error": "No files to deploy"}
+
+        # Step 2: Create deployment referencing uploaded files
+        payload = {
+            "name": project_name,
+            "files": file_entries,
+            "projectSettings": {"framework": "nextjs"},
+            "target": "production",
+        }
+
         resp = await client.post(
             f"{VERCEL_API}/v13/deployments",
             json=payload,
@@ -188,14 +203,15 @@ async def deploy_directory(project_name: str, local_dir: str) -> dict:
             params=_params(),
         )
         if resp.status_code not in (200, 201):
-            logger.error("vercel_deploy_failed", status=resp.status_code, body=resp.text[:300])
+            logger.error("vercel_deploy_failed", status=resp.status_code, body=resp.text[:500])
             resp.raise_for_status()
+
         data = resp.json()
         url = data.get("url", "")
-        logger.info("vercel_deployed", url=url, id=data.get("id"), files=len(files))
+        logger.info("vercel_deployed", url=url, id=data.get("id"), files=len(file_entries))
         return {
             "url": f"https://{url}" if url else "",
             "id": data.get("id"),
             "readyState": data.get("readyState"),
-            "files_deployed": len(files),
+            "files_deployed": len(file_entries),
         }
