@@ -90,9 +90,9 @@ class CEOAgent(BaseAgent):
         self._reply_channel = "whatsapp"
 
     async def process_task(self, message: dict) -> dict:
-        """Process incoming messages from WhatsApp or Dashboard."""
+        """Process incoming messages from WhatsApp, Dashboard, or agent results."""
         msg_type = message.get("type", "")
-        self._reply_channel = message.get("reply_channel", "whatsapp")
+        self._reply_channel = message.get("reply_channel", "dashboard")
 
         if msg_type == "dashboard_message":
             prompt = (
@@ -100,10 +100,24 @@ class CEOAgent(BaseAgent):
                 f"Message: {message.get('content')}"
             )
         elif msg_type == "whatsapp_message":
+            self._reply_channel = "whatsapp"
             prompt = (
                 f"Owner sent a WhatsApp message:\n"
                 f"Phone: {message.get('phone')}\n"
                 f"Message: {message.get('content')}"
+            )
+        elif msg_type == "result":
+            # Another agent completed a task and is reporting back
+            source = message.get("source_agent", "unknown")
+            payload = message.get("payload", {})
+            result_text = payload.get("result", "")
+            original = payload.get("original_prompt", "")
+            prompt = (
+                f"The {source} agent has completed a task and is reporting results back to you.\n"
+                f"Original task: {original}\n\n"
+                f"Result:\n{result_text[:4000]}\n\n"
+                f"Summarize these results concisely and send the summary to the owner using whatsapp_send with to='owner'. "
+                f"Be specific about what was found."
             )
         else:
             payload = message.get("payload", {})

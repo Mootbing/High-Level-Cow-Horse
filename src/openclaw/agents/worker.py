@@ -60,6 +60,42 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                     logger.info(
                         "message_processed", agent=agent_type, entry_id=entry_id
                     )
+
+                    # Auto-report results back to the source agent
+                    source = data.get("source_agent")
+                    msg_type = data.get("type", "")
+                    logger.info("auto_report_check", agent=agent_type, source=source, msg_type=msg_type)
+                    if source and source != agent_type and msg_type == "task":
+                        try:
+                            from openclaw.queue.producer import publish as _publish
+                            # Truncate result to prevent huge messages
+                            result_str = ""
+                            if isinstance(result, dict):
+                                result_str = result.get("result", str(result))
+                            else:
+                                result_str = str(result)
+                            result_str = result_str[:3000]  # Cap at 3KB
+
+                            await _publish(source, {
+                                "type": "result",
+                                "source_agent": agent_type,
+                                "target_agent": source,
+                                "project_id": data.get("project_id"),
+                                "task_id": data.get("task_id"),
+                                "payload": {
+                                    "result": result_str,
+                                    "original_prompt": data.get("payload", {}).get("prompt", "")[:200],
+                                },
+                            })
+                            logger.info(
+                                "auto_reported_result",
+                                agent=agent_type,
+                                target=source,
+                                result_len=len(result_str),
+                            )
+                        except Exception as re:
+                            logger.error("auto_report_failed", agent=agent_type, error=str(re))
+
                     # Publish event for dashboard
                     try:
                         from openclaw.tools.messaging import publish_dashboard_event
