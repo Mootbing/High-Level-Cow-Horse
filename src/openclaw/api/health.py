@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from redis.asyncio import Redis
+from sqlalchemy import text
 
 from openclaw.config import settings
 from openclaw.db.session import async_session_factory
@@ -14,7 +15,7 @@ async def health_check():
     # Check PostgreSQL
     try:
         async with async_session_factory() as session:
-            await session.execute("SELECT 1")
+            await session.execute(text("SELECT 1"))
         checks["postgres"] = "ok"
     except Exception as e:
         checks["postgres"] = f"error: {e}"
