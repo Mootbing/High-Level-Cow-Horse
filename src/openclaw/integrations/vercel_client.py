@@ -28,6 +28,20 @@ def _params() -> dict:
     return p
 
 
+async def _disable_protection(client: httpx.AsyncClient, project_name: str) -> None:
+    """Disable deployment protection so sites are publicly accessible."""
+    try:
+        await client.patch(
+            f"{VERCEL_API}/v9/projects/{project_name}",
+            json={"passwordProtection": None, "trustedIps": None},
+            headers=_headers(),
+            params=_params(),
+        )
+        logger.info("vercel_protection_disabled", name=project_name)
+    except Exception:
+        pass
+
+
 async def create_project_from_github(
     project_name: str, github_repo: str, framework: str = "nextjs"
 ) -> dict:
@@ -62,6 +76,8 @@ async def create_project_from_github(
         if resp.status_code == 200 or resp.status_code == 201:
             data = resp.json()
             logger.info("vercel_project_created", name=data.get("name"), id=data.get("id"))
+            # Disable deployment protection so sites are publicly accessible
+            await _disable_protection(client, project_name)
             return data
 
         # If GitHub link fails (needs installation ID), create without it
@@ -78,6 +94,7 @@ async def create_project_from_github(
         if resp2.status_code in (200, 201):
             data = resp2.json()
             logger.info("vercel_project_created_no_git", name=data.get("name"))
+            await _disable_protection(client, project_name)
             return data
 
         resp2.raise_for_status()
