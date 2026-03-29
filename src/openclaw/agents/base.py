@@ -46,69 +46,95 @@ class BaseAgent:
         return {"status": "completed", "result": response}
 
     async def run(self, prompt: str, context: list[dict] | None = None) -> str:
-        """Execute a Claude API call with the agent's system prompt and tools."""
+        """Execute a multi-turn Claude API call, looping until Claude stops requesting tools."""
         messages = []
         if context:
             messages.extend(context[-self.max_context_messages :])
         messages.append({"role": "user", "content": prompt})
 
-        self.log.info(
-            "claude_api_call",
-            model=self.model,
-            prompt_len=len(prompt),
-            context_msgs=len(messages) - 1,
-            tool_count=len(self.tools),
-        )
+        await self._persist_log("user", prompt)
 
-        kwargs = {
-            "model": self.model,
-            "max_tokens": 4096,
-            "system": self.system_prompt,
-            "messages": messages,
-        }
-        if self.tools:
-            kwargs["tools"] = self.tools
+        max_turns = 10  # Safety limit
+        final_text_parts = []
 
-        t0 = time.monotonic()
-        response = await self.client.messages.create(**kwargs)
-        api_elapsed = round(time.monotonic() - t0, 2)
+        for turn in range(max_turns):
+            self.log.info(
+                "claude_api_call",
+                model=self.model,
+                turn=turn + 1,
+                msg_count=len(messages),
+                tool_count=len(self.tools),
+            )
 
-        self.log.info(
-            "claude_api_response",
-            elapsed_s=api_elapsed,
-            stop_reason=response.stop_reason,
-            input_tokens=response.usage.input_tokens,
-            output_tokens=response.usage.output_tokens,
-            content_blocks=len(response.content),
-        )
+            kwargs = {
+                "model": self.model,
+                "max_tokens": 4096,
+                "system": self.system_prompt,
+                "messages": messages,
+            }
+            if self.tools:
+                kwargs["tools"] = self.tools
 
-        # Persist the prompt and response to agent_logs DB table
-        await self._persist_log("user", prompt, response.usage.input_tokens)
+            t0 = time.monotonic()
+            response = await self.client.messages.create(**kwargs)
+            api_elapsed = round(time.monotonic() - t0, 2)
 
-        # Extract text and handle tool calls
-        result_parts = []
-        for block in response.content:
-            if block.type == "text":
-                self.log.debug("response_text", text_len=len(block.text), preview=block.text[:200])
-                result_parts.append(block.text)
-            elif block.type == "tool_use":
-                self.log.info(
-                    "tool_call",
-                    tool=block.name,
-                    input_keys=list(block.input.keys()) if isinstance(block.input, dict) else "N/A",
-                )
-                t1 = time.monotonic()
-                tool_result = await self.handle_tool_call(block.name, block.input)
-                tool_elapsed = round(time.monotonic() - t1, 2)
-                self.log.info(
-                    "tool_call_done",
-                    tool=block.name,
-                    elapsed_s=tool_elapsed,
-                    result_status=tool_result.get("status", "unknown") if isinstance(tool_result, dict) else "raw",
-                )
-                result_parts.append(json.dumps(tool_result))
+            self.log.info(
+                "claude_api_response",
+                elapsed_s=api_elapsed,
+                turn=turn + 1,
+                stop_reason=response.stop_reason,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+                content_blocks=len(response.content),
+            )
 
-        full_response = "\n".join(result_parts)
+            # Build the assistant message content and handle tool calls
+            assistant_content = []
+            tool_results = []
+
+            for block in response.content:
+                if block.type == "text":
+                    self.log.debug("response_text", text_len=len(block.text), preview=block.text[:200])
+                    final_text_parts.append(block.text)
+                    assistant_content.append({"type": "text", "text": block.text})
+                elif block.type == "tool_use":
+                    self.log.info(
+                        "tool_call",
+                        tool=block.name,
+                        turn=turn + 1,
+                        input_keys=list(block.input.keys()) if isinstance(block.input, dict) else "N/A",
+                    )
+                    assistant_content.append({
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    })
+                    t1 = time.monotonic()
+                    tool_result = await self.handle_tool_call(block.name, block.input)
+                    tool_elapsed = round(time.monotonic() - t1, 2)
+                    self.log.info(
+                        "tool_call_done",
+                        tool=block.name,
+                        elapsed_s=tool_elapsed,
+                        result_status=tool_result.get("status", "unknown") if isinstance(tool_result, dict) else "raw",
+                    )
+                    tool_results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(tool_result),
+                    })
+
+            # If Claude is done (end_turn or no tool calls), break
+            if response.stop_reason == "end_turn" or not tool_results:
+                break
+
+            # Otherwise, add assistant message + tool results and continue
+            messages.append({"role": "assistant", "content": assistant_content})
+            messages.append({"role": "user", "content": tool_results})
+
+        full_response = "\n".join(final_text_parts)
         await self._persist_log("assistant", full_response, response.usage.output_tokens)
         return full_response
 

@@ -16,7 +16,7 @@ GENAI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
 async def generate_image(
-    prompt: str, model: str = "gemini-2.0-flash-exp"
+    prompt: str, model: str = "gemini-2.0-flash"
 ) -> bytes:
     """Generate an image using Nano Banana (Google GenAI image generation).
 
