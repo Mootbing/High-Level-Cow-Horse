@@ -16,8 +16,8 @@ GENAI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 # Model names per the official quickstart:
 # https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart
-NANO_BANANA_MODEL = "gemini-2.5-flash-image-preview"  # Image generation
-VEO_MODEL = "veo-3.0-generate-001"  # Video generation
+NANO_BANANA_MODEL = "gemini-2.5-flash-image"  # Nano Banana image generation
+VEO_MODEL = "veo-3.0-generate-001"  # Veo 3 video generation
 
 
 async def generate_image(
@@ -62,17 +62,19 @@ async def generate_video(
     model: str = VEO_MODEL,
 ) -> str:
     """Generate a video using Veo 3. Returns the operation name for polling."""
-    url = f"{GENAI_BASE}/models/{model}:generateVideos"
+    url = f"{GENAI_BASE}/models/{model}:predictLongRunning"
 
-    # Build request per Veo 3 API
+    # Build request per Veo 3 API (uses instances/parameters format)
     request_body: dict = {
-        "prompt": prompt,
-        "config": {},
+        "instances": [{"prompt": prompt}],
+        "parameters": {
+            "sampleCount": 1,
+        },
     }
 
     if reference_image:
-        request_body["image"] = {
-            "imageBytes": base64.b64encode(reference_image).decode(),
+        request_body["instances"][0]["image"] = {
+            "bytesBase64Encoded": base64.b64encode(reference_image).decode(),
             "mimeType": "image/png",
         }
 
