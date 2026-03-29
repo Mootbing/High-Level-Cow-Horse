@@ -23,7 +23,7 @@ You are the CEO of Clarmi Design Studio, an AI-powered digital design agency.
 
 You receive instructions from the agency owner via the dashboard or WhatsApp. Your job is to:
 1. Parse the owner's intent from their message
-2. Respond to questions about project status
+2. Respond to questions about project status using the get_status tool
 3. Delegate work to the right team members
 4. Report back to the owner with concise updates
 
@@ -37,18 +37,41 @@ Available team members you can delegate to:
 - client_comms: For sending WhatsApp updates to clients
 
 When the owner sends a message, determine the intent:
-- "build/create/make a website/landing page for X" -> delegate to project_manager
-- "scrape/research/check out X" -> delegate to inbound
-- "send email/outreach to X" -> delegate to outbound
-- "status/update/what's happening" -> query project status and respond
+- "build/create/make/revamp a website for X" -> delegate ONLY to project_manager (ONE delegation). The PM handles the full pipeline: inbound -> design -> build -> QA -> outbound. Do NOT also delegate to inbound or outbound separately.
+- "scrape/research/check out X" (research ONLY, no build) -> delegate to inbound
+- "send email/outreach to X" (send ONLY) -> delegate to outbound
+- "status/update/what's happening/how is it" -> USE get_status TOOL first, then respond with real data
 - "pause/stop/cancel" -> update project status
 - General questions -> respond directly
+
+CRITICAL RULES:
+1. When asked about status, ALWAYS use get_status tool first. NEVER say you don't have access.
+2. When delegating a website project, ALWAYS include the full URL in the task_description. Copy the exact URL from the owner's message.
+3. For website projects: delegate to project_manager ONLY. Do NOT also delegate to inbound/outbound/engineer separately — the PM handles the full pipeline.
+4. Do NOT re-delegate tasks when you receive results back. Just summarize and reply to the owner.
+5. Keep replies short and informative — use bullet points for status updates.
+6. When you don't know something, use get_status to check. NEVER say "I don't have access."
 
 Always respond to the owner. Keep messages concise and professional.
 Use the whatsapp_send tool with to="owner" to reply to the owner.
 
 When delegating, use the delegate_task tool with the appropriate target agent and payload.
 """
+
+GET_STATUS_TOOL = {
+    "name": "get_status",
+    "description": "Get current status of all projects, tasks, and agent activity. ALWAYS use this before answering status questions.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "project_name": {
+                "type": "string",
+                "description": "Optional: filter by project name. Leave empty for all projects.",
+            },
+        },
+        "required": [],
+    },
+}
 
 DELEGATE_TOOL = {
     "name": "delegate_task",
@@ -87,7 +110,7 @@ DELEGATE_TOOL = {
 class CEOAgent(BaseAgent):
     agent_type = "ceo"
     system_prompt = CEO_SYSTEM_PROMPT
-    tools = WHATSAPP_TOOLS + [DELEGATE_TOOL]
+    tools = WHATSAPP_TOOLS + [GET_STATUS_TOOL, DELEGATE_TOOL]
 
     def __init__(self):
         super().__init__()
@@ -133,6 +156,9 @@ class CEOAgent(BaseAgent):
         return {"status": "completed", "response": response}
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
+        if tool_name == "get_status":
+            return await self._get_status(tool_input.get("project_name"))
+
         if tool_name in ("whatsapp_send", "whatsapp_send_media"):
             to = tool_input.get("to", "")
             is_owner = to == "owner"
@@ -230,3 +256,63 @@ class CEOAgent(BaseAgent):
                 vercel_project=project.metadata_.get("vercel_project"),
             )
             return project.id
+
+    async def _get_status(self, project_name: str | None = None) -> dict:
+        """Query the database for project/task/agent status."""
+        from openclaw.db.session import async_session_factory
+        from openclaw.models.project import Project
+        from openclaw.models.agent_log import AgentLog
+        from sqlalchemy import select, func
+
+        async with async_session_factory() as session:
+            # Get projects
+            stmt = select(Project).order_by(Project.created_at.desc()).limit(10)
+            if project_name:
+                stmt = select(Project).where(
+                    Project.name.ilike(f"%{project_name}%")
+                ).limit(5)
+            result = await session.execute(stmt)
+            projects = result.scalars().all()
+
+            project_summaries = []
+            for p in projects:
+                # Count tasks per status
+                from openclaw.models.task import Task
+                task_counts = {}
+                for status in ["queued", "in_progress", "completed", "failed"]:
+                    count = await session.scalar(
+                        select(func.count()).select_from(Task).where(
+                            Task.project_id == p.id, Task.status == status
+                        )
+                    )
+                    if count:
+                        task_counts[status] = count
+
+                project_summaries.append({
+                    "name": p.name,
+                    "status": p.status,
+                    "deployed_url": p.deployed_url,
+                    "github": p.metadata_.get("github_url"),
+                    "tasks": task_counts or "no tasks yet",
+                    "created": p.created_at.isoformat() if p.created_at else None,
+                })
+
+            # Get recent agent activity (last 20 log entries)
+            log_stmt = select(AgentLog).order_by(AgentLog.created_at.desc()).limit(20)
+            log_result = await session.execute(log_stmt)
+            logs = log_result.scalars().all()
+
+            recent_activity = []
+            for log in logs:
+                recent_activity.append({
+                    "agent": log.agent_type,
+                    "role": log.role,
+                    "preview": log.content[:150] if log.content else "",
+                    "time": log.created_at.isoformat() if log.created_at else None,
+                })
+
+            return {
+                "projects": project_summaries,
+                "recent_agent_activity": recent_activity[:10],
+                "total_projects": len(project_summaries),
+            }
