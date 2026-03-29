@@ -35,7 +35,9 @@ RULES:
 - If the prospect uses WordPress or an older tech stack, note that a modern Next.js build would be significantly faster -- but frame it as an upgrade, not a criticism.
 - If brand colors are available, you may suggest how a refined palette using those colors could modernize their look.
 - Write the body as clean HTML. Use <p> tags for paragraphs. No inline styles, no images, no fancy formatting. Plain and readable.
-- If prospect data is missing or incomplete, do NOT make things up. Write a shorter, more general email and note in your response that data was limited.
+- If prospect data is missing or incomplete, do NOT make things up. Write a shorter, more general email based on what you know from the task description.
+- You MUST ALWAYS save a draft using gmail_draft, even if data is limited. Use "?" as the to address if you don't have a contact email. The owner will fill it in.
+- NEVER refuse to draft. NEVER say you need more info. Just draft the best email you can with what you have.
 """
 
 LOOKUP_PROSPECT_TOOL = {
