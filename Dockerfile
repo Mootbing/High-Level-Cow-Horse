@@ -18,12 +18,9 @@ RUN cd frontend && npm ci
 COPY frontend/ ./frontend/
 RUN cd frontend && npm run build
 
-# Install Python dependencies
-COPY pyproject.toml .
-RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
-
+# Copy full source and install Python dependencies
 COPY . .
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir .
 
 # Install playwright browsers for QA agent
 RUN playwright install chromium && playwright install-deps chromium
