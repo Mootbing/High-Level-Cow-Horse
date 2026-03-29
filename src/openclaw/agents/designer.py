@@ -40,6 +40,22 @@ WORKFLOW:
 2. Then generate_keyframe for each major section (hero, features, how-it-works, CTA)
 3. Describe the full design spec (colors, fonts, spacing, animations) in your response
 
+IMPORTANT — ASSET DELIVERY:
+Every generated asset is automatically uploaded to the project's GitHub repo under /public/assets/.
+Vercel serves files in /public/ at the site root, so the engineer can reference them as:
+  - /assets/hero-video.mp4
+  - /assets/keyframe-hero.png
+  - /assets/keyframe-features.png
+
+In your final response, LIST ALL generated asset URLs clearly, e.g.:
+
+GENERATED ASSETS:
+- Hero video: /assets/hero-video-abc12345.mp4
+- Hero keyframe: /assets/keyframe-hero-abc12345.png
+- Features keyframe: /assets/keyframe-features-abc12345.png
+
+The PM will pass these URLs to the engineer so they are embedded in the site.
+
 SECTIONS TO DESIGN FOR:
 - Hero with parallax + bold headline + video background
 - Scrolling metrics counter
@@ -53,12 +69,12 @@ SECTIONS TO DESIGN FOR:
 
 GENERATE_KEYFRAME_TOOL = {
     "name": "generate_keyframe",
-    "description": "Generate a keyframe image using Nano Banana (Google AI image generation).",
+    "description": "Generate a keyframe image using Nano Banana (Google AI image generation). The image is automatically uploaded to the GitHub repo at /public/assets/ so Vercel serves it.",
     "input_schema": {
         "type": "object",
         "properties": {
             "prompt": {"type": "string", "description": "Detailed image generation prompt."},
-            "project_name": {"type": "string", "description": "Project name for file organization."},
+            "project_name": {"type": "string", "description": "Project name (must match the GitHub repo name)."},
             "section": {"type": "string", "description": "Which section this keyframe is for (hero, about, features, etc)."},
         },
         "required": ["prompt", "project_name", "section"],
@@ -67,12 +83,12 @@ GENERATE_KEYFRAME_TOOL = {
 
 GENERATE_VIDEO_TOOL = {
     "name": "generate_video",
-    "description": "Generate a hero video using Veo (Google AI video generation).",
+    "description": "Generate a hero video using Veo (Google AI video generation). The video is automatically uploaded to the GitHub repo at /public/assets/ so Vercel serves it.",
     "input_schema": {
         "type": "object",
         "properties": {
             "prompt": {"type": "string", "description": "Video generation prompt describing the scene."},
-            "project_name": {"type": "string", "description": "Project name."},
+            "project_name": {"type": "string", "description": "Project name (must match the GitHub repo name)."},
             "duration": {"type": "integer", "description": "Video duration in seconds (4, 6, or 8).", "default": 6},
         },
         "required": ["prompt", "project_name"],
@@ -86,30 +102,91 @@ class DesignerAgent(BaseAgent):
     system_prompt = DESIGNER_SYSTEM_PROMPT
     tools = [GENERATE_KEYFRAME_TOOL, GENERATE_VIDEO_TOOL]
 
+    async def _upload_asset_to_repo(
+        self, project_name: str, filename: str, content: bytes
+    ) -> str:
+        """Upload a generated asset to the GitHub repo's public/assets/ directory.
+
+        Returns the public URL path (e.g., /assets/hero-video.mp4) that Vercel
+        will serve after the next deploy.
+        """
+        from openclaw.integrations.github_client import get_authenticated_user, upload_file
+
+        user = await get_authenticated_user()
+        repo_full_name = f"{user}/{project_name}"
+        repo_path = f"public/assets/{filename}"
+
+        try:
+            result = await upload_file(
+                repo_full_name=repo_full_name,
+                file_path_in_repo=repo_path,
+                content=content,
+                commit_message=f"Add generated asset: {filename}",
+            )
+            public_url = f"/assets/{filename}"
+            self.log.info(
+                "asset_uploaded_to_repo",
+                repo=repo_full_name,
+                path=repo_path,
+                public_url=public_url,
+                commit=result.get("commit_sha", "")[:8],
+            )
+            return public_url
+        except Exception as e:
+            self.log.error("asset_upload_failed", repo=repo_full_name, filename=filename, error=str(e))
+            raise
+
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
-        project_dir = os.path.join(settings.STORAGE_PATH, tool_input.get("project_name", "unnamed"))
+        project_name = tool_input.get("project_name", "unnamed")
+        project_dir = os.path.join(settings.STORAGE_PATH, project_name)
         os.makedirs(project_dir, exist_ok=True)
 
         if tool_name == "generate_keyframe":
             from openclaw.integrations.google_ai import generate_image
+
             image_data = await generate_image(tool_input["prompt"])
-            filename = f"keyframe-{tool_input.get('section', 'unknown')}-{uuid.uuid4().hex[:8]}.png"
+            section = tool_input.get("section", "unknown")
+            filename = f"keyframe-{section}-{uuid.uuid4().hex[:8]}.png"
+
+            # Save locally as backup
             filepath = os.path.join(project_dir, filename)
             with open(filepath, "wb") as f:
                 f.write(image_data)
-            return {"status": "generated", "path": filepath, "filename": filename}
+
+            # Upload to GitHub repo so Vercel can serve it
+            public_url = await self._upload_asset_to_repo(project_name, filename, image_data)
+
+            return {
+                "status": "generated",
+                "local_path": filepath,
+                "filename": filename,
+                "public_url": public_url,
+                "section": section,
+            }
 
         elif tool_name == "generate_video":
             from openclaw.integrations.google_ai import generate_video, download_video
+
             video_uri = await generate_video(
                 prompt=tool_input["prompt"],
                 duration_seconds=tool_input.get("duration", 6),
             )
             video_data = await download_video(video_uri)
             filename = f"hero-video-{uuid.uuid4().hex[:8]}.mp4"
+
+            # Save locally as backup
             filepath = os.path.join(project_dir, filename)
             with open(filepath, "wb") as f:
                 f.write(video_data)
-            return {"status": "generated", "path": filepath, "filename": filename}
+
+            # Upload to GitHub repo so Vercel can serve it
+            public_url = await self._upload_asset_to_repo(project_name, filename, video_data)
+
+            return {
+                "status": "generated",
+                "local_path": filepath,
+                "filename": filename,
+                "public_url": public_url,
+            }
 
         return await super().handle_tool_call(tool_name, tool_input)

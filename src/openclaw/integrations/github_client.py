@@ -76,6 +76,52 @@ async def delete_repo(full_name: str) -> bool:
         return False
 
 
+async def upload_file(
+    repo_full_name: str,
+    file_path_in_repo: str,
+    content: bytes,
+    commit_message: str,
+    branch: str = "main",
+) -> dict:
+    """Upload a single file (binary-safe) to a GitHub repo via the Contents API.
+
+    If the file already exists, it is overwritten. Returns the commit info.
+    """
+    async with httpx.AsyncClient(timeout=60) as client:
+        headers = _headers()
+        url = f"{GITHUB_API}/repos/{repo_full_name}/contents/{file_path_in_repo}"
+
+        # Check if the file already exists (need its SHA to update)
+        existing_sha = None
+        check = await client.get(url, headers=headers, params={"ref": branch})
+        if check.status_code == 200:
+            existing_sha = check.json().get("sha")
+
+        payload = {
+            "message": commit_message,
+            "content": base64.b64encode(content).decode(),
+            "branch": branch,
+        }
+        if existing_sha:
+            payload["sha"] = existing_sha
+
+        resp = await client.put(url, json=payload, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+        logger.info(
+            "file_uploaded",
+            repo=repo_full_name,
+            path=file_path_in_repo,
+            sha=data.get("content", {}).get("sha", "")[:8],
+        )
+        return {
+            "path": file_path_in_repo,
+            "sha": data.get("content", {}).get("sha", ""),
+            "commit_sha": data.get("commit", {}).get("sha", ""),
+            "html_url": data.get("content", {}).get("html_url", ""),
+        }
+
+
 async def push_directory(repo_full_name: str, local_dir: str, commit_message: str, branch: str = "main") -> dict:
     """Push an entire local directory to a GitHub repo using the Git trees API.
 

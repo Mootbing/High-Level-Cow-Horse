@@ -41,6 +41,19 @@ CRITICAL RULES:
 - Use 'use client' directive on components that use hooks, refs, or browser APIs.
 - When generating code, output ONLY valid TypeScript/TSX — no markdown fences, no explanations.
 
+DESIGNER ASSET INTEGRATION:
+- If your task includes ASSET URLs from the designer (paths like /assets/hero-video-xxx.mp4 or /assets/keyframe-hero-xxx.png), you MUST use them in the site.
+- These files are already committed to the repo's /public/assets/ directory and Vercel serves them at the root.
+- Use the hero VIDEO as a background video in the Hero section:
+    <video autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover">
+      <source src="/assets/hero-video-xxx.mp4" type="video/mp4" />
+    </video>
+- Use KEYFRAME IMAGES as section backgrounds or decorative elements:
+    <div style={{ backgroundImage: 'url(/assets/keyframe-features-xxx.png)' }} />
+  Or as <img> tags in galleries, feature cards, etc.
+- NEVER skip designer assets — if they are provided, they MUST appear in the deployed site.
+- If no asset URLs are provided, use CSS gradients and abstract backgrounds instead.
+
 CONTENT REUSE FROM OLD SITE:
 - When given image URLs from the old site, USE THEM directly as src attributes (they're still hosted)
 - Reuse the old site's actual copy/blurbs/descriptions — don't make up generic text
