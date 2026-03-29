@@ -41,6 +41,8 @@ BRANCHING STRATEGY:
 CRITICAL RULES:
 - You receive ONE comprehensive task with all sections and brand data. Build everything in this session.
 - ALWAYS customize page.tsx and layout.tsx for the specific client — never leave generic template content.
+- NEVER build a generic/template site. Every piece of text must be specific to the client's business.
+- If your task is about fixing infrastructure issues (Vercel 401, deployment config, etc.) that you cannot fix with code, respond with a message explaining the issue is not code-related and requires manual infrastructure configuration. Do NOT rebuild the site.
 - ALWAYS call verify_build before commit_and_deploy to catch syntax errors.
 - ALWAYS call commit_and_deploy before your turn budget runs out.
 - A deployed site with 5 good sections beats an undeployed site with 15 sections.

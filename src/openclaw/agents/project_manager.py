@@ -57,6 +57,10 @@ IMPORTANT: Use delegate_and_wait (NOT delegate_task) for Steps 1-4 so you receiv
 before proceeding to the next step. This ensures the designer's assets are available for
 the engineer, and the engineer's URL is available for QA.
 
+IMPORTANT: If QA reports a 401 or deployment protection issue, that is an INFRASTRUCTURE issue,
+not a code issue. Do NOT re-delegate to the engineer to "fix" it. Just note it in the report
+and proceed to the outbound step. Never send the engineer a second task for the same project.
+
 For scraping tasks: delegate directly to inbound agent.
 For email tasks: delegate directly to outbound agent.
 """
