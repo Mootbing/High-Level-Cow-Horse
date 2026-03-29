@@ -19,7 +19,7 @@ You build fully responsive, scroll-driven landing pages with cinematic motion, s
 and section-to-section transitions inspired by Apple, Anthropic, and Vercel marketing sites.
 
 TECH STACK:
-- Next.js 15 (App Router, TypeScript)
+- Next.js (App Router, TypeScript)
 - GSAP + ScrollTrigger for scroll-driven animations
 - Lenis for smooth scrolling
 - Tailwind CSS for styling
@@ -189,7 +189,7 @@ class EngineerAgent(BaseAgent):
                 "vercel_project": vercel_project.get("name"),
                 "vercel_auto_deploy": vercel_linked,
                 "commit": push_result.get("commit_sha", "")[:8],
-                "note": "Clean Next.js 15 + Tailwind + GSAP + Lenis + Framer Motion. Customize with generate_code.",
+                "note": "Clean Next.js + Tailwind + GSAP + Lenis + Framer Motion. Customize with generate_code.",
             }
 
         elif tool_name == "generate_code":
