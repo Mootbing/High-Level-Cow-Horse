@@ -260,26 +260,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             filepath = os.path.join(project_dir, tool_input["file_path"])
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
-            # Generate code with project context
-            existing_files = []
-            for root, dirs, files in os.walk(project_dir):
-                dirs[:] = [d for d in dirs if d not in ("node_modules", ".next", ".git")]
-                for f in files:
-                    if f.endswith((".tsx", ".ts", ".css", ".json")) and "lock" not in f:
-                        existing_files.append(os.path.relpath(os.path.join(root, f), project_dir))
-
-            code = await self.run(
-                f"Generate ONLY valid TypeScript/TSX code for this file. No markdown fences. No explanations. Just the code.\n\n"
-                f"File: {tool_input['file_path']}\n"
-                f"Task: {tool_input['description']}\n"
-                f"Existing files in project: {', '.join(existing_files[:20])}\n"
+            # Single API call — no multi-turn loop, no tools
+            response = await self.client.messages.create(
+                model=self.model,
+                max_tokens=4096,
+                system="You are a code generator. Output ONLY valid TypeScript/TSX code. No markdown fences. No explanations. No comments about what you're doing. Just the raw code that goes in the file.",
+                messages=[{
+                    "role": "user",
+                    "content": f"Generate the code for: {tool_input['file_path']}\n\nDescription: {tool_input['description']}",
+                }],
             )
 
-            # Strip markdown fences if the model wrapped them
-            code = code.strip()
+            code = response.content[0].text.strip()
+
+            # Strip markdown fences
             if code.startswith("```"):
                 lines = code.split("\n")
-                lines = lines[1:]  # Remove opening fence
+                lines = lines[1:]
                 if lines and lines[-1].strip() == "```":
                     lines = lines[:-1]
                 code = "\n".join(lines)
