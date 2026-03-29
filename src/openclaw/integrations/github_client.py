@@ -35,7 +35,7 @@ async def create_repo(name: str, description: str = "") -> dict:
                 "name": name,
                 "description": description or f"Built by OpenClaw AI Design Agency",
                 "private": True,
-                "auto_init": True,  # Creates main branch with README
+                "auto_init": False,  # We'll create the initial commit ourselves
             },
             headers=_headers(),
         )
@@ -84,21 +84,30 @@ async def push_directory(repo_full_name: str, local_dir: str, commit_message: st
     async with httpx.AsyncClient(timeout=120) as client:
         headers = _headers()
 
-        # 1. Get the current commit SHA on the branch
+        # 1. Get the current commit SHA on the branch (or handle empty repo)
+        is_empty_repo = False
+        current_sha = None
         ref_resp = await client.get(
             f"{GITHUB_API}/repos/{repo_full_name}/git/ref/heads/{branch}",
             headers=headers,
         )
         if ref_resp.status_code == 404:
-            # Branch doesn't exist yet — create from default
+            # Try default branch
             repo_info = await get_repo(repo_full_name)
             default_branch = repo_info.get("default_branch", "main")
             ref_resp = await client.get(
                 f"{GITHUB_API}/repos/{repo_full_name}/git/ref/heads/{default_branch}",
                 headers=headers,
             )
-        ref_resp.raise_for_status()
-        current_sha = ref_resp.json()["object"]["sha"]
+            if ref_resp.status_code == 409 or ref_resp.status_code == 404:
+                # Empty repo — no commits yet
+                is_empty_repo = True
+            else:
+                ref_resp.raise_for_status()
+                current_sha = ref_resp.json()["object"]["sha"]
+        else:
+            ref_resp.raise_for_status()
+            current_sha = ref_resp.json()["object"]["sha"]
 
         # 2. Create blobs for each file
         tree_items = []
@@ -142,29 +151,46 @@ async def push_directory(repo_full_name: str, local_dir: str, commit_message: st
         tree_sha = tree_resp.json()["sha"]
 
         # 4. Create commit
+        commit_body = {
+            "message": commit_message + "\n\nCo-Authored-By: Mootbing <mootbing@users.noreply.github.com>",
+            "tree": tree_sha,
+            "author": {
+                "name": "OpenClaw Agent",
+                "email": "agent@openclaw.ai",
+            },
+            "committer": {
+                "name": "OpenClaw Agent",
+                "email": "agent@openclaw.ai",
+            },
+        }
+        if current_sha:
+            commit_body["parents"] = [current_sha]
+        else:
+            commit_body["parents"] = []
+
         commit_resp = await client.post(
             f"{GITHUB_API}/repos/{repo_full_name}/git/commits",
-            json={
-                "message": commit_message,
-                "tree": tree_sha,
-                "parents": [current_sha],
-                "author": {
-                    "name": "OpenClaw Agent",
-                    "email": "agent@openclaw.ai",
-                },
-            },
+            json=commit_body,
             headers=headers,
         )
         commit_resp.raise_for_status()
         new_commit_sha = commit_resp.json()["sha"]
 
-        # 5. Update branch ref
-        ref_update = await client.patch(
-            f"{GITHUB_API}/repos/{repo_full_name}/git/refs/heads/{branch}",
-            json={"sha": new_commit_sha},
-            headers=headers,
-        )
-        ref_update.raise_for_status()
+        # 5. Update or create branch ref
+        if is_empty_repo:
+            ref_create = await client.post(
+                f"{GITHUB_API}/repos/{repo_full_name}/git/refs",
+                json={"ref": f"refs/heads/{branch}", "sha": new_commit_sha},
+                headers=headers,
+            )
+            ref_create.raise_for_status()
+        else:
+            ref_update = await client.patch(
+                f"{GITHUB_API}/repos/{repo_full_name}/git/refs/heads/{branch}",
+                json={"sha": new_commit_sha},
+                headers=headers,
+            )
+            ref_update.raise_for_status()
 
         logger.info(
             "code_pushed",
