@@ -129,15 +129,39 @@ class EngineerAgent(BaseAgent):
         project_dir = self._project_dir(project_name)
 
         if tool_name == "scaffold_nextjs":
-            # 1. Copy template
-            template_dir = os.path.join(os.path.dirname(__file__), "..", "..", "..", "templates", "nextjs-base")
-            template_dir = os.path.normpath(template_dir)
-            if os.path.exists(template_dir):
-                shutil.copytree(template_dir, project_dir, dirs_exist_ok=True)
-            else:
-                os.makedirs(project_dir, exist_ok=True)
+            # 1. Create Next.js app with create-next-app (clean, working base)
+            parent_dir = os.path.dirname(project_dir)
+            os.makedirs(parent_dir, exist_ok=True)
 
-            # 2. Create GitHub repo
+            self.log.info("scaffold_creating_nextjs", project=project_name)
+            scaffold_result = subprocess.run(
+                [
+                    "npx", "create-next-app@latest", "site",
+                    "--typescript", "--tailwind", "--eslint",
+                    "--app", "--src-dir=false",
+                    "--import-alias=@/*",
+                    "--no-turbopack",
+                ],
+                cwd=parent_dir,
+                capture_output=True, text=True, timeout=120,
+                input="n\n",  # No to any prompts
+            )
+            if scaffold_result.returncode != 0 and not os.path.exists(project_dir):
+                # Fallback: create manually
+                os.makedirs(project_dir, exist_ok=True)
+                self.log.warning("create_next_app_failed", error=scaffold_result.stderr[:300])
+
+            # 2. Install animation libraries on top
+            if os.path.exists(os.path.join(project_dir, "package.json")):
+                subprocess.run(
+                    ["npm", "install", "--legacy-peer-deps",
+                     "gsap", "@studio-freight/lenis", "framer-motion"],
+                    cwd=project_dir,
+                    capture_output=True, text=True, timeout=120,
+                )
+                self.log.info("animation_libs_installed")
+
+            # 3. Create GitHub repo
             from openclaw.integrations.github_client import create_repo, push_directory
             repo_data = await create_repo(
                 name=project_name,
@@ -145,16 +169,16 @@ class EngineerAgent(BaseAgent):
             )
             repo_full_name = repo_data["full_name"]
 
-            # 3. Create Vercel project linked to GitHub BEFORE push
+            # 4. Create Vercel project linked to GitHub BEFORE push
             from openclaw.integrations.vercel_client import create_project_from_github
             vercel_project = await create_project_from_github(project_name, repo_full_name)
             vercel_linked = bool(vercel_project.get("link"))
 
-            # 4. Push initial scaffold
+            # 5. Push initial scaffold
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
-                commit_message="Initial scaffold: Next.js 15 + GSAP + Lenis + Tailwind",
+                commit_message="Initial scaffold: create-next-app + GSAP + Lenis + Framer Motion",
             )
 
             return {
@@ -165,7 +189,7 @@ class EngineerAgent(BaseAgent):
                 "vercel_project": vercel_project.get("name"),
                 "vercel_auto_deploy": vercel_linked,
                 "commit": push_result.get("commit_sha", "")[:8],
-                "note": "Now use generate_code to customize each file for the client.",
+                "note": "Clean Next.js 15 + Tailwind + GSAP + Lenis + Framer Motion. Customize with generate_code.",
             }
 
         elif tool_name == "generate_code":
