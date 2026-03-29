@@ -86,6 +86,11 @@ export const api = {
       method: "DELETE",
     }),
 
+  deleteProject: (id: string) =>
+    apiFetch<{ status: string; slug: string }>(`/dashboard/projects/${id}`, {
+      method: "DELETE",
+    }),
+
   agentLogs: (agentType?: string, limit = 100) =>
     apiFetch<import("../types").AgentLogEntry[]>(
       `/dashboard/agent-logs?limit=${limit}${agentType ? `&agent_type=${agentType}` : ""}`

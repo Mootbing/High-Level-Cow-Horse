@@ -34,7 +34,7 @@ async def create_repo(name: str, description: str = "") -> dict:
             json={
                 "name": name,
                 "description": description or f"Built by OpenClaw AI Design Agency",
-                "private": False,
+                "private": True,
                 "auto_init": True,  # Creates main branch with README
             },
             headers=_headers(),
@@ -63,6 +63,17 @@ async def get_authenticated_user() -> str:
         resp = await client.get(f"{GITHUB_API}/user", headers=_headers())
         resp.raise_for_status()
         return resp.json()["login"]
+
+
+async def delete_repo(full_name: str) -> bool:
+    """Delete a GitHub repo. Returns True if deleted."""
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.delete(f"{GITHUB_API}/repos/{full_name}", headers=_headers())
+        if resp.status_code == 204:
+            logger.info("repo_deleted", name=full_name)
+            return True
+        logger.warning("repo_delete_failed", name=full_name, status=resp.status_code)
+        return False
 
 
 async def push_directory(repo_full_name: str, local_dir: str, commit_message: str, branch: str = "main") -> dict:

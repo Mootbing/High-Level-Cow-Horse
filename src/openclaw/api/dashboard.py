@@ -153,6 +153,44 @@ async def get_project(
     )
 
 
+@router.delete("/projects/{project_id}")
+async def delete_project(
+    project_id: str,
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """Delete a project and clean up GitHub repo + Vercel project."""
+    result = await session.execute(
+        select(Project).where(Project.id == project_id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    slug = project.slug
+
+    # Clean up GitHub repo
+    try:
+        from openclaw.integrations.github_client import get_authenticated_user, delete_repo
+        user = await get_authenticated_user()
+        await delete_repo(f"{user}/{slug}")
+    except Exception:
+        pass  # Best-effort
+
+    # Clean up Vercel project
+    try:
+        from openclaw.integrations.vercel_client import delete_project as vercel_delete
+        await vercel_delete(slug)
+    except Exception:
+        pass  # Best-effort
+
+    # Delete from DB (cascades to tasks, assets, deployments)
+    await session.delete(project)
+    await session.commit()
+
+    return {"status": "deleted", "slug": slug}
+
+
 # --- Agents Status ---
 
 @router.get("/agents/status", response_model=AgentsStatusResponse)

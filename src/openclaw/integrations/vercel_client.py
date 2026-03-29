@@ -124,6 +124,21 @@ async def get_latest_deployment(project_name: str) -> dict | None:
         return deployments[0] if deployments else None
 
 
+async def delete_project(project_name: str) -> bool:
+    """Delete a Vercel project. Returns True if deleted."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.delete(
+            f"{VERCEL_API}/v9/projects/{project_name}",
+            headers=_headers(),
+            params=_params(),
+        )
+        if resp.status_code in (200, 204):
+            logger.info("vercel_project_deleted", name=project_name)
+            return True
+        logger.warning("vercel_delete_failed", name=project_name, status=resp.status_code)
+        return False
+
+
 async def create_deployment(project_name: str, files: list[dict]) -> dict:
     """Create a Vercel deployment by uploading files directly."""
     payload = {

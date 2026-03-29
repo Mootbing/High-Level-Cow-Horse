@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import type { ProjectDetail } from "../types";
 import StatusBadge from "../components/StatusBadge";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (id) api.project(id).then(setProject).catch(() => {});
@@ -35,9 +37,29 @@ export default function ProjectDetailPage() {
         </Button>
       </Link>
 
-      <div className="flex items-center gap-4 mb-6">
-        <h2 className="text-xl font-bold text-foreground">{project.name}</h2>
-        <StatusBadge status={project.status} />
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <h2 className="text-xl font-bold text-foreground">{project.name}</h2>
+          <StatusBadge status={project.status} />
+        </div>
+        <Button
+          variant="destructive"
+          size="sm"
+          disabled={deleting}
+          onClick={async () => {
+            if (!confirm("Delete this project? This will also remove the GitHub repo and Vercel project.")) return;
+            setDeleting(true);
+            try {
+              await api.deleteProject(project.id);
+              navigate("/projects");
+            } catch {
+              setDeleting(false);
+            }
+          }}
+        >
+          <Trash2 className="w-4 h-4 mr-1" />
+          {deleting ? "Deleting..." : "Delete Project"}
+        </Button>
       </div>
 
       {project.brief && (
