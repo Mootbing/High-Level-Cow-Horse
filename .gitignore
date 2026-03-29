@@ -24,3 +24,4 @@ htmlcov/
 .env.local
 .env.railway.ref
 dump.rdb
+.gstack/

@@ -273,7 +273,7 @@ async def run_tier(tier: str) -> None:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="OpenClaw Agent Worker")
+    parser = argparse.ArgumentParser(description="Clarmi Design Studio Agent Worker")
     parser.add_argument("--agent-type", default=None, help="Single agent type to run")
     parser.add_argument("--all", action="store_true", help="Run all agents in one process")
     parser.add_argument(

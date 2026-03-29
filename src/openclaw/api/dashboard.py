@@ -468,14 +468,17 @@ async def list_knowledge(
 @router.get("/agent-logs", response_model=list[AgentLogSummary])
 async def list_agent_logs(
     agent_type: str | None = None,
+    project_id: str | None = None,
     limit: int = Query(100, le=500),
     session: AsyncSession = Depends(get_session),
     _: str = Depends(verify_dashboard_token),
 ):
-    """List agent logs, optionally filtered by agent type."""
+    """List agent logs, optionally filtered by agent type and/or project."""
     q = select(AgentLog).order_by(AgentLog.created_at.desc()).limit(limit)
     if agent_type:
         q = q.where(AgentLog.agent_type == agent_type)
+    if project_id:
+        q = q.where(AgentLog.project_id == project_id)
     result = await session.execute(q)
     return [AgentLogSummary.model_validate(a) for a in result.scalars().all()]
 

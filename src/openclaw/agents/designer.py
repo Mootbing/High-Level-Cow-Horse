@@ -11,7 +11,7 @@ from openclaw.config import settings
 
 logger = structlog.get_logger()
 
-DESIGNER_SYSTEM_PROMPT = """You are a world-class creative technologist and Lead Designer of OpenClaw.
+DESIGNER_SYSTEM_PROMPT = """You are a world-class creative technologist and Lead Designer of Clarmi Design Studio.
 
 Your aesthetic is inspired by Apple, Anthropic, and Vercel marketing sites — cinematic motion,
 smooth parallax, section-to-section transitions, and strong visual hierarchy.

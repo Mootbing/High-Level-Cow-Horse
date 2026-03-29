@@ -1,4 +1,4 @@
-"""Base model class and mixins for OpenClaw SQLAlchemy models."""
+"""Base model class and mixins for Clarmi Design Studio SQLAlchemy models."""
 
 import datetime
 import uuid
@@ -8,7 +8,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
 class Base(DeclarativeBase):
-    """Base class for all OpenClaw models."""
+    """Base class for all Clarmi Design Studio models."""
 
     pass
 

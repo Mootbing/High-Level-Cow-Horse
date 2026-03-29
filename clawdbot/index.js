@@ -1,5 +1,5 @@
 /**
- * ClawdBot — WhatsApp personal account bridge for OpenClaw.
+ * ClawdBot — WhatsApp personal account bridge for Clarmi Design Studio.
  *
  * Connects to WhatsApp Web via QR code (Baileys), listens for messages
  * from the owner's phone, and forwards them to the CEO agent via Redis.

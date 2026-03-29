@@ -13,7 +13,7 @@ from openclaw.config import settings
 
 logger = structlog.get_logger()
 
-ENGINEER_SYSTEM_PROMPT = """You are a world-class creative technologist and Lead Engineer of OpenClaw.
+ENGINEER_SYSTEM_PROMPT = """You are a world-class creative technologist and Lead Engineer of Clarmi Design Studio.
 
 You build fully responsive, scroll-driven landing pages with cinematic motion, smooth parallax,
 and section-to-section transitions inspired by Apple, Anthropic, and Vercel marketing sites.
@@ -221,7 +221,7 @@ class EngineerAgent(BaseAgent):
                 f.write("""import type { Metadata } from 'next'
 import './globals.css'
 
-export const metadata: Metadata = { title: '%s', description: 'Built by OpenClaw' }
+export const metadata: Metadata = { title: '%s', description: 'Built by Clarmi Design Studio' }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -250,7 +250,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             from openclaw.integrations.github_client import create_repo, push_directory
             repo_data = await create_repo(
                 name=project_name,
-                description=tool_input.get("description", f"Website for {project_name} — built by OpenClaw"),
+                description=tool_input.get("description", f"Website for {project_name} — built by Clarmi Design Studio"),
             )
             repo_full_name = repo_data["full_name"]
 

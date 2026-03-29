@@ -14,7 +14,7 @@ from openclaw.schemas.agent import AgentMessage
 
 
 class BaseAgent:
-    """Base class for all OpenClaw agents."""
+    """Base class for all Clarmi Design Studio agents."""
 
     agent_type: str = "base"
     system_prompt: str = "You are a helpful assistant."

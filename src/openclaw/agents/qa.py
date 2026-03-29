@@ -9,7 +9,7 @@ from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 
-QA_SYSTEM_PROMPT = """You are the QA Engineer of OpenClaw, a digital design agency.
+QA_SYSTEM_PROMPT = """You are the QA Engineer of Clarmi Design Studio, a digital design agency.
 
 You test generated websites for quality. WORKFLOW (follow this exact order):
 

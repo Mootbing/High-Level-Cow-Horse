@@ -37,7 +37,7 @@ async def send_alert(message: str) -> None:
             "messaging_product": "whatsapp",
             "to": OWNER_PHONE,
             "type": "text",
-            "text": {"body": f"🚨 OpenClaw Alert:\n{message}"},
+            "text": {"body": f"🚨 Clarmi Design Studio Alert:\n{message}"},
         }, headers={"Authorization": f"Bearer {WA_ACCESS_TOKEN}"})
 
 

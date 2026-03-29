@@ -1,4 +1,4 @@
-"""OpenClaw SQLAlchemy models."""
+"""Clarmi Design Studio SQLAlchemy models."""
 
 from .agent_log import AgentLog
 from .asset import Asset

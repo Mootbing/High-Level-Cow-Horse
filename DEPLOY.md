@@ -1,4 +1,4 @@
-# OpenClaw — Railway Deployment Guide
+# Clarmi Design Studio — Railway Deployment Guide
 
 Deploy the entire agency in ~10 minutes. No servers to manage.
 

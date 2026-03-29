@@ -8,7 +8,7 @@ from openclaw.tools.whatsapp import WHATSAPP_TOOLS, handle_whatsapp_tool
 
 logger = structlog.get_logger()
 
-COMMS_SYSTEM_PROMPT = """You are the Client Communications Agent of OpenClaw.
+COMMS_SYSTEM_PROMPT = """You are the Client Communications Agent of Clarmi Design Studio.
 
 You send professional project updates to clients and the agency owner via WhatsApp.
 Keep messages concise and informative:

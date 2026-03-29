@@ -31,7 +31,7 @@ export default function LoginPage() {
       <Card className="w-full max-w-sm border-border">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold text-foreground">
-            OpenClaw
+            Clarmi Design Studio
           </CardTitle>
           <CardDescription>AI Design Agency Dashboard</CardDescription>
         </CardHeader>

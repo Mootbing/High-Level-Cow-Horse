@@ -32,7 +32,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       <aside className="w-56 bg-background border-r border-border flex flex-col">
         <div className="p-5 border-b border-border">
           <h1 className="text-lg font-bold tracking-tight text-foreground">
-            OpenClaw
+            Clarmi Design Studio
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">
             AI Design Agency

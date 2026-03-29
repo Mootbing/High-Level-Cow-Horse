@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 class Project(UUIDPrimaryKeyMixin, TimestampMixin, Base):
-    """Represents a client project managed by OpenClaw agents."""
+    """Represents a client project managed by Clarmi Design Studio agents."""
 
     __tablename__ = "projects"
 

@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "OpenClaw"
+    APP_NAME: str = "Clarmi Design Studio"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 

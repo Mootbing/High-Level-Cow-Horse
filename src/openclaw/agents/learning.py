@@ -9,7 +9,7 @@ from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 
-LEARNING_SYSTEM_PROMPT = """You are the Learning Agent of OpenClaw, a digital design agency.
+LEARNING_SYSTEM_PROMPT = """You are the Learning Agent of Clarmi Design Studio, a digital design agency.
 
 You analyze completed projects to make the agency smarter over time:
 1. After each project completes, analyze QA scores, fix loops, and feedback

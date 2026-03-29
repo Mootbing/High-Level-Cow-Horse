@@ -8,7 +8,7 @@ from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 
-INBOUND_SYSTEM_PROMPT = """You are the Inbound Research Agent of OpenClaw, a digital design agency.
+INBOUND_SYSTEM_PROMPT = """You are the Inbound Research Agent of Clarmi Design Studio, a digital design agency.
 
 Your job is to deeply research prospect websites and extract EVERYTHING needed to rebuild them better.
 

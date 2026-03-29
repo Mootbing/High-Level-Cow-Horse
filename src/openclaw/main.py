@@ -2,6 +2,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from openclaw.api import health, webhook, projects
@@ -37,11 +38,25 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 app.include_router(chat_ws.router, tags=["chat"])
 
 # Serve frontend SPA (must be last — catches all non-API routes)
+_frontend_dir: Path | None = None
 _frontend_candidates = [
     Path("/app/frontend/dist"),
     Path(__file__).resolve().parent.parent.parent / "frontend" / "dist",
 ]
 for _candidate in _frontend_candidates:
     if _candidate.is_dir():
-        app.mount("/", StaticFiles(directory=str(_candidate), html=True), name="frontend")
+        _frontend_dir = _candidate
         break
+
+if _frontend_dir:
+    # Serve hashed JS/CSS bundles
+    if (_frontend_dir / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=str(_frontend_dir / "assets")), name="static-assets")
+
+    # SPA catch-all: serve static root files or fall back to index.html
+    @app.get("/{full_path:path}")
+    async def spa_fallback(full_path: str):
+        file_path = _frontend_dir / full_path  # type: ignore[operator]
+        if full_path and file_path.is_file():
+            return FileResponse(str(file_path))
+        return FileResponse(str(_frontend_dir / "index.html"))  # type: ignore[operator]

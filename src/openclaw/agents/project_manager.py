@@ -9,7 +9,7 @@ from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 
-PM_SYSTEM_PROMPT = """You are the Project Manager of OpenClaw, an AI-powered digital design agency.
+PM_SYSTEM_PROMPT = """You are the Project Manager of Clarmi Design Studio, an AI-powered digital design agency.
 
 When you receive a project brief, create a SINGLE comprehensive task for each agent type.
 Do NOT split work into per-section or per-component tasks.

@@ -9,7 +9,7 @@ from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 
-REVIEWER_SYSTEM_PROMPT = """You are the Quality Reviewer of OpenClaw, an AI-powered digital design agency.
+REVIEWER_SYSTEM_PROMPT = """You are the Quality Reviewer of Clarmi Design Studio, an AI-powered digital design agency.
 
 You are called after EVERY major step in the pipeline to verify it completed correctly.
 Your job is to check the output of each step and report pass/fail with details.

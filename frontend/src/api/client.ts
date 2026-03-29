@@ -102,6 +102,11 @@ export const api = {
       `/dashboard/agent-logs?limit=${limit}${agentType ? `&agent_type=${agentType}` : ""}`
     ),
 
+  agentLogsByProject: (projectId: string, limit = 200) =>
+    apiFetch<import("../types").AgentLogEntry[]>(
+      `/dashboard/agent-logs?limit=${limit}&project_id=${projectId}`
+    ),
+
   knowledge: (category?: string) =>
     apiFetch<import("../types").KnowledgeEntry[]>(
       `/dashboard/knowledge${category ? `?category=${category}` : ""}`

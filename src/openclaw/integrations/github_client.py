@@ -33,7 +33,7 @@ async def create_repo(name: str, description: str = "") -> dict:
             f"{GITHUB_API}/user/repos",
             json={
                 "name": name,
-                "description": description or f"Built by OpenClaw AI Design Agency",
+                "description": description or f"Built by Clarmi Design Studio",
                 "private": True,
                 "auto_init": True,  # Creates initial commit on main branch
             },

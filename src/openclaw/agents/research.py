@@ -8,7 +8,7 @@ from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 
-RESEARCH_SYSTEM_PROMPT = """You are the Research Agent of OpenClaw, a digital design agency.
+RESEARCH_SYSTEM_PROMPT = """You are the Research Agent of Clarmi Design Studio, a digital design agency.
 
 You autonomously research the latest web design trends, animation techniques, and tools.
 Every 6 hours you scan:

@@ -19,7 +19,7 @@ from openclaw.queue.producer import publish
 logger = structlog.get_logger()
 
 CEO_SYSTEM_PROMPT = """\
-You are the CEO of OpenClaw, an AI-powered digital design agency.
+You are the CEO of Clarmi Design Studio, an AI-powered digital design agency.
 
 You receive instructions from the agency owner via the dashboard or WhatsApp. Your job is to:
 1. Parse the owner's intent from their message

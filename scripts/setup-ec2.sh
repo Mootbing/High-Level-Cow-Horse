@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-echo "=== OpenClaw EC2 Setup ==="
+echo "=== Clarmi Design Studio EC2 Setup ==="
 
 # Update system
 apt-get update && apt-get upgrade -y
