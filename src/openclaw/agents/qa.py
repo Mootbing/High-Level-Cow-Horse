@@ -4,7 +4,7 @@ import json
 import structlog
 
 from openclaw.agents.base import BaseAgent
-from openclaw.agents.worker import register_agent
+from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
 

@@ -13,21 +13,9 @@ from openclaw.config import settings
 from openclaw.queue.consumer import StreamConsumer
 from openclaw.queue.streams import init_streams
 
+from openclaw.agents.registry import AGENT_REGISTRY, register_agent  # noqa: F401
+
 logger = structlog.get_logger()
-
-# Agent registry -- maps agent_type to its class
-AGENT_REGISTRY: dict[str, type] = {}
-
-
-def register_agent(agent_type: str):
-    """Decorator to register an agent class."""
-
-    def decorator(cls):
-        AGENT_REGISTRY[agent_type] = cls
-        cls.agent_type = agent_type
-        return cls
-
-    return decorator
 
 
 def _load_agents():

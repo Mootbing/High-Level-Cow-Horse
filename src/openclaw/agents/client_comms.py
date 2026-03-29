@@ -3,7 +3,7 @@ from __future__ import annotations
 import structlog
 
 from openclaw.agents.base import BaseAgent
-from openclaw.agents.worker import register_agent
+from openclaw.agents.registry import register_agent
 from openclaw.tools.whatsapp import WHATSAPP_TOOLS, handle_whatsapp_tool
 
 logger = structlog.get_logger()
