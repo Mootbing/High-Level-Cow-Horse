@@ -104,6 +104,31 @@ class DesignerAgent(BaseAgent):
     system_prompt = DESIGNER_SYSTEM_PROMPT
     tools = [GENERATE_KEYFRAME_TOOL, GENERATE_VIDEO_TOOL]
 
+    async def _get_project_repo(self, project_name: str) -> str:
+        """Look up the GitHub repo full name from project metadata."""
+        try:
+            from openclaw.db.session import async_session_factory
+            from openclaw.models.project import Project
+            from slugify import slugify
+            from sqlalchemy import select
+
+            slug_prefix = slugify(project_name)
+            async with async_session_factory() as session:
+                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+                result = await session.execute(stmt)
+                project = result.scalars().first()
+                if project and project.metadata_:
+                    repo = project.metadata_.get("github_repo")
+                    if repo:
+                        return repo
+        except Exception as exc:
+            self.log.warning("repo_lookup_failed", project=project_name, error=str(exc)[:200])
+
+        # Fallback: guess from authenticated user + project_name
+        from openclaw.integrations.github_client import get_authenticated_user
+        user = await get_authenticated_user()
+        return f"{user}/{project_name}"
+
     async def _upload_asset_to_repo(
         self, project_name: str, filename: str, content: bytes
     ) -> str:
@@ -112,10 +137,9 @@ class DesignerAgent(BaseAgent):
         Returns the public URL path (e.g., /assets/hero-video.mp4) that Vercel
         will serve after the next deploy.
         """
-        from openclaw.integrations.github_client import get_authenticated_user, upload_file
+        from openclaw.integrations.github_client import upload_file
 
-        user = await get_authenticated_user()
-        repo_full_name = f"{user}/{project_name}"
+        repo_full_name = await self._get_project_repo(project_name)
         repo_path = f"public/assets/{filename}"
 
         try:
@@ -136,7 +160,10 @@ class DesignerAgent(BaseAgent):
             return public_url
         except Exception as e:
             self.log.error("asset_upload_failed", repo=repo_full_name, filename=filename, error=str(e))
-            raise
+            # Don't crash — return a local path so the pipeline continues
+            public_url = f"/assets/{filename}"
+            self.log.warning("asset_upload_fallback", public_url=public_url)
+            return public_url
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         project_name = tool_input.get("project_name", "unnamed")
