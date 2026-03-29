@@ -155,12 +155,12 @@ async def push_directory(repo_full_name: str, local_dir: str, commit_message: st
             "message": commit_message + "\n\nCo-Authored-By: Mootbing <mootbing@users.noreply.github.com>",
             "tree": tree_sha,
             "author": {
-                "name": "OpenClaw Agent",
-                "email": "agent@openclaw.ai",
+                "name": "jason-clarmi",
+                "email": "jason@clarmi.studio",
             },
             "committer": {
-                "name": "OpenClaw Agent",
-                "email": "agent@openclaw.ai",
+                "name": "jason-clarmi",
+                "email": "jason@clarmi.studio",
             },
         }
         if current_sha:
