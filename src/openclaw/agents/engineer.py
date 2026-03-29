@@ -41,6 +41,14 @@ CRITICAL RULES:
 - Use 'use client' directive on components that use hooks, refs, or browser APIs.
 - When generating code, output ONLY valid TypeScript/TSX — no markdown fences, no explanations.
 
+CONTENT REUSE FROM OLD SITE:
+- When given image URLs from the old site, USE THEM directly as src attributes (they're still hosted)
+- Reuse the old site's actual copy/blurbs/descriptions — don't make up generic text
+- Keep any important links, menu items, contact info, hours, addresses from the old site
+- Recreate the same navigation structure but with better design
+- If the old site had a menu/pricing page, include that exact content
+- If the old site had team photos, testimonials, or gallery images, include those URLs
+
 CODE QUALITY:
 - GPU-accelerated animations only (transform, opacity)
 - Mobile-first responsive
