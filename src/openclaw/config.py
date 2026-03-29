@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     LEARNING_DAILY_CRON: str = "03:00"
     RELEVANCE_DECAY_HALFLIFE_DAYS: int = 90
 
+    # Dashboard
+    DASHBOARD_SECRET: str = "changeme-openclaw-dashboard"
+
     # Railway auto-scaling
     RAILWAY_API_TOKEN: str = ""
     RAILWAY_HEAVY_SERVICE_ID: str = ""  # Service ID for heavy workers

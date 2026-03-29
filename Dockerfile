@@ -5,8 +5,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Node.js (needed for frontend build + Next.js generation)
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 
+# Build frontend (cached unless frontend/ changes)
+COPY frontend/package.json frontend/package-lock.json ./frontend/
+RUN cd frontend && npm ci
+COPY frontend/ ./frontend/
+RUN cd frontend && npm run build
+
+# Install Python dependencies
 COPY pyproject.toml .
 RUN pip install --no-cache-dir -e ".[dev]" 2>/dev/null || pip install --no-cache-dir .
 
@@ -15,11 +27,6 @@ RUN pip install --no-cache-dir -e .
 
 # Install playwright browsers for QA agent
 RUN playwright install chromium && playwright install-deps chromium
-
-# Install Node.js for Next.js builds
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
-    && apt-get install -y nodejs \
-    && rm -rf /var/lib/apt/lists/*
 
 EXPOSE 8000
 

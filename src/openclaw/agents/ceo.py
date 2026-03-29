@@ -1,4 +1,4 @@
-"""CEO Agent — top-level orchestrator that receives owner messages via WhatsApp."""
+"""CEO Agent — top-level orchestrator that receives owner messages via WhatsApp or Dashboard."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import structlog
 from openclaw.agents.base import BaseAgent
 from openclaw.agents.worker import register_agent
 from openclaw.tools.whatsapp import WHATSAPP_TOOLS, handle_whatsapp_tool
+from openclaw.tools.messaging import send_reply, send_media_reply
 from openclaw.config import settings
 from openclaw.queue.producer import publish
 
@@ -16,7 +17,7 @@ logger = structlog.get_logger()
 CEO_SYSTEM_PROMPT = """\
 You are the CEO of OpenClaw, an AI-powered digital design agency.
 
-You receive instructions from the agency owner via WhatsApp. Your job is to:
+You receive instructions from the agency owner via the dashboard or WhatsApp. Your job is to:
 1. Parse the owner's intent from their message
 2. Respond to questions about project status
 3. Delegate work to the right team members
@@ -39,7 +40,7 @@ When the owner sends a message, determine the intent:
 - "pause/stop/cancel" -> update project status
 - General questions -> respond directly
 
-Always respond to the owner via WhatsApp. Keep messages concise and professional.
+Always respond to the owner. Keep messages concise and professional.
 Use the whatsapp_send tool with to="owner" to reply to the owner.
 
 When delegating, use the delegate_task tool with the appropriate target agent and payload.
@@ -84,11 +85,21 @@ class CEOAgent(BaseAgent):
     system_prompt = CEO_SYSTEM_PROMPT
     tools = WHATSAPP_TOOLS + [DELEGATE_TOOL]
 
-    async def process_task(self, message: dict) -> dict:
-        """Process incoming WhatsApp messages or delegated tasks."""
-        msg_type = message.get("type", "")
+    def __init__(self):
+        super().__init__()
+        self._reply_channel = "whatsapp"
 
-        if msg_type == "whatsapp_message":
+    async def process_task(self, message: dict) -> dict:
+        """Process incoming messages from WhatsApp or Dashboard."""
+        msg_type = message.get("type", "")
+        self._reply_channel = message.get("reply_channel", "whatsapp")
+
+        if msg_type == "dashboard_message":
+            prompt = (
+                f"Owner sent a message via the dashboard:\n"
+                f"Message: {message.get('content')}"
+            )
+        elif msg_type == "whatsapp_message":
             prompt = (
                 f"Owner sent a WhatsApp message:\n"
                 f"Phone: {message.get('phone')}\n"
@@ -103,7 +114,25 @@ class CEOAgent(BaseAgent):
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name in ("whatsapp_send", "whatsapp_send_media"):
-            return await handle_whatsapp_tool(tool_name, tool_input)
+            to = tool_input.get("to", "")
+            is_owner = to == "owner"
+
+            if is_owner and self._reply_channel == "dashboard":
+                # Route owner replies through the dashboard
+                if tool_name == "whatsapp_send":
+                    return await send_reply(
+                        message=tool_input["message"],
+                        channel="dashboard",
+                    )
+                else:
+                    return await send_media_reply(
+                        media_url=tool_input["media_url"],
+                        caption=tool_input.get("caption", ""),
+                        channel="dashboard",
+                    )
+            else:
+                # Non-owner or WhatsApp channel — use WhatsApp
+                return await handle_whatsapp_tool(tool_name, tool_input)
         elif tool_name == "delegate_task":
             target = tool_input["target_agent"]
             await self.delegate(

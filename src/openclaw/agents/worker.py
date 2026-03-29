@@ -73,6 +73,17 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                     logger.info(
                         "message_processed", agent=agent_type, entry_id=entry_id
                     )
+                    # Publish event for dashboard
+                    try:
+                        from openclaw.tools.messaging import publish_dashboard_event
+                        await publish_dashboard_event({
+                            "type": "task_update",
+                            "agent_type": agent_type,
+                            "status": "completed",
+                            "entry_id": entry_id,
+                        })
+                    except Exception:
+                        pass  # Dashboard events are best-effort
                 except Exception as e:
                     retry_count = data.get("_retry_count", 0)
                     max_retries = data.get("_max_retries", 3)
