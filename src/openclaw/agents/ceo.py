@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 import json
+import uuid
+
 import structlog
+from slugify import slugify
+from sqlalchemy import select
 
 from openclaw.agents.base import BaseAgent
 from openclaw.agents.registry import register_agent
@@ -151,13 +155,76 @@ class CEOAgent(BaseAgent):
                 return await handle_whatsapp_tool(tool_name, tool_input)
         elif tool_name == "delegate_task":
             target = tool_input["target_agent"]
+            project_name = tool_input.get("project_name", "")
+            project_id = None
+
+            # Create or fetch Project record so it appears immediately in the dashboard
+            if project_name:
+                try:
+                    project_id = await self._ensure_project(
+                        name=project_name,
+                        brief=tool_input["task_description"],
+                    )
+                except Exception as exc:
+                    logger.warning(
+                        "ensure_project_failed",
+                        project_name=project_name,
+                        error=str(exc),
+                    )
+
             await self.delegate(
                 target_agent=target,
                 payload={
                     "prompt": tool_input["task_description"],
-                    "project_name": tool_input.get("project_name", ""),
+                    "project_name": project_name,
+                    "project_id": str(project_id) if project_id else None,
                     "source": "ceo",
                 },
+                project_id=str(project_id) if project_id else None,
             )
-            return {"status": "delegated", "to": target}
+            return {"status": "delegated", "to": target, "project_id": str(project_id) if project_id else None}
         return await super().handle_tool_call(tool_name, tool_input)
+
+    async def _ensure_project(self, name: str, brief: str) -> uuid.UUID:
+        """Return the id of an existing Project matching *name*, or create one.
+
+        Uses python-slugify to derive a stable slug prefix so repeated
+        delegations for the same project reuse the same record.
+        """
+        from openclaw.db.session import async_session_factory
+        from openclaw.models.project import Project
+
+        slug_prefix = slugify(name)
+
+        async with async_session_factory() as session:
+            # Look for a project whose slug starts with the deterministic prefix.
+            # The slug format is "<slugified-name>-<6-hex-chars>" (see project_service).
+            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+            result = await session.execute(stmt)
+            existing = result.scalars().first()
+
+            if existing:
+                logger.info(
+                    "project_already_exists",
+                    project_id=str(existing.id),
+                    slug=existing.slug,
+                )
+                return existing.id
+
+            # Create a new project
+            project = Project(
+                name=name,
+                slug=slug_prefix + "-" + uuid.uuid4().hex[:6],
+                brief=brief,
+                status="intake",
+            )
+            session.add(project)
+            await session.commit()
+            await session.refresh(project)
+
+            logger.info(
+                "project_created",
+                project_id=str(project.id),
+                slug=project.slug,
+            )
+            return project.id

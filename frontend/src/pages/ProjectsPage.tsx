@@ -1,10 +1,32 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
-import type { ProjectSummary } from "../types";
+import type { ProjectSummary, KanbanBoardResponse } from "../types";
 import StatusBadge from "../components/StatusBadge";
 import { Card } from "../components/ui/card";
 import { Select } from "../components/ui/select";
+
+function TaskStatusSummary({ projectId }: { projectId: string }) {
+  const [board, setBoard] = useState<KanbanBoardResponse | null>(null);
+
+  useEffect(() => {
+    api.kanbanProject(projectId).then(setBoard).catch(() => {});
+  }, [projectId]);
+
+  if (!board) return null;
+
+  const parts = board.columns
+    .filter((col) => col.count > 0)
+    .map((col) => `${col.count} ${col.label.toLowerCase()}`);
+
+  if (parts.length === 0) return null;
+
+  return (
+    <span className="text-xs text-muted-foreground">
+      {parts.join(", ")}
+    </span>
+  );
+}
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -49,9 +71,7 @@ export default function ProjectsPage() {
                   <StatusBadge status={p.status} />
                 </div>
                 <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                  <span>
-                    Tasks: {p.completed_task_count}/{p.task_count}
-                  </span>
+                  <TaskStatusSummary projectId={p.id} />
                   {p.deployed_url && (
                     <a
                       href={p.deployed_url}

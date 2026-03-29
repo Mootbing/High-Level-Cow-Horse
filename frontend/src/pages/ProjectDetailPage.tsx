@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { ProjectDetail } from "../types";
+import type { ProjectDetail, KanbanBoardResponse } from "../types";
 import StatusBadge from "../components/StatusBadge";
-import { Card } from "../components/ui/card";
-import { Badge } from "../components/ui/badge";
+import KanbanBoard from "../components/KanbanBoard";
 import { Button } from "../components/ui/button";
 import { ArrowLeft, ExternalLink, Trash2 } from "lucide-react";
 
@@ -12,11 +11,30 @@ export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [board, setBoard] = useState<KanbanBoardResponse | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchBoard = useCallback(() => {
+    if (id) {
+      api.kanbanProject(id).then(setBoard).catch(() => {});
+    }
+  }, [id]);
 
   useEffect(() => {
-    if (id) api.project(id).then(setProject).catch(() => {});
-  }, [id]);
+    if (id) {
+      api.project(id).then(setProject).catch(() => {});
+      fetchBoard();
+    }
+  }, [id, fetchBoard]);
+
+  // Poll kanban board every 5s
+  useEffect(() => {
+    pollRef.current = setInterval(fetchBoard, 5000);
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+    };
+  }, [fetchBoard]);
 
   if (!project) {
     return (
@@ -78,40 +96,21 @@ export default function ProjectDetailPage() {
         </a>
       )}
 
-      <h3 className="text-lg font-semibold mb-4 text-foreground">
-        Tasks ({project.tasks.length})
-      </h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-semibold text-foreground">
+          Task Board
+        </h3>
+        {board && (
+          <span className="text-sm text-muted-foreground">
+            {board.total_tasks} tasks
+          </span>
+        )}
+      </div>
 
-      {project.tasks.length === 0 ? (
-        <p className="text-muted-foreground text-sm">No tasks yet.</p>
+      {board ? (
+        <KanbanBoard columns={board.columns} />
       ) : (
-        <div className="space-y-2">
-          {project.tasks.map((t) => (
-            <Card key={t.id} className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary">{t.agent_type}</Badge>
-                  <span className="text-sm text-foreground">{t.title}</span>
-                </div>
-                <StatusBadge status={t.status} />
-              </div>
-              {(t.started_at || t.completed_at) && (
-                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                  {t.started_at && (
-                    <span>
-                      Started: {new Date(t.started_at).toLocaleString()}
-                    </span>
-                  )}
-                  {t.completed_at && (
-                    <span>
-                      Done: {new Date(t.completed_at).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
+        <p className="text-muted-foreground text-sm">Loading board...</p>
       )}
     </div>
   );
