@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import structlog
 
@@ -10,23 +11,59 @@ logger = structlog.get_logger()
 
 QA_SYSTEM_PROMPT = """You are the QA Engineer of OpenClaw, a digital design agency.
 
-You test generated websites for quality. For each site:
-1. Take screenshots at multiple viewports (1440px, 1024px, 768px, 375px)
-2. Run Lighthouse audit (performance, accessibility, SEO, best practices)
-3. Check scroll animation smoothness
-4. Verify responsive behavior
-5. Check for broken images/videos
+You test generated websites for quality. WORKFLOW (follow this exact order):
+
+1. FIRST: call verify_url to confirm the Vercel deployment is live and returns HTTP 200.
+   - If the deployment is still building (readyState != READY), wait and retry.
+   - If the URL returns a non-200 status, report FAIL immediately.
+2. THEN: Take screenshots at multiple viewports (1440px, 1024px, 768px, 375px)
+3. THEN: Run Lighthouse audit (performance, accessibility, SEO, best practices)
+4. THEN: If asset URLs were provided, call verify_assets to confirm they load correctly.
 
 Produce a structured QA report:
+- Live URL (the Vercel URL)
+- Deployment status (READY / BUILDING / ERROR)
+- HTTP status code
+- Asset check results (pass/fail for each asset URL)
 - Overall score (0-100)
 - Pass/Fail (threshold: 85)
 - List of issues found with severity
 - Screenshots at each viewport
 - Lighthouse scores
 
-If the site passes (>=85), mark as approved.
+If the site passes (>=85) AND the deployment is READY AND assets load, mark as APPROVED.
 If it fails, create detailed bug reports for the Engineer to fix.
 """
+
+VERIFY_URL_TOOL = {
+    "name": "verify_url",
+    "description": "Check that a deployed Vercel URL is live. Returns HTTP status code and Vercel deployment state (READY, BUILDING, ERROR). Retries up to 3 times with backoff if the site is still building.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "url": {"type": "string", "description": "The full Vercel URL to check (e.g., https://project-name.vercel.app)."},
+            "project_name": {"type": "string", "description": "Vercel project name, used to check deployment readyState."},
+        },
+        "required": ["url"],
+    },
+}
+
+VERIFY_ASSETS_TOOL = {
+    "name": "verify_assets",
+    "description": "Check that designer-generated assets (videos, images) are accessible on the deployed site. Returns pass/fail for each asset URL.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "base_url": {"type": "string", "description": "The site base URL (e.g., https://project-name.vercel.app)."},
+            "asset_paths": {
+                "type": "array",
+                "items": {"type": "string"},
+                "description": "List of asset paths to check (e.g., ['/assets/hero-video.mp4', '/assets/keyframe-hero.png']).",
+            },
+        },
+        "required": ["base_url", "asset_paths"],
+    },
+}
 
 SCREENSHOT_TOOL = {
     "name": "take_screenshot",
@@ -59,10 +96,111 @@ LIGHTHOUSE_TOOL = {
 class QAAgent(BaseAgent):
     agent_type = "qa"
     system_prompt = QA_SYSTEM_PROMPT
-    tools = [SCREENSHOT_TOOL, LIGHTHOUSE_TOOL]
+    tools = [VERIFY_URL_TOOL, VERIFY_ASSETS_TOOL, SCREENSHOT_TOOL, LIGHTHOUSE_TOOL]
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
-        if tool_name == "take_screenshot":
+        if tool_name == "verify_url":
+            import httpx
+
+            url = tool_input["url"]
+            project_name = tool_input.get("project_name")
+
+            # Check Vercel deployment state if project_name provided
+            deploy_state = None
+            deploy_url = None
+            if project_name:
+                try:
+                    from openclaw.integrations.vercel_client import get_latest_deployment
+                    deployment = await get_latest_deployment(project_name)
+                    if deployment:
+                        deploy_state = deployment.get("readyState")
+                        deploy_url = f"https://{deployment.get('url', '')}"
+                except Exception as e:
+                    self.log.warning("vercel_state_check_failed", error=str(e))
+
+            # Retry with backoff — deployments take time
+            last_status = None
+            for attempt in range(4):
+                if attempt > 0:
+                    wait_secs = 15 * attempt  # 15s, 30s, 45s
+                    self.log.info("verify_url_retry", attempt=attempt + 1, wait_s=wait_secs)
+                    await asyncio.sleep(wait_secs)
+
+                try:
+                    async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                        resp = await client.get(url)
+                        last_status = resp.status_code
+
+                        if resp.status_code == 200:
+                            return {
+                                "status": "live",
+                                "http_status": 200,
+                                "url": url,
+                                "deploy_state": deploy_state or "READY",
+                                "deploy_url": deploy_url or url,
+                            }
+                except Exception as e:
+                    last_status = str(e)
+                    self.log.warning("verify_url_error", attempt=attempt + 1, error=str(e)[:200])
+
+                # Re-check deploy state on retry
+                if project_name:
+                    try:
+                        from openclaw.integrations.vercel_client import get_latest_deployment
+                        deployment = await get_latest_deployment(project_name)
+                        if deployment:
+                            deploy_state = deployment.get("readyState")
+                            if deploy_state == "READY":
+                                deploy_url = f"https://{deployment.get('url', '')}"
+                    except Exception:
+                        pass
+
+            return {
+                "status": "fail",
+                "http_status": last_status,
+                "url": url,
+                "deploy_state": deploy_state or "UNKNOWN",
+                "message": f"Site did not return 200 after retries. Last status: {last_status}",
+            }
+
+        elif tool_name == "verify_assets":
+            import httpx
+
+            base_url = tool_input["base_url"].rstrip("/")
+            asset_paths = tool_input.get("asset_paths", [])
+            results = []
+
+            async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+                for path in asset_paths:
+                    full_url = f"{base_url}{path}"
+                    try:
+                        resp = await client.head(full_url)
+                        results.append({
+                            "path": path,
+                            "url": full_url,
+                            "status": resp.status_code,
+                            "pass": resp.status_code == 200,
+                            "content_type": resp.headers.get("content-type", ""),
+                        })
+                    except Exception as e:
+                        results.append({
+                            "path": path,
+                            "url": full_url,
+                            "status": "error",
+                            "pass": False,
+                            "error": str(e)[:200],
+                        })
+
+            all_passed = all(r["pass"] for r in results)
+            return {
+                "status": "pass" if all_passed else "fail",
+                "total": len(results),
+                "passed": sum(1 for r in results if r["pass"]),
+                "failed": sum(1 for r in results if not r["pass"]),
+                "details": results,
+            }
+
+        elif tool_name == "take_screenshot":
             try:
                 from playwright.async_api import async_playwright
                 async with async_playwright() as p:
