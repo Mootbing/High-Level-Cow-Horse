@@ -35,7 +35,7 @@ async def create_repo(name: str, description: str = "") -> dict:
                 "name": name,
                 "description": description or f"Built by OpenClaw AI Design Agency",
                 "private": True,
-                "auto_init": False,  # We'll create the initial commit ourselves
+                "auto_init": True,  # Creates initial commit on main branch
             },
             headers=_headers(),
         )
