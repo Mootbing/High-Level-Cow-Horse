@@ -16,11 +16,14 @@ export default function ChatPage() {
   >([]);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Load history on mount + poll every 5s as WebSocket fallback
   useEffect(() => {
-    api
-      .messages(100)
-      .then((msgs) => setHistory(msgs.reverse()))
-      .catch(() => {});
+    const loadHistory = () => {
+      api.messages(100).then((msgs) => setHistory(msgs.reverse())).catch(() => {});
+    };
+    loadHistory();
+    const interval = setInterval(loadHistory, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {

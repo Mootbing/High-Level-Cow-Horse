@@ -36,6 +36,21 @@ async def send_reply(
     if channel == "dashboard":
         r = await _get_redis()
         await r.publish(DASHBOARD_REPLIES_CHANNEL, json.dumps({"type": "chat", "content": message}))
+        # Also persist the reply so it shows up in chat history polling
+        try:
+            from openclaw.db.session import async_session_factory
+            from openclaw.models.message import Message
+            async with async_session_factory() as session:
+                db_msg = Message(
+                    direction="outbound",
+                    phone_number="dashboard",
+                    message_type="text",
+                    content=message,
+                )
+                session.add(db_msg)
+                await session.commit()
+        except Exception as e:
+            logger.warning("persist_reply_failed", error=str(e))
         logger.info("reply_sent_dashboard", length=len(message))
         return {"status": "sent", "channel": "dashboard"}
     elif channel == "clawdbot":
