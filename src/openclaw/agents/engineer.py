@@ -151,16 +151,16 @@ class EngineerAgent(BaseAgent):
                 commit_message="Initial scaffold: Next.js 15 + GSAP + Lenis + Tailwind",
             )
 
-            # 4. Create Vercel project linked to the GitHub repo
-            from openclaw.integrations.vercel_client import create_project_from_github
-            vercel_project = await create_project_from_github(project_name, repo_full_name)
+            # 4. Deploy directly to Vercel (no GitHub link needed)
+            from openclaw.integrations.vercel_client import deploy_directory
+            vercel_result = await deploy_directory(project_name, project_dir)
 
             return {
                 "status": "scaffolded",
                 "path": project_dir,
                 "github_repo": repo_full_name,
                 "github_url": f"https://github.com/{repo_full_name}",
-                "vercel_project": vercel_project.get("name"),
+                "vercel_url": vercel_result.get("url", ""),
                 "commit": push_result.get("commit_sha", "")[:8],
             }
 
@@ -176,25 +176,27 @@ class EngineerAgent(BaseAgent):
 
         elif tool_name == "commit_and_deploy":
             from openclaw.integrations.github_client import get_authenticated_user, push_directory
+            from openclaw.integrations.vercel_client import deploy_directory
 
-            # Find the GitHub repo name
+            # Find the GitHub repo name and push
             user = await get_authenticated_user()
             repo_full_name = f"{user}/{project_name}"
 
-            # Push changes
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
                 commit_message=tool_input["commit_message"],
             )
 
-            # Vercel auto-deploys from GitHub on push, but we can check status
+            # Deploy directly to Vercel
+            vercel_result = await deploy_directory(project_name, project_dir)
+
             return {
-                "status": "committed_and_deploying",
+                "status": "committed_and_deployed",
                 "commit": push_result.get("commit_sha", "")[:8],
                 "commit_url": push_result.get("url"),
                 "files_pushed": push_result.get("files_pushed"),
-                "note": "Vercel will auto-deploy from this commit",
+                "vercel_url": vercel_result.get("url", ""),
             }
 
         elif tool_name == "get_deploy_url":
