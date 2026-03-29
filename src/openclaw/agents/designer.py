@@ -36,7 +36,9 @@ No text, no logos. High contrast, futuristic AI infrastructure branding.
 Smooth, loop-safe start and end frames. 16:9 aspect ratio."
 
 WORKFLOW:
-1. First generate_video for the hero background (cinematic loop, 6-8 seconds)
+1. Try generate_video for the hero background (cinematic loop, 6-8 seconds)
+   - If video generation FAILS (quota/rate limit), skip it and generate a hero keyframe IMAGE instead.
+   - Do NOT retry video generation if it fails — just move on to images.
 2. Then generate_keyframe for each major section (hero, features, how-it-works, CTA)
 3. Describe the full design spec (colors, fonts, spacing, animations) in your response
 
@@ -165,28 +167,36 @@ class DesignerAgent(BaseAgent):
             }
 
         elif tool_name == "generate_video":
-            from openclaw.integrations.google_ai import generate_video, download_video
+            try:
+                from openclaw.integrations.google_ai import generate_video, download_video
 
-            video_uri = await generate_video(
-                prompt=tool_input["prompt"],
-                duration_seconds=tool_input.get("duration", 6),
-            )
-            video_data = await download_video(video_uri)
-            filename = f"hero-video-{uuid.uuid4().hex[:8]}.mp4"
+                video_uri = await generate_video(
+                    prompt=tool_input["prompt"],
+                    duration_seconds=tool_input.get("duration", 6),
+                )
+                video_data = await download_video(video_uri)
+                filename = f"hero-video-{uuid.uuid4().hex[:8]}.mp4"
 
-            # Save locally as backup
-            filepath = os.path.join(project_dir, filename)
-            with open(filepath, "wb") as f:
-                f.write(video_data)
+                # Save locally as backup
+                filepath = os.path.join(project_dir, filename)
+                with open(filepath, "wb") as f:
+                    f.write(video_data)
 
-            # Upload to GitHub repo so Vercel can serve it
-            public_url = await self._upload_asset_to_repo(project_name, filename, video_data)
+                # Upload to GitHub repo so Vercel can serve it
+                public_url = await self._upload_asset_to_repo(project_name, filename, video_data)
 
-            return {
-                "status": "generated",
-                "local_path": filepath,
-                "filename": filename,
-                "public_url": public_url,
-            }
+                return {
+                    "status": "generated",
+                    "local_path": filepath,
+                    "filename": filename,
+                    "public_url": public_url,
+                }
+            except Exception as exc:
+                self.log.warning("video_generation_failed", error=str(exc)[:300])
+                return {
+                    "status": "failed",
+                    "error": f"Video generation unavailable: {str(exc)[:200]}",
+                    "message": "Video generation failed (quota/rate limit). Skip the video and use generate_image to create a hero keyframe image instead. The engineer will use a static hero image with CSS animations.",
+                }
 
         return await super().handle_tool_call(tool_name, tool_input)
