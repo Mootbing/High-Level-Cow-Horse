@@ -32,18 +32,17 @@ def register_agent(agent_type: str):
 
 def _load_agents():
     """Import all agent modules to trigger registration."""
-    from openclaw.agents import (  # noqa: F401
-        ceo,
-        project_manager,
-        inbound,
-        designer,
-        engineer,
-        qa,
-        outbound,
-        client_comms,
-        research,
-        learning,
-    )
+    import importlib
+    agent_modules = [
+        "ceo", "project_manager", "inbound", "designer", "engineer",
+        "qa", "outbound", "client_comms", "research", "learning",
+    ]
+    for mod_name in agent_modules:
+        try:
+            importlib.import_module(f"openclaw.agents.{mod_name}")
+        except Exception as e:
+            logger.error("agent_import_failed", module=mod_name, error=str(e))
+    logger.info("agents_loaded", registry=list(AGENT_REGISTRY.keys()))
 
 
 async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
