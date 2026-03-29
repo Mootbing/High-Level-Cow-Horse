@@ -104,21 +104,30 @@ async def generate_video(
             poll_data = poll_response.json()
 
             if poll_data.get("done"):
-                # Extract video from response
                 response_data = poll_data.get("response", {})
-                videos = response_data.get("generatedVideos", [])
-                if videos:
-                    video = videos[0]
-                    uri = video.get("uri", "")
-                    if uri:
-                        logger.info("veo3_complete", uri=uri[:100])
-                        return uri
+                logger.info("veo3_done_response", keys=list(response_data.keys()))
 
-                # Check alternative response format
-                if "video" in response_data:
-                    uri = response_data["video"].get("uri", "")
-                    if uri:
-                        return uri
+                # Try all known response formats
+                for key in ["generatedVideos", "generateVideoResponse", "videos"]:
+                    videos = response_data.get(key, [])
+                    if isinstance(videos, dict):
+                        videos = [videos]
+                    if isinstance(videos, list) and videos:
+                        video = videos[0]
+                        uri = video.get("uri", video.get("video", {}).get("uri", ""))
+                        if uri:
+                            logger.info("veo3_complete", uri=uri[:100])
+                            return uri
+
+                # Try nested generateVideoResponse.generatedSamples
+                gvr = response_data.get("generateVideoResponse", {})
+                if isinstance(gvr, dict):
+                    samples = gvr.get("generatedSamples", [])
+                    if samples:
+                        uri = samples[0].get("video", {}).get("uri", "")
+                        if uri:
+                            logger.info("veo3_complete", uri=uri[:100])
+                            return uri
 
                 raise ValueError(f"No video in Veo 3 response: {list(response_data.keys())}")
 
