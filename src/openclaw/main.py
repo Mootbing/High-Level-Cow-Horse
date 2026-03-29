@@ -31,6 +31,12 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 app.include_router(chat_ws.router, tags=["chat"])
 
 # Serve frontend SPA (must be last — catches all non-API routes)
-_frontend_dist = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-if _frontend_dist.is_dir():
-    app.mount("/", StaticFiles(directory=str(_frontend_dist), html=True), name="frontend")
+# Try multiple paths: /app/frontend/dist (Docker), or relative to source
+_frontend_candidates = [
+    Path("/app/frontend/dist"),
+    Path(__file__).resolve().parent.parent.parent / "frontend" / "dist",
+]
+for _candidate in _frontend_candidates:
+    if _candidate.is_dir():
+        app.mount("/", StaticFiles(directory=str(_candidate), html=True), name="frontend")
+        break
