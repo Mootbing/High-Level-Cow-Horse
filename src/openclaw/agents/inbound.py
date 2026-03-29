@@ -81,6 +81,13 @@ class InboundAgent(BaseAgent):
         if tool_name == "firecrawl_scrape":
             from openclaw.integrations.firecrawl_client import firecrawl_client
             result = await firecrawl_client.scrape(tool_input["url"])
+            # Truncate large scrape results to stay within Claude's context limit
+            data = result.get("data", {})
+            if isinstance(data, dict):
+                for key in ("markdown", "html", "rawHtml"):
+                    if key in data and len(str(data[key])) > 15000:
+                        data[key] = str(data[key])[:15000] + "\n\n[TRUNCATED — full content was too large]"
+                result["data"] = data
             return result
         elif tool_name == "firecrawl_extract":
             from openclaw.integrations.firecrawl_client import firecrawl_client
