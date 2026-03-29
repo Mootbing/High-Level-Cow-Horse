@@ -70,7 +70,21 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # ClawdBot — WhatsApp personal account bridge
+  clawdbot:
+    build: ./clawdbot
+    env_file: .env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - clawdbot_auth:/app/auth_state
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:
   projectdata:
+  clawdbot_auth:

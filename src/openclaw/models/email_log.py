@@ -30,9 +30,12 @@ class EmailLog(UUIDPrimaryKeyMixin, Base):
     to_email: Mapped[str] = mapped_column(String(255), nullable=False)
     subject: Mapped[str | None] = mapped_column(String(512))
     body: Mapped[str | None] = mapped_column()
-    status: Mapped[str] = mapped_column(String(16), default="sent")
+    edited_subject: Mapped[str | None] = mapped_column(String(512))
+    edited_body: Mapped[str | None] = mapped_column()
+    status: Mapped[str] = mapped_column(String(16), default="draft")
     gmail_message_id: Mapped[str | None] = mapped_column(String(128))
-    sent_at: Mapped[datetime.datetime] = mapped_column(default=func.now())
+    created_at: Mapped[datetime.datetime] = mapped_column(default=func.now())
+    sent_at: Mapped[datetime.datetime | None] = mapped_column()
 
     # Relationships
     prospect: Mapped[Prospect | None] = relationship(back_populates="email_logs")

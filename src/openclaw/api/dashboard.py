@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import datetime
+
 import redis.asyncio as redis
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -21,6 +23,8 @@ from openclaw.queue.streams import AGENT_TYPES, LIGHT_AGENTS, HEAVY_AGENTS, stre
 from openclaw.schemas.dashboard import (
     AgentsStatusResponse,
     AgentStatus,
+    EmailDraftResponse,
+    EmailDraftUpdate,
     EmailLogSummary,
     KnowledgeEntrySummary,
     MessageSummary,
@@ -207,13 +211,113 @@ async def list_prospects(
 @router.get("/emails", response_model=list[EmailLogSummary])
 async def list_emails(
     limit: int = Query(50, le=200),
+    status: str | None = None,
     session: AsyncSession = Depends(get_session),
     _: str = Depends(verify_dashboard_token),
 ):
+    q = select(EmailLog).order_by(EmailLog.created_at.desc()).limit(limit)
+    if status:
+        q = q.where(EmailLog.status == status)
+    result = await session.execute(q)
+    return [EmailLogSummary.model_validate(e) for e in result.scalars().all()]
+
+
+@router.get("/emails/drafts", response_model=list[EmailLogSummary])
+async def list_email_drafts(
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """List all emails with status='draft', newest first."""
     result = await session.execute(
-        select(EmailLog).order_by(EmailLog.sent_at.desc()).limit(limit)
+        select(EmailLog)
+        .where(EmailLog.status == "draft")
+        .order_by(EmailLog.created_at.desc())
     )
     return [EmailLogSummary.model_validate(e) for e in result.scalars().all()]
+
+
+@router.put("/emails/{email_id}", response_model=EmailDraftResponse)
+async def update_email_draft(
+    email_id: str,
+    payload: EmailDraftUpdate,
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """Update the subject and/or body of a draft email."""
+    result = await session.execute(
+        select(EmailLog).where(EmailLog.id == email_id)
+    )
+    email = result.scalar_one_or_none()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    if email.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft emails can be edited")
+
+    if payload.subject is not None:
+        email.edited_subject = payload.subject
+    if payload.body is not None:
+        email.edited_body = payload.body
+
+    await session.commit()
+    await session.refresh(email)
+    return EmailDraftResponse.model_validate(email)
+
+
+@router.post("/emails/{email_id}/send", response_model=EmailDraftResponse)
+async def send_email_draft(
+    email_id: str,
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """Approve and send a draft email via Gmail."""
+    from openclaw.integrations.gmail_client import send_email
+
+    result = await session.execute(
+        select(EmailLog).where(EmailLog.id == email_id)
+    )
+    email = result.scalar_one_or_none()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    if email.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft emails can be sent")
+
+    # Use edited fields if present, otherwise fall back to originals
+    subject = email.edited_subject or email.subject
+    body = email.edited_body or email.body
+
+    gmail_result = await send_email(
+        to=email.to_email,
+        subject=subject or "",
+        body=body or "",
+    )
+
+    email.status = "sent"
+    email.gmail_message_id = gmail_result.get("id", "")
+    email.sent_at = datetime.datetime.now(datetime.timezone.utc)
+    await session.commit()
+    await session.refresh(email)
+    return EmailDraftResponse.model_validate(email)
+
+
+@router.delete("/emails/{email_id}")
+async def discard_email_draft(
+    email_id: str,
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """Discard (delete) a draft email."""
+    result = await session.execute(
+        select(EmailLog).where(EmailLog.id == email_id)
+    )
+    email = result.scalar_one_or_none()
+    if not email:
+        raise HTTPException(status_code=404, detail="Email not found")
+    if email.status != "draft":
+        raise HTTPException(status_code=400, detail="Only draft emails can be discarded")
+
+    await session.delete(email)
+    await session.commit()
+    return {"status": "discarded", "id": email_id}
 
 
 # --- Knowledge ---

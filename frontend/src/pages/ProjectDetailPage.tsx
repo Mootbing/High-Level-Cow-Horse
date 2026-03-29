@@ -3,6 +3,10 @@ import { useParams, Link } from "react-router-dom";
 import { api } from "../api/client";
 import type { ProjectDetail } from "../types";
 import StatusBadge from "../components/StatusBadge";
+import { Card } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 
 export default function ProjectDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -13,22 +17,31 @@ export default function ProjectDetailPage() {
   }, [id]);
 
   if (!project) {
-    return <div className="p-8 text-white/40">Loading...</div>;
+    return (
+      <div className="p-8 text-muted-foreground">Loading...</div>
+    );
   }
 
   return (
     <div className="p-8">
-      <Link to="/projects" className="text-sm text-white/40 hover:text-white/60 mb-4 inline-block">
-        &larr; Back to projects
+      <Link to="/projects">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mb-4 text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Back to projects
+        </Button>
       </Link>
 
       <div className="flex items-center gap-4 mb-6">
-        <h2 className="text-xl font-bold">{project.name}</h2>
+        <h2 className="text-xl font-bold text-foreground">{project.name}</h2>
         <StatusBadge status={project.status} />
       </div>
 
       {project.brief && (
-        <p className="text-white/60 mb-6 max-w-2xl">{project.brief}</p>
+        <p className="text-muted-foreground mb-6 max-w-2xl">{project.brief}</p>
       )}
 
       {project.deployed_url && (
@@ -36,41 +49,45 @@ export default function ProjectDetailPage() {
           href={project.deployed_url}
           target="_blank"
           rel="noreferrer"
-          className="inline-block mb-6 text-brand-500 hover:underline text-sm"
+          className="inline-flex items-center gap-1 mb-6 text-foreground/60 hover:text-foreground text-sm hover:underline"
         >
-          {project.deployed_url} &rarr;
+          <ExternalLink className="w-3 h-3" />
+          {project.deployed_url}
         </a>
       )}
 
-      <h3 className="text-lg font-semibold mb-4">
+      <h3 className="text-lg font-semibold mb-4 text-foreground">
         Tasks ({project.tasks.length})
       </h3>
 
       {project.tasks.length === 0 ? (
-        <p className="text-white/40 text-sm">No tasks yet.</p>
+        <p className="text-muted-foreground text-sm">No tasks yet.</p>
       ) : (
         <div className="space-y-2">
           {project.tasks.map((t) => (
-            <div
-              key={t.id}
-              className="bg-white/5 border border-white/5 rounded-lg p-4"
-            >
+            <Card key={t.id} className="p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs px-2 py-0.5 rounded bg-white/10 text-white/60">
-                    {t.agent_type}
-                  </span>
-                  <span className="text-sm">{t.title}</span>
+                  <Badge variant="secondary">{t.agent_type}</Badge>
+                  <span className="text-sm text-foreground">{t.title}</span>
                 </div>
                 <StatusBadge status={t.status} />
               </div>
               {(t.started_at || t.completed_at) && (
-                <div className="flex gap-4 mt-2 text-xs text-white/30">
-                  {t.started_at && <span>Started: {new Date(t.started_at).toLocaleString()}</span>}
-                  {t.completed_at && <span>Done: {new Date(t.completed_at).toLocaleString()}</span>}
+                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                  {t.started_at && (
+                    <span>
+                      Started: {new Date(t.started_at).toLocaleString()}
+                    </span>
+                  )}
+                  {t.completed_at && (
+                    <span>
+                      Done: {new Date(t.completed_at).toLocaleString()}
+                    </span>
+                  )}
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}

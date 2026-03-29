@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import type { ProspectSummary } from "../types";
+import { Card } from "../components/ui/card";
+import { Badge } from "../components/ui/badge";
 
 export default function ProspectsPage() {
   const [prospects, setProspects] = useState<ProspectSummary[]>([]);
@@ -11,38 +13,35 @@ export default function ProspectsPage() {
 
   return (
     <div className="p-8">
-      <h2 className="text-xl font-bold mb-6">Prospects</h2>
+      <h2 className="text-xl font-bold mb-6 text-foreground">Prospects</h2>
 
       {prospects.length === 0 ? (
-        <p className="text-white/40">No prospects scraped yet. Use Chat to scrape a website.</p>
+        <p className="text-muted-foreground">
+          No prospects scraped yet. Use Chat to scrape a website.
+        </p>
       ) : (
         <div className="space-y-3">
           {prospects.map((p) => (
-            <div
-              key={p.id}
-              className="bg-white/5 border border-white/5 rounded-lg p-5"
-            >
+            <Card key={p.id} className="p-5">
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <span className="font-medium">
+                  <span className="font-medium text-foreground">
                     {p.company_name || "Unknown"}
                   </span>
                   <a
                     href={p.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-brand-500 hover:underline text-sm ml-3"
+                    className="text-foreground/50 hover:text-foreground hover:underline text-sm ml-3"
                   >
                     {p.url}
                   </a>
                 </div>
                 {p.industry && (
-                  <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-white/60">
-                    {p.industry}
-                  </span>
+                  <Badge variant="secondary">{p.industry}</Badge>
                 )}
               </div>
-              <div className="flex flex-wrap gap-4 text-sm text-white/50">
+              <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {p.contact_emails.length > 0 && (
                   <span>Emails: {p.contact_emails.join(", ")}</span>
                 )}
@@ -52,7 +51,7 @@ export default function ProspectsPage() {
                     {p.brand_colors.map((c, i) => (
                       <span
                         key={i}
-                        className="inline-block w-4 h-4 rounded border border-white/20"
+                        className="inline-block w-4 h-4 rounded border border-border"
                         style={{ backgroundColor: c }}
                       />
                     ))}
@@ -62,7 +61,7 @@ export default function ProspectsPage() {
                   <span>Tech: {p.tech_stack.join(", ")}</span>
                 )}
               </div>
-            </div>
+            </Card>
           ))}
         </div>
       )}

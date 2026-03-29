@@ -57,8 +57,29 @@ export const api = {
   prospects: () =>
     apiFetch<import("../types").ProspectSummary[]>("/dashboard/prospects"),
 
-  emails: (limit = 50) =>
-    apiFetch<import("../types").EmailLogSummary[]>(`/dashboard/emails?limit=${limit}`),
+  emails: (limit = 50, status?: string) =>
+    apiFetch<import("../types").EmailLogSummary[]>(
+      `/dashboard/emails?limit=${limit}${status ? `&status=${status}` : ""}`
+    ),
+
+  emailDrafts: () =>
+    apiFetch<import("../types").EmailLogSummary[]>("/dashboard/emails/drafts"),
+
+  updateEmailDraft: (id: string, data: { subject?: string; body?: string }) =>
+    apiFetch<import("../types").EmailLogSummary>(`/dashboard/emails/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  sendEmailDraft: (id: string) =>
+    apiFetch<import("../types").EmailLogSummary>(`/dashboard/emails/${id}/send`, {
+      method: "POST",
+    }),
+
+  discardEmailDraft: (id: string) =>
+    apiFetch<{ status: string; id: string }>(`/dashboard/emails/${id}`, {
+      method: "DELETE",
+    }),
 
   knowledge: (category?: string) =>
     apiFetch<import("../types").KnowledgeEntry[]>(

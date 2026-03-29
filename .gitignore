@@ -20,3 +20,6 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+*.bak
+.env.local
+.env.railway.ref

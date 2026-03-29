@@ -67,7 +67,11 @@ export interface EmailLogSummary {
   id: string;
   to_email: string;
   subject: string | null;
+  body: string | null;
+  edited_subject: string | null;
+  edited_body: string | null;
   status: string;
+  created_at: string | null;
   sent_at: string | null;
   prospect_id: string | null;
   project_id: string | null;

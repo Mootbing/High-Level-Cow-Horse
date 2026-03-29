@@ -104,10 +104,33 @@ class EmailLogSummary(BaseModel):
     id: uuid.UUID
     to_email: str
     subject: str | None
+    body: str | None
+    edited_subject: str | None
+    edited_body: str | None
     status: str
+    created_at: datetime.datetime | None
     sent_at: datetime.datetime | None
     prospect_id: uuid.UUID | None
     project_id: uuid.UUID | None
+
+    model_config = {"from_attributes": True}
+
+
+class EmailDraftUpdate(BaseModel):
+    subject: str | None = None
+    body: str | None = None
+
+
+class EmailDraftResponse(BaseModel):
+    id: uuid.UUID
+    to_email: str
+    subject: str | None
+    body: str | None
+    edited_subject: str | None
+    edited_body: str | None
+    status: str
+    created_at: datetime.datetime | None
+    sent_at: datetime.datetime | None
 
     model_config = {"from_attributes": True}
 
