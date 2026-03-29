@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import type { KnowledgeEntry } from "../types";
 import { Card } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { Select } from "../components/ui/select";
 import { ExternalLink } from "lucide-react";
 
 const CATEGORIES = [
@@ -29,17 +30,13 @@ export default function KnowledgePage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-foreground">Knowledge Base</h2>
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <Select value={category} onChange={(e) => setCategory(e.target.value)}>
           {CATEGORIES.map((c) => (
             <option key={c} value={c}>
               {c || "All categories"}
             </option>
           ))}
-        </select>
+        </Select>
       </div>
 
       {entries.length === 0 ? (

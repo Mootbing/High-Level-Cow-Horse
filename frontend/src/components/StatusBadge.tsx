@@ -14,6 +14,7 @@ const VARIANT_MAP: Record<string, BadgeProps["variant"]> = {
   alive: "success",
   dead: "error",
   sent: "success",
+  draft: "warning",
 };
 
 export default function StatusBadge({ status }: { status: string }) {

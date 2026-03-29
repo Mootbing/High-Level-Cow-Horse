@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import type { ProjectSummary } from "../types";
 import StatusBadge from "../components/StatusBadge";
 import { Card } from "../components/ui/card";
+import { Select } from "../components/ui/select";
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -17,18 +18,14 @@ export default function ProjectsPage() {
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-foreground">Projects</h2>
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="bg-card border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-        >
+        <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
           <option value="">All</option>
           <option value="intake">Intake</option>
           <option value="design">Design</option>
           <option value="build">Build</option>
           <option value="qa">QA</option>
           <option value="deployed">Deployed</option>
-        </select>
+        </Select>
       </div>
 
       {projects.length === 0 ? (
