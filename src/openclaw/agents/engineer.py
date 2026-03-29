@@ -22,63 +22,41 @@ TECH STACK:
 - Next.js 15 (App Router, TypeScript)
 - GSAP + ScrollTrigger for scroll-driven animations
 - Lenis for smooth scrolling
-- Three.js for WebGL scenes (when appropriate)
 - Tailwind CSS for styling
-- Framer Motion for component animations
 
-STYLE:
-- Modern, minimal, AI-infrastructure aesthetic
-- Black/white base with neon accents (cyan, magenta, electric blue)
-- Large typography (Inter or similar modern grotesk), fluid spacing
-- Heavy whitespace, contrast, and motion
-- Confident, technical, cinematic
+WORKFLOW (follow this EXACT order):
+1. scaffold_nextjs — create repo + Vercel project + push template (1 call)
+2. generate_code — write EACH file one at a time. Start with layout.tsx, then page.tsx, then components (max 12 calls)
+3. verify_build — run npm build locally to catch errors BEFORE deploying (1 call)
+4. If build fails: generate_code to fix the errors, then verify_build again
+5. commit_and_deploy — push to GitHub, Vercel auto-deploys (1 call)
+6. get_deploy_url — return the live URL (1 call)
 
-SECTIONS TO BUILD:
-- Hero with parallax + bold headline + video background
-- Scrolling metrics counter (numbers animate on scroll)
-- Feature grid with staggered reveal
-- Code example with syntax highlighting
-- "How it works" with pinned scroll animation
-- Use cases with horizontal scroll
-- Performance benchmarks
-- Integrations grid
-- Pricing teaser / CTA
-- Footer
-
-WORKFLOW:
-1. scaffold_nextjs — create repo + push template
-2. generate_code — for each section component with full GSAP animations
-3. commit_and_deploy — push to GitHub, Vercel auto-deploys
-4. get_deploy_url — return the live URL
+CRITICAL RULES:
+- You receive ONE comprehensive task with all sections and brand data. Build everything in this session.
+- ALWAYS customize page.tsx and layout.tsx for the specific client — never leave generic template content.
+- ALWAYS call verify_build before commit_and_deploy to catch syntax errors.
+- ALWAYS call commit_and_deploy before your turn budget runs out.
+- A deployed site with 5 good sections beats an undeployed site with 15 sections.
+- Use 'use client' directive on components that use hooks, refs, or browser APIs.
+- When generating code, output ONLY valid TypeScript/TSX — no markdown fences, no explanations.
 
 CODE QUALITY:
-- Lighthouse >= 90
-- All images lazy-loaded
-- Videos use poster images
-- Scroll animations GPU-accelerated (transform, opacity only)
+- GPU-accelerated animations only (transform, opacity)
 - Mobile-first responsive
-- Proper semantic HTML and accessibility
-- Clean, modular components
-
-CRITICAL RULE — ALWAYS DEPLOY:
-You MUST call commit_and_deploy before your turn budget runs out.
-Do NOT spend all turns on generate_code. Prioritize:
-1. scaffold_nextjs (1 turn)
-2. generate_code for the MOST IMPORTANT components (max 8 turns)
-3. commit_and_deploy (1 turn) — THIS IS MANDATORY
-4. get_deploy_url (1 turn)
-If you have limited turns left, STOP generating code and deploy what you have.
-A deployed site with 5 sections is better than an undeployed site with 15 sections.
+- Proper semantic HTML
+- All components in /components/ directory
+- Clean imports with @/ alias
 """
 
 SCAFFOLD_TOOL = {
     "name": "scaffold_nextjs",
-    "description": "Create a new Next.js project from the base template and initialize a GitHub repo for it.",
+    "description": "Create a new Next.js project from the base template and initialize a GitHub repo + Vercel project.",
     "input_schema": {
         "type": "object",
         "properties": {
             "project_name": {"type": "string", "description": "Project name (used for repo name and Vercel URL)."},
-            "description": {"type": "string", "description": "Short project description for the GitHub repo."},
+            "description": {"type": "string", "description": "Short project description."},
         },
         "required": ["project_name"],
     },
@@ -86,26 +64,38 @@ SCAFFOLD_TOOL = {
 
 GENERATE_CODE_TOOL = {
     "name": "generate_code",
-    "description": "Generate code for a specific component or page using Claude.",
+    "description": "Write code to a file in the project. Output ONLY valid code — no markdown, no explanation.",
     "input_schema": {
         "type": "object",
         "properties": {
-            "description": {"type": "string", "description": "What code to generate."},
-            "file_path": {"type": "string", "description": "Where to write the generated code (relative to project root)."},
+            "description": {"type": "string", "description": "What code to generate. Be specific about the client, brand, and section."},
+            "file_path": {"type": "string", "description": "File path relative to project root (e.g., app/page.tsx, components/Hero.tsx)."},
             "project_name": {"type": "string"},
         },
         "required": ["description", "file_path", "project_name"],
     },
 }
 
-COMMIT_AND_DEPLOY_TOOL = {
-    "name": "commit_and_deploy",
-    "description": "Commit all current changes to GitHub and trigger a Vercel deploy. Use after generating/modifying code.",
+VERIFY_BUILD_TOOL = {
+    "name": "verify_build",
+    "description": "Run 'npm run build' locally to check for errors BEFORE deploying. Always call this before commit_and_deploy.",
     "input_schema": {
         "type": "object",
         "properties": {
             "project_name": {"type": "string"},
-            "commit_message": {"type": "string", "description": "Descriptive commit message for this change."},
+        },
+        "required": ["project_name"],
+    },
+}
+
+COMMIT_AND_DEPLOY_TOOL = {
+    "name": "commit_and_deploy",
+    "description": "Push all code to GitHub. Vercel auto-deploys from the push. Only call AFTER verify_build passes.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "project_name": {"type": "string"},
+            "commit_message": {"type": "string"},
         },
         "required": ["project_name", "commit_message"],
     },
@@ -128,8 +118,8 @@ GET_DEPLOY_URL_TOOL = {
 class EngineerAgent(BaseAgent):
     agent_type = "engineer"
     system_prompt = ENGINEER_SYSTEM_PROMPT
-    max_turns = 50  # Needs many turns: scaffold + N sections + commit + deploy
-    tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL]
+    max_turns = 50
+    tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, VERIFY_BUILD_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL]
 
     def _project_dir(self, project_name: str) -> str:
         return os.path.join(settings.STORAGE_PATH, project_name, "site")
@@ -160,7 +150,7 @@ class EngineerAgent(BaseAgent):
             vercel_project = await create_project_from_github(project_name, repo_full_name)
             vercel_linked = bool(vercel_project.get("link"))
 
-            # 4. Push initial scaffold (Vercel webhook is now active)
+            # 4. Push initial scaffold
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
@@ -175,22 +165,85 @@ class EngineerAgent(BaseAgent):
                 "vercel_project": vercel_project.get("name"),
                 "vercel_auto_deploy": vercel_linked,
                 "commit": push_result.get("commit_sha", "")[:8],
+                "note": "Now use generate_code to customize each file for the client.",
             }
 
         elif tool_name == "generate_code":
             filepath = os.path.join(project_dir, tool_input["file_path"])
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
+
+            # Generate code with project context
+            existing_files = []
+            for root, dirs, files in os.walk(project_dir):
+                dirs[:] = [d for d in dirs if d not in ("node_modules", ".next", ".git")]
+                for f in files:
+                    if f.endswith((".tsx", ".ts", ".css", ".json")) and "lock" not in f:
+                        existing_files.append(os.path.relpath(os.path.join(root, f), project_dir))
+
             code = await self.run(
-                f"Generate ONLY the code (no markdown, no explanation) for: {tool_input['description']}"
+                f"Generate ONLY valid TypeScript/TSX code for this file. No markdown fences. No explanations. Just the code.\n\n"
+                f"File: {tool_input['file_path']}\n"
+                f"Task: {tool_input['description']}\n"
+                f"Existing files in project: {', '.join(existing_files[:20])}\n"
             )
+
+            # Strip markdown fences if the model wrapped them
+            code = code.strip()
+            if code.startswith("```"):
+                lines = code.split("\n")
+                lines = lines[1:]  # Remove opening fence
+                if lines and lines[-1].strip() == "```":
+                    lines = lines[:-1]
+                code = "\n".join(lines)
+
             with open(filepath, "w") as f:
                 f.write(code)
-            return {"status": "written", "path": tool_input["file_path"]}
+
+            self.log.info("code_written", path=tool_input["file_path"], size=len(code))
+            return {"status": "written", "path": tool_input["file_path"], "size": len(code)}
+
+        elif tool_name == "verify_build":
+            # Run npm install + build locally to catch errors
+            try:
+                # Install deps first
+                install_result = subprocess.run(
+                    ["npm", "install", "--legacy-peer-deps"],
+                    cwd=project_dir,
+                    capture_output=True, text=True, timeout=120,
+                )
+
+                # Run build
+                build_result = subprocess.run(
+                    ["npm", "run", "build"],
+                    cwd=project_dir,
+                    capture_output=True, text=True, timeout=120,
+                )
+
+                if build_result.returncode == 0:
+                    self.log.info("build_passed", project=project_name)
+                    return {
+                        "status": "pass",
+                        "message": "Build succeeded. Safe to commit_and_deploy.",
+                    }
+                else:
+                    # Extract the error
+                    error_output = build_result.stderr + build_result.stdout
+                    # Get last 2000 chars of error
+                    error_tail = error_output[-2000:] if len(error_output) > 2000 else error_output
+                    self.log.warning("build_failed", project=project_name, error=error_tail[:200])
+                    return {
+                        "status": "fail",
+                        "error": error_tail,
+                        "message": "Build failed. Fix the errors with generate_code, then verify_build again.",
+                    }
+            except subprocess.TimeoutExpired:
+                return {"status": "timeout", "message": "Build timed out after 120s."}
+            except FileNotFoundError:
+                return {"status": "skip", "message": "npm not available — skip verification and deploy."}
 
         elif tool_name == "commit_and_deploy":
             from openclaw.integrations.github_client import get_authenticated_user, push_directory
 
-            # Push to GitHub — Vercel auto-deploys from the push
             user = await get_authenticated_user()
             repo_full_name = f"{user}/{project_name}"
 
@@ -205,7 +258,7 @@ class EngineerAgent(BaseAgent):
                 "commit": push_result.get("commit_sha", "")[:8],
                 "commit_url": push_result.get("url"),
                 "files_pushed": push_result.get("files_pushed"),
-                "note": "Vercel auto-deploys from GitHub push",
+                "note": "Vercel auto-deploys from GitHub push. Use get_deploy_url to check.",
             }
 
         elif tool_name == "get_deploy_url":
@@ -215,8 +268,7 @@ class EngineerAgent(BaseAgent):
                 return {
                     "url": f"https://{deployment.get('url', '')}",
                     "state": deployment.get("readyState"),
-                    "created": deployment.get("created"),
                 }
-            return {"error": "No deployments found"}
+            return {"error": "No deployments found yet. Vercel may still be building."}
 
         return await super().handle_tool_call(tool_name, tool_input)
