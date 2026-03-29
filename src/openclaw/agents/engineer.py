@@ -129,37 +129,101 @@ class EngineerAgent(BaseAgent):
         project_dir = self._project_dir(project_name)
 
         if tool_name == "scaffold_nextjs":
-            # 1. Create Next.js app with create-next-app (clean, working base)
-            parent_dir = os.path.dirname(project_dir)
-            os.makedirs(parent_dir, exist_ok=True)
-
+            # 1. Create a clean Next.js app with proper package.json
+            os.makedirs(project_dir, exist_ok=True)
             self.log.info("scaffold_creating_nextjs", project=project_name)
-            scaffold_result = subprocess.run(
-                [
-                    "npx", "create-next-app@latest", "site",
-                    "--typescript", "--tailwind", "--eslint",
-                    "--app", "--src-dir=false",
-                    "--import-alias=@/*",
-                    "--no-turbopack",
-                ],
-                cwd=parent_dir,
-                capture_output=True, text=True, timeout=120,
-                input="n\n",  # No to any prompts
-            )
-            if scaffold_result.returncode != 0 and not os.path.exists(project_dir):
-                # Fallback: create manually
-                os.makedirs(project_dir, exist_ok=True)
-                self.log.warning("create_next_app_failed", error=scaffold_result.stderr[:300])
 
-            # 2. Install animation libraries on top
-            if os.path.exists(os.path.join(project_dir, "package.json")):
+            # Write package.json with latest deps
+            import json as _json
+            pkg = {
+                "name": project_name,
+                "version": "0.1.0",
+                "private": True,
+                "scripts": {
+                    "dev": "next dev",
+                    "build": "next build",
+                    "start": "next start",
+                    "lint": "next lint"
+                },
+                "dependencies": {
+                    "next": "latest",
+                    "react": "^19.0.0",
+                    "react-dom": "^19.0.0",
+                    "gsap": "^3.12.0",
+                    "@studio-freight/lenis": "^1.0.0",
+                    "framer-motion": "^11.0.0"
+                },
+                "devDependencies": {
+                    "@types/node": "latest",
+                    "@types/react": "latest",
+                    "@types/react-dom": "latest",
+                    "typescript": "latest",
+                    "tailwindcss": "latest",
+                    "postcss": "latest",
+                    "autoprefixer": "latest",
+                    "@tailwindcss/postcss": "latest"
+                }
+            }
+            with open(os.path.join(project_dir, "package.json"), "w") as f:
+                _json.dump(pkg, f, indent=2)
+
+            # Write minimal config files
+            with open(os.path.join(project_dir, "tsconfig.json"), "w") as f:
+                _json.dump({
+                    "compilerOptions": {
+                        "target": "ES2017", "lib": ["dom", "dom.iterable", "esnext"],
+                        "allowJs": True, "skipLibCheck": True, "strict": True,
+                        "noEmit": True, "esModuleInterop": True, "module": "esnext",
+                        "moduleResolution": "bundler", "resolveJsonModule": True,
+                        "isolatedModules": True, "jsx": "preserve", "incremental": True,
+                        "plugins": [{"name": "next"}],
+                        "paths": {"@/*": ["./*"]}
+                    },
+                    "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+                    "exclude": ["node_modules"]
+                }, f, indent=2)
+
+            with open(os.path.join(project_dir, "next.config.ts"), "w") as f:
+                f.write("import type { NextConfig } from 'next';\nconst nextConfig: NextConfig = {};\nexport default nextConfig;\n")
+
+            with open(os.path.join(project_dir, "postcss.config.mjs"), "w") as f:
+                f.write("const config = { plugins: { '@tailwindcss/postcss': {} } };\nexport default config;\n")
+
+            with open(os.path.join(project_dir, "next-env.d.ts"), "w") as f:
+                f.write('/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n')
+
+            # Create app directory with minimal layout + page
+            os.makedirs(os.path.join(project_dir, "app"), exist_ok=True)
+            with open(os.path.join(project_dir, "app", "globals.css"), "w") as f:
+                f.write("@import 'tailwindcss';\n")
+            with open(os.path.join(project_dir, "app", "layout.tsx"), "w") as f:
+                f.write("""import type { Metadata } from 'next'
+import './globals.css'
+
+export const metadata: Metadata = { title: '%s', description: 'Built by OpenClaw' }
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>{children}</body>
+    </html>
+  )
+}
+""" % project_name)
+            with open(os.path.join(project_dir, "app", "page.tsx"), "w") as f:
+                f.write("export default function Home() { return <main><h1>%s</h1></main> }\n" % project_name)
+
+            os.makedirs(os.path.join(project_dir, "components"), exist_ok=True)
+
+            # 2. Install deps
+            try:
                 subprocess.run(
-                    ["npm", "install", "--legacy-peer-deps",
-                     "gsap", "@studio-freight/lenis", "framer-motion"],
-                    cwd=project_dir,
-                    capture_output=True, text=True, timeout=120,
+                    ["npm", "install", "--legacy-peer-deps"],
+                    cwd=project_dir, capture_output=True, text=True, timeout=120,
                 )
-                self.log.info("animation_libs_installed")
+                self.log.info("deps_installed")
+            except Exception as e:
+                self.log.warning("npm_install_failed", error=str(e)[:200])
 
             # 3. Create GitHub repo
             from openclaw.integrations.github_client import create_repo, push_directory
