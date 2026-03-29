@@ -72,10 +72,12 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                     )
 
                     # Auto-report results back to the source agent
+                    # IMPORTANT: reviewer results should NOT auto-report back to avoid infinite loops
+                    # (reviewer reviews inbound -> reports back to inbound -> inbound re-processes -> reviewer reviews again)
                     source = data.get("source_agent")
                     msg_type = data.get("type", "")
                     logger.info("auto_report_check", agent=agent_type, source=source, msg_type=msg_type)
-                    if source and source != agent_type and msg_type == "task":
+                    if source and source != agent_type and msg_type == "task" and agent_type != "reviewer":
                         try:
                             from openclaw.queue.producer import publish as _publish
                             # Truncate result to prevent huge messages
@@ -106,8 +108,10 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                         except Exception as re:
                             logger.error("auto_report_failed", agent=agent_type, error=str(re))
 
-                    # Send to reviewer for validation (skip reviewer reviewing itself)
-                    if agent_type not in ("reviewer", "ceo", "learning", "research"):
+                    # Send to reviewer for validation
+                    # Skip: reviewer itself, CEO, learning, research, and tasks that came FROM the reviewer (avoid loops)
+                    is_from_reviewer = data.get("source_agent") == "reviewer" or data.get("type") == "result"
+                    if agent_type not in ("reviewer", "ceo", "learning", "research") and not is_from_reviewer:
                         try:
                             result_preview = ""
                             if isinstance(result, dict):

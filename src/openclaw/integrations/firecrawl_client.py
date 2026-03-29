@@ -48,8 +48,9 @@ class FirecrawlClient:
         payload: dict = {
             "url": url,
             "formats": formats or ["markdown", "html"],
+            "waitFor": 3000,  # Wait 3s for JS rendering (Wix, Squarespace, etc.)
         }
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=90) as client:
             response = await client.post(
                 f"{self.BASE_URL}/scrape",
                 json=payload,
@@ -89,7 +90,10 @@ class FirecrawlClient:
         payload = {
             "url": url,
             "limit": max_pages,
-            "scrapeOptions": {"formats": ["markdown"]},
+            "scrapeOptions": {
+                "formats": ["markdown"],
+                "waitFor": 3000,  # Wait 3s for JS rendering (Wix, Squarespace, etc.)
+            },
         }
         async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
