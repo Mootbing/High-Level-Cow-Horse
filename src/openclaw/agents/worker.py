@@ -69,8 +69,8 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                             "status": "completed",
                             "entry_id": entry_id,
                         })
-                    except Exception:
-                        pass  # Dashboard events are best-effort
+                    except Exception as de:
+                        logger.warning("dashboard_event_failed", error=str(de))
                 except Exception as e:
                     retry_count = data.get("_retry_count", 0)
                     max_retries = data.get("_max_retries", 3)

@@ -1,4 +1,4 @@
-"""Channel-agnostic messaging — routes replies to dashboard or WhatsApp."""
+"""Channel-agnostic messaging — routes replies to dashboard, clawdbot, or WhatsApp."""
 
 from __future__ import annotations
 
@@ -16,9 +16,15 @@ DASHBOARD_REPLIES_CHANNEL = "dashboard:replies"
 DASHBOARD_EVENTS_CHANNEL = "dashboard:events"
 CLAWDBOT_REPLIES_CHANNEL = "clawdbot:replies"
 
+_pool: redis.Redis | None = None
+
 
 async def _get_redis() -> redis.Redis:
-    return redis.from_url(settings.REDIS_URL, decode_responses=True)
+    """Return a shared Redis connection pool."""
+    global _pool
+    if _pool is None:
+        _pool = redis.from_url(settings.REDIS_URL, decode_responses=True, max_connections=10)
+    return _pool
 
 
 async def send_reply(
@@ -29,16 +35,12 @@ async def send_reply(
     """Send a text reply through the appropriate channel."""
     if channel == "dashboard":
         r = await _get_redis()
-        payload = json.dumps({"type": "chat", "content": message})
-        await r.publish(DASHBOARD_REPLIES_CHANNEL, payload)
-        await r.aclose()
+        await r.publish(DASHBOARD_REPLIES_CHANNEL, json.dumps({"type": "chat", "content": message}))
         logger.info("reply_sent_dashboard", length=len(message))
         return {"status": "sent", "channel": "dashboard"}
     elif channel == "clawdbot":
         r = await _get_redis()
-        payload = json.dumps({"type": "chat", "content": message})
-        await r.publish(CLAWDBOT_REPLIES_CHANNEL, payload)
-        await r.aclose()
+        await r.publish(CLAWDBOT_REPLIES_CHANNEL, json.dumps({"type": "chat", "content": message}))
         logger.info("reply_sent_clawdbot", length=len(message))
         return {"status": "sent", "channel": "clawdbot"}
     else:
@@ -58,13 +60,11 @@ async def send_media_reply(
     if channel in ("dashboard", "clawdbot"):
         r = await _get_redis()
         ch = DASHBOARD_REPLIES_CHANNEL if channel == "dashboard" else CLAWDBOT_REPLIES_CHANNEL
-        payload = json.dumps({
+        await r.publish(ch, json.dumps({
             "type": "chat",
             "content": caption or "Sent media",
             "media_url": media_url,
-        })
-        await r.publish(ch, payload)
-        await r.aclose()
+        }))
         return {"status": "sent", "channel": channel}
     else:
         phone = fallback_phone or settings.OWNER_PHONE
@@ -76,4 +76,3 @@ async def publish_dashboard_event(event: dict) -> None:
     """Publish a real-time event to the dashboard (agent status, task updates)."""
     r = await _get_redis()
     await r.publish(DASHBOARD_EVENTS_CHANNEL, json.dumps(event))
-    await r.aclose()

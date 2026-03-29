@@ -1,5 +1,7 @@
 const BASE = "/api";
 
+let _redirecting = false;
+
 function getToken(): string {
   return localStorage.getItem("openclaw_token") || "";
 }
@@ -26,8 +28,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
   if (res.status === 401) {
-    clearToken();
-    window.location.href = "/login";
+    if (!_redirecting) {
+      _redirecting = true;
+      clearToken();
+      window.location.href = "/login";
+    }
     throw new Error("Unauthorized");
   }
   if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);

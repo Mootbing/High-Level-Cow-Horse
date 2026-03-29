@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import uuid
 
 import redis.asyncio as redis
 import structlog
@@ -23,7 +22,6 @@ router = APIRouter()
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket):
     """Multiplexed WebSocket: CEO chat + real-time dashboard events."""
-    # Authenticate via query param
     token = websocket.query_params.get("token", "")
     if token != settings.DASHBOARD_SECRET:
         await websocket.close(code=4001, reason="Unauthorized")
@@ -32,7 +30,6 @@ async def chat_websocket(websocket: WebSocket):
     await websocket.accept()
     logger.info("dashboard_ws_connected")
 
-    # Subscribe to Redis pubsub for agent replies and events
     r = redis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = r.pubsub()
     await pubsub.subscribe(DASHBOARD_REPLIES_CHANNEL, DASHBOARD_EVENTS_CHANNEL)
@@ -50,6 +47,8 @@ async def chat_websocket(websocket: WebSocket):
                     await asyncio.sleep(0.1)
         except (WebSocketDisconnect, asyncio.CancelledError):
             pass
+        except Exception as e:
+            logger.error("relay_from_redis_error", error=str(e))
 
     async def _relay_from_client():
         """Read from WebSocket and queue for CEO agent."""
@@ -61,7 +60,6 @@ async def chat_websocket(websocket: WebSocket):
                 if not content:
                     continue
 
-                # Store as inbound message
                 async with async_session_factory() as session:
                     db_msg = Message(
                         direction="inbound",
@@ -73,7 +71,6 @@ async def chat_websocket(websocket: WebSocket):
                     await session.commit()
                     await session.refresh(db_msg)
 
-                # Queue for CEO agent
                 await publish("ceo", {
                     "type": "dashboard_message",
                     "message_id": str(db_msg.id),
@@ -83,8 +80,9 @@ async def chat_websocket(websocket: WebSocket):
                 logger.info("dashboard_message_queued", message_id=str(db_msg.id))
         except (WebSocketDisconnect, asyncio.CancelledError):
             pass
+        except Exception as e:
+            logger.error("relay_from_client_error", error=str(e))
 
-    # Run both loops concurrently
     redis_task = asyncio.create_task(_relay_from_redis())
     client_task = asyncio.create_task(_relay_from_client())
 
@@ -94,6 +92,10 @@ async def chat_websocket(websocket: WebSocket):
         )
         for task in pending:
             task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
     finally:
         await pubsub.unsubscribe()
         await pubsub.aclose()

@@ -21,7 +21,7 @@ export default function StatusBadge({ status }: { status: string }) {
   const variant = VARIANT_MAP[status] || "secondary";
   return (
     <Badge variant={variant}>
-      {status.replace("_", " ")}
+      {status.replace(/_/g, " ")}
     </Badge>
   );
 }

@@ -1,4 +1,3 @@
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,6 +14,13 @@ from openclaw.db.session import engine
 async def lifespan(app: FastAPI):
     yield
     await engine.dispose()
+    # Clean up Redis connections
+    from openclaw.queue import producer
+    if producer._redis:
+        await producer._redis.aclose()
+    from openclaw.tools import messaging
+    if messaging._pool:
+        await messaging._pool.aclose()
 
 
 app = FastAPI(
@@ -31,7 +37,6 @@ app.include_router(dashboard.router, prefix="/api/dashboard", tags=["dashboard"]
 app.include_router(chat_ws.router, tags=["chat"])
 
 # Serve frontend SPA (must be last — catches all non-API routes)
-# Try multiple paths: /app/frontend/dist (Docker), or relative to source
 _frontend_candidates = [
     Path("/app/frontend/dist"),
     Path(__file__).resolve().parent.parent.parent / "frontend" / "dist",

@@ -12,7 +12,6 @@ router = APIRouter()
 async def health_check():
     checks = {"api": "ok"}
 
-    # Check PostgreSQL
     try:
         async with async_session_factory() as session:
             await session.execute(text("SELECT 1"))
@@ -20,14 +19,16 @@ async def health_check():
     except Exception as e:
         checks["postgres"] = f"error: {e}"
 
-    # Check Redis
+    r = None
     try:
-        redis = Redis.from_url(settings.REDIS_URL)
-        await redis.ping()
-        await redis.aclose()
+        r = Redis.from_url(settings.REDIS_URL)
+        await r.ping()
         checks["redis"] = "ok"
     except Exception as e:
         checks["redis"] = f"error: {e}"
+    finally:
+        if r:
+            await r.aclose()
 
     status = "healthy" if all(v == "ok" for v in checks.values()) else "degraded"
     return {"status": status, "checks": checks}

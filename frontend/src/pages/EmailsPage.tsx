@@ -219,10 +219,8 @@ export default function EmailsPage() {
                             {displaySubject}
                           </span>
                         </div>
-                        <div className="mb-4 bg-accent/30 rounded-md p-3 text-sm text-muted-foreground max-h-[200px] overflow-y-auto">
-                          <div
-                            dangerouslySetInnerHTML={{ __html: displayBody }}
-                          />
+                        <div className="mb-4 bg-accent/30 rounded-md p-3 text-sm text-muted-foreground max-h-[200px] overflow-y-auto whitespace-pre-wrap">
+                          {displayBody}
                         </div>
                         <div className="flex gap-2">
                           <Button
