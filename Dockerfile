@@ -12,15 +12,16 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 
 WORKDIR /app
 
-# Build frontend (cached unless frontend/ changes)
+# Pre-install frontend deps (cached unless package.json changes)
 COPY frontend/package.json frontend/package-lock.json ./frontend/
 RUN cd frontend && npm ci
-COPY frontend/ ./frontend/
-RUN cd frontend && npm run build
 
-# Copy full source and install Python dependencies
+# Copy everything and install Python
 COPY . .
 RUN pip install --no-cache-dir .
+
+# Build frontend (after COPY so source is present)
+RUN cd frontend && npm run build
 
 # Install playwright browsers for QA agent
 RUN playwright install chromium && playwright install-deps chromium
