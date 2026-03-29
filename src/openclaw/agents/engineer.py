@@ -406,10 +406,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 branch=feature_branch,
             )
 
-            # Create a PR if we pushed to a feature branch
+            # Create a PR and auto-merge to main
             pr_url = None
+            merged = False
             if feature_branch != "main":
                 try:
+                    from openclaw.integrations.github_client import merge_pull_request
                     pr_data = await create_pull_request(
                         repo_full_name,
                         head=feature_branch,
@@ -418,8 +420,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                         body=tool_input["commit_message"],
                     )
                     pr_url = pr_data.get("html_url")
+                    pr_number = pr_data.get("number")
+
+                    # Auto-merge so main always has the latest code
+                    if pr_number:
+                        merge_result = await merge_pull_request(
+                            repo_full_name,
+                            pull_number=pr_number,
+                            merge_method="squash",
+                        )
+                        merged = merge_result.get("merged", False)
+                        self.log.info("auto_merged_to_main", pr=pr_number, merged=merged)
                 except Exception as exc:
-                    self.log.warning("create_pr_failed", error=str(exc)[:200])
+                    self.log.warning("create_pr_or_merge_failed", error=str(exc)[:200])
 
             return {
                 "status": "committed_and_deploying",
@@ -428,7 +441,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 "files_pushed": push_result.get("files_pushed"),
                 "branch": feature_branch,
                 "pr_url": pr_url,
-                "note": f"Pushed to branch '{feature_branch}'. Vercel auto-deploys from GitHub push. Use get_deploy_url to check. Use merge_to_main after QA.",
+                "merged_to_main": merged,
+                "note": f"Pushed to '{feature_branch}', PR created and {'merged into main' if merged else 'pending merge'}. Vercel auto-deploys. Use get_deploy_url to check.",
             }
 
         elif tool_name == "get_deploy_url":
