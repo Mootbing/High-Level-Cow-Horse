@@ -46,7 +46,7 @@ FIRECRAWL_CRAWL_TOOL = {
         "type": "object",
         "properties": {
             "url": {"type": "string", "description": "The root URL to crawl."},
-            "max_pages": {"type": "integer", "description": "Max pages to crawl (default 20).", "default": 20},
+            "max_pages": {"type": "integer", "description": "Max pages to crawl (default 5).", "default": 5},
         },
         "required": ["url"],
     },
@@ -111,7 +111,7 @@ class InboundAgent(BaseAgent):
             from openclaw.models.prospect import Prospect
             from sqlalchemy import select
 
-            max_pages = tool_input.get("max_pages", 20)
+            max_pages = min(tool_input.get("max_pages", 5), 5)  # Cap at 5 to conserve Firecrawl credits
             result = await firecrawl_client.crawl(tool_input["url"], max_pages=max_pages)
 
             # Crawl returns a list of pages — collect all content
