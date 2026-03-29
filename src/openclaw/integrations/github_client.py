@@ -122,6 +122,94 @@ async def upload_file(
         }
 
 
+async def create_branch(repo_full_name: str, branch_name: str, from_branch: str = "main") -> dict:
+    """Create a new branch from an existing branch.
+
+    Returns the ref object for the new branch.  If the branch already exists,
+    returns its current ref instead of failing.
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        headers = _headers()
+
+        # Get the SHA of the source branch
+        ref_resp = await client.get(
+            f"{GITHUB_API}/repos/{repo_full_name}/git/ref/heads/{from_branch}",
+            headers=headers,
+        )
+        ref_resp.raise_for_status()
+        source_sha = ref_resp.json()["object"]["sha"]
+
+        # Create the new branch ref
+        create_resp = await client.post(
+            f"{GITHUB_API}/repos/{repo_full_name}/git/refs",
+            json={"ref": f"refs/heads/{branch_name}", "sha": source_sha},
+            headers=headers,
+        )
+
+        if create_resp.status_code == 422:
+            # Branch already exists — fetch it
+            existing = await client.get(
+                f"{GITHUB_API}/repos/{repo_full_name}/git/ref/heads/{branch_name}",
+                headers=headers,
+            )
+            existing.raise_for_status()
+            logger.info("branch_already_exists", repo=repo_full_name, branch=branch_name)
+            return existing.json()
+
+        create_resp.raise_for_status()
+        logger.info("branch_created", repo=repo_full_name, branch=branch_name, from_branch=from_branch)
+        return create_resp.json()
+
+
+async def create_pull_request(
+    repo_full_name: str,
+    head: str,
+    base: str = "main",
+    title: str = "",
+    body: str = "",
+) -> dict:
+    """Create a pull request from *head* into *base*.
+
+    Returns the PR data dict including 'number' and 'html_url'.
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{GITHUB_API}/repos/{repo_full_name}/pulls",
+            json={
+                "title": title or f"Merge {head} into {base}",
+                "head": head,
+                "base": base,
+                "body": body,
+            },
+            headers=_headers(),
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        logger.info("pr_created", repo=repo_full_name, number=data["number"], url=data["html_url"])
+        return data
+
+
+async def merge_pull_request(
+    repo_full_name: str,
+    pull_number: int,
+    merge_method: str = "squash",
+) -> dict:
+    """Merge an open pull request.
+
+    *merge_method* can be 'merge', 'squash', or 'rebase'.
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.put(
+            f"{GITHUB_API}/repos/{repo_full_name}/pulls/{pull_number}/merge",
+            json={"merge_method": merge_method},
+            headers=_headers(),
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        logger.info("pr_merged", repo=repo_full_name, number=pull_number, sha=data.get("sha", "")[:8])
+        return data
+
+
 async def push_directory(repo_full_name: str, local_dir: str, commit_message: str, branch: str = "main") -> dict:
     """Push an entire local directory to a GitHub repo using the Git trees API.
 

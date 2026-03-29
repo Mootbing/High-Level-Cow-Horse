@@ -25,12 +25,18 @@ TECH STACK:
 - Tailwind CSS for styling
 
 WORKFLOW (follow this EXACT order):
-1. scaffold_nextjs — create repo + Vercel project + push template (1 call)
+1. scaffold_nextjs — set up local template + push to repo (GitHub repo & Vercel project are pre-created)
 2. generate_code — write EACH file one at a time. Start with layout.tsx, then page.tsx, then components (max 12 calls)
 3. verify_build — run npm build locally to catch errors BEFORE deploying (1 call)
 4. If build fails: generate_code to fix the errors, then verify_build again
-5. commit_and_deploy — push to GitHub, Vercel auto-deploys (1 call)
+5. commit_and_deploy — push to a FEATURE BRANCH on GitHub, Vercel auto-deploys (1 call)
 6. get_deploy_url — return the live URL (1 call)
+
+BRANCHING STRATEGY:
+- Engineers ALWAYS work on feature branches, never push directly to main.
+- commit_and_deploy creates a feature branch (e.g. feat/<project>-build) and pushes there.
+- Use merge_to_main to merge your feature branch into main after QA passes.
+- The main branch should always be in a deployable state.
 
 CRITICAL RULES:
 - You receive ONE comprehensive task with all sections and brand data. Build everything in this session.
@@ -134,13 +140,26 @@ GET_DEPLOY_URL_TOOL = {
     },
 }
 
+MERGE_TO_MAIN_TOOL = {
+    "name": "merge_to_main",
+    "description": "Merge the feature branch into main via a pull request. Use after QA passes.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "project_name": {"type": "string", "description": "Project name (used to resolve the repo)."},
+            "branch": {"type": "string", "description": "The feature branch to merge into main."},
+        },
+        "required": ["project_name", "branch"],
+    },
+}
+
 
 @register_agent("engineer")
 class EngineerAgent(BaseAgent):
     agent_type = "engineer"
     system_prompt = ENGINEER_SYSTEM_PROMPT
     max_turns = 50
-    tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, VERIFY_BUILD_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL]
+    tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, VERIFY_BUILD_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL, MERGE_TO_MAIN_TOOL]
 
     def _project_dir(self, project_name: str) -> str:
         return os.path.join(settings.STORAGE_PATH, project_name, "site")
@@ -246,20 +265,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             except Exception as e:
                 self.log.warning("npm_install_failed", error=str(e)[:200])
 
-            # 3. Create GitHub repo
+            # 3. Resolve GitHub repo — reuse pre-created one from project metadata if available
             from openclaw.integrations.github_client import create_repo, push_directory
-            repo_data = await create_repo(
-                name=project_name,
-                description=tool_input.get("description", f"Website for {project_name} — built by Clarmi Design Studio"),
-            )
-            repo_full_name = repo_data["full_name"]
+            repo_full_name = await self._get_project_metadata(project_name, "github_repo")
+            if repo_full_name:
+                self.log.info("reusing_pre_created_repo", repo=repo_full_name)
+            else:
+                repo_data = await create_repo(
+                    name=project_name,
+                    description=tool_input.get("description", f"Website for {project_name} — built by Clarmi Design Studio"),
+                )
+                repo_full_name = repo_data["full_name"]
 
-            # 4. Create Vercel project linked to GitHub BEFORE push
+            # 4. Resolve Vercel project — reuse pre-created one if available
             from openclaw.integrations.vercel_client import create_project_from_github
-            vercel_project = await create_project_from_github(project_name, repo_full_name)
-            vercel_linked = bool(vercel_project.get("link"))
+            vercel_name = await self._get_project_metadata(project_name, "vercel_project")
+            if vercel_name:
+                self.log.info("reusing_pre_created_vercel", vercel=vercel_name)
+                vercel_linked = True
+            else:
+                vercel_project = await create_project_from_github(project_name, repo_full_name)
+                vercel_name = vercel_project.get("name")
+                vercel_linked = bool(vercel_project.get("link"))
 
-            # 5. Push initial scaffold
+            # 5. Push initial scaffold to main
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
@@ -271,7 +300,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 "path": project_dir,
                 "github_repo": repo_full_name,
                 "github_url": f"https://github.com/{repo_full_name}",
-                "vercel_project": vercel_project.get("name"),
+                "vercel_project": vercel_name,
                 "vercel_auto_deploy": vercel_linked,
                 "commit": push_result.get("commit_sha", "")[:8],
                 "note": "Clean Next.js + Tailwind + GSAP + Lenis + Framer Motion. Customize with generate_code.",
@@ -348,28 +377,65 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 return {"status": "skip", "message": "npm not available — skip verification and deploy."}
 
         elif tool_name == "commit_and_deploy":
-            from openclaw.integrations.github_client import get_authenticated_user, push_directory
+            from openclaw.integrations.github_client import (
+                get_authenticated_user,
+                push_directory,
+                create_branch,
+                create_pull_request,
+            )
 
-            user = await get_authenticated_user()
-            repo_full_name = f"{user}/{project_name}"
+            # Resolve the repo — prefer pre-created metadata
+            repo_full_name = await self._get_project_metadata(project_name, "github_repo")
+            if not repo_full_name:
+                user = await get_authenticated_user()
+                repo_full_name = f"{user}/{project_name}"
+
+            # Push to a feature branch instead of main
+            feature_branch = f"feat/{project_name}-build"
+            try:
+                await create_branch(repo_full_name, feature_branch, from_branch="main")
+            except Exception as exc:
+                self.log.warning("create_branch_failed", error=str(exc)[:200])
+                # Fall back to main if branch creation fails
+                feature_branch = "main"
 
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
                 commit_message=tool_input["commit_message"],
+                branch=feature_branch,
             )
+
+            # Create a PR if we pushed to a feature branch
+            pr_url = None
+            if feature_branch != "main":
+                try:
+                    pr_data = await create_pull_request(
+                        repo_full_name,
+                        head=feature_branch,
+                        base="main",
+                        title=f"Build: {project_name}",
+                        body=tool_input["commit_message"],
+                    )
+                    pr_url = pr_data.get("html_url")
+                except Exception as exc:
+                    self.log.warning("create_pr_failed", error=str(exc)[:200])
 
             return {
                 "status": "committed_and_deploying",
                 "commit": push_result.get("commit_sha", "")[:8],
                 "commit_url": push_result.get("url"),
                 "files_pushed": push_result.get("files_pushed"),
-                "note": "Vercel auto-deploys from GitHub push. Use get_deploy_url to check.",
+                "branch": feature_branch,
+                "pr_url": pr_url,
+                "note": f"Pushed to branch '{feature_branch}'. Vercel auto-deploys from GitHub push. Use get_deploy_url to check. Use merge_to_main after QA.",
             }
 
         elif tool_name == "get_deploy_url":
             from openclaw.integrations.vercel_client import get_latest_deployment
-            deployment = await get_latest_deployment(project_name)
+            # Resolve vercel project name — prefer pre-created metadata
+            vercel_name = await self._get_project_metadata(project_name, "vercel_project")
+            deployment = await get_latest_deployment(vercel_name or project_name)
             if deployment:
                 return {
                     "url": f"https://{deployment.get('url', '')}",
@@ -377,4 +443,70 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 }
             return {"error": "No deployments found yet. Vercel may still be building."}
 
+        elif tool_name == "merge_to_main":
+            from openclaw.integrations.github_client import (
+                get_authenticated_user,
+                create_pull_request,
+                merge_pull_request,
+            )
+
+            branch = tool_input.get("branch", f"feat/{project_name}-build")
+
+            # Resolve the repo
+            repo_full_name = await self._get_project_metadata(project_name, "github_repo")
+            if not repo_full_name:
+                user = await get_authenticated_user()
+                repo_full_name = f"{user}/{project_name}"
+
+            # Create PR and merge it
+            try:
+                pr_data = await create_pull_request(
+                    repo_full_name,
+                    head=branch,
+                    base="main",
+                    title=f"Merge: {project_name} build",
+                    body=f"Merging feature branch {branch} into main after QA.",
+                )
+                pr_number = pr_data["number"]
+
+                merge_data = await merge_pull_request(
+                    repo_full_name,
+                    pull_number=pr_number,
+                    merge_method="squash",
+                )
+
+                return {
+                    "status": "merged",
+                    "pr_number": pr_number,
+                    "pr_url": pr_data.get("html_url"),
+                    "merge_sha": merge_data.get("sha", "")[:8],
+                    "note": "Feature branch merged into main. Vercel will auto-deploy the production build.",
+                }
+            except Exception as exc:
+                self.log.error("merge_to_main_failed", error=str(exc)[:300])
+                return {"status": "error", "error": str(exc)[:500]}
+
         return await super().handle_tool_call(tool_name, tool_input)
+
+    async def _get_project_metadata(self, project_name: str, key: str) -> str | None:
+        """Look up a metadata value from the Project record.
+
+        Searches for a project whose slug starts with the project_name.
+        Returns None if the project or key is not found.
+        """
+        try:
+            from openclaw.db.session import async_session_factory
+            from openclaw.models.project import Project
+            from slugify import slugify
+            from sqlalchemy import select
+
+            slug_prefix = slugify(project_name)
+            async with async_session_factory() as session:
+                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+                result = await session.execute(stmt)
+                project = result.scalars().first()
+                if project and project.metadata_:
+                    return project.metadata_.get(key)
+        except Exception as exc:
+            self.log.warning("metadata_lookup_failed", project=project_name, key=key, error=str(exc)[:200])
+        return None

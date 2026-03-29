@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import uuid
+
+import structlog
 from slugify import slugify
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from openclaw.models.project import Project
+
+logger = structlog.get_logger()
 
 
 async def create_project(
@@ -29,6 +33,63 @@ async def create_project(
     session.add(project)
     await session.commit()
     await session.refresh(project)
+
+    # -----------------------------------------------------------
+    # Provision GitHub repo + Vercel project eagerly so they are
+    # ready before the engineer agent starts scaffolding.
+    # Failures are non-fatal — we log and continue.
+    # -----------------------------------------------------------
+    metadata = dict(project.metadata_ or {})
+
+    # GitHub repo
+    try:
+        from openclaw.integrations.github_client import create_repo
+
+        repo_data = await create_repo(
+            name=slug,
+            description=brief or f"Website for {name} — built by Clarmi Design Studio",
+        )
+        repo_full_name = repo_data["full_name"]
+        metadata["github_repo"] = repo_full_name
+        metadata["github_url"] = f"https://github.com/{repo_full_name}"
+        logger.info(
+            "project_github_repo_created",
+            project_id=str(project.id),
+            repo=repo_full_name,
+        )
+    except Exception as exc:
+        logger.warning(
+            "project_github_repo_failed",
+            project_id=str(project.id),
+            error=str(exc),
+        )
+        repo_full_name = None
+
+    # Vercel project (only if we got a GitHub repo)
+    if repo_full_name:
+        try:
+            from openclaw.integrations.vercel_client import create_project_from_github
+
+            vercel_data = await create_project_from_github(slug, repo_full_name)
+            metadata["vercel_project"] = vercel_data.get("name", slug)
+            logger.info(
+                "project_vercel_created",
+                project_id=str(project.id),
+                vercel_name=metadata["vercel_project"],
+            )
+        except Exception as exc:
+            logger.warning(
+                "project_vercel_failed",
+                project_id=str(project.id),
+                error=str(exc),
+            )
+
+    # Persist metadata back to the project row
+    if metadata:
+        project.metadata_ = metadata
+        await session.commit()
+        await session.refresh(project)
+
     return project
 
 

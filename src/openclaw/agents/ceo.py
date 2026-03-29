@@ -190,9 +190,12 @@ class CEOAgent(BaseAgent):
 
         Uses python-slugify to derive a stable slug prefix so repeated
         delegations for the same project reuse the same record.
+        If a new project is created, `project_service.create_project` also
+        provisions a GitHub repo and Vercel project eagerly.
         """
         from openclaw.db.session import async_session_factory
         from openclaw.models.project import Project
+        from openclaw.services.project_service import create_project
 
         slug_prefix = slugify(name)
 
@@ -211,20 +214,19 @@ class CEOAgent(BaseAgent):
                 )
                 return existing.id
 
-            # Create a new project
-            project = Project(
+            # Create project via the service layer — this also provisions
+            # the GitHub repo and Vercel project eagerly.
+            project = await create_project(
+                session=session,
                 name=name,
-                slug=slug_prefix + "-" + uuid.uuid4().hex[:6],
                 brief=brief,
-                status="intake",
             )
-            session.add(project)
-            await session.commit()
-            await session.refresh(project)
 
             logger.info(
                 "project_created",
                 project_id=str(project.id),
                 slug=project.slug,
+                github_repo=project.metadata_.get("github_repo"),
+                vercel_project=project.metadata_.get("vercel_project"),
             )
             return project.id

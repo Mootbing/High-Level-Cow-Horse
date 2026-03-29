@@ -107,6 +107,16 @@ export const api = {
       `/dashboard/agent-logs?limit=${limit}&project_id=${projectId}`
     ),
 
+  allAgentLogs: (opts: { agentType?: string; projectId?: string; limit?: number } = {}) => {
+    const limit = opts.limit ?? 200;
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (opts.agentType) params.set("agent_type", opts.agentType);
+    if (opts.projectId) params.set("project_id", opts.projectId);
+    return apiFetch<import("../types").AgentLogEntry[]>(
+      `/dashboard/agent-logs?${params.toString()}`
+    );
+  },
+
   knowledge: (category?: string) =>
     apiFetch<import("../types").KnowledgeEntry[]>(
       `/dashboard/knowledge${category ? `?category=${category}` : ""}`
