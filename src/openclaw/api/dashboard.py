@@ -722,11 +722,9 @@ async def nuclear_preview(
     # Count GitHub repos
     github_repos = 0
     try:
-        from openclaw.integrations.github_client import get_authenticated_user
-        user = await get_authenticated_user()
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
-                f"https://api.github.com/users/{user}/repos?per_page=100",
+                "https://api.github.com/user/repos?per_page=100&affiliation=owner",
                 headers={"Authorization": f"token {settings.GITHUB_PAT}"},
             )
             if resp.status_code == 200:
@@ -837,8 +835,10 @@ async def nuclear_reset(
         from openclaw.integrations.github_client import get_authenticated_user, delete_repo
         user = await get_authenticated_user()
         async with httpx.AsyncClient(timeout=30) as client:
+            # Use authenticated /user/repos endpoint (not /users/{user}/repos)
+            # to list private repos owned by the PAT holder
             resp = await client.get(
-                f"https://api.github.com/users/{user}/repos?per_page=100",
+                "https://api.github.com/user/repos?per_page=100&affiliation=owner",
                 headers={"Authorization": f"token {settings.GITHUB_PAT}"},
             )
             if resp.status_code == 200:
