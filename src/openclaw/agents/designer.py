@@ -186,10 +186,7 @@ class DesignerAgent(BaseAgent):
             return public_url
         except Exception as e:
             self.log.error("asset_upload_failed", repo=repo_full_name, filename=filename, error=str(e))
-            # Don't crash — return a local path so the pipeline continues
-            public_url = f"/assets/{filename}"
-            self.log.warning("asset_upload_fallback", public_url=public_url)
-            return public_url
+            return f"UPLOAD_FAILED:/assets/{filename} — error: {str(e)[:200]}"
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         project_name = tool_input.get("project_name", "unnamed")

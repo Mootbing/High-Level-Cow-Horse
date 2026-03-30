@@ -275,10 +275,21 @@ async def push_directory(repo_full_name: str, local_dir: str, commit_message: st
                     "sha": blob_sha,
                 })
 
-        # 3. Create tree
+        # 3. Create tree — use base_tree to MERGE with existing repo files
+        #    (preserves designer assets in public/assets/ that aren't in local dir)
+        tree_body: dict = {"tree": tree_items}
+        if current_sha:
+            # Get the tree SHA from the current commit so we can merge
+            commit_info = await client.get(
+                f"{GITHUB_API}/repos/{repo_full_name}/git/commits/{current_sha}",
+                headers=headers,
+            )
+            commit_info.raise_for_status()
+            tree_body["base_tree"] = commit_info.json()["tree"]["sha"]
+
         tree_resp = await client.post(
             f"{GITHUB_API}/repos/{repo_full_name}/git/trees",
-            json={"tree": tree_items},
+            json=tree_body,
             headers=headers,
         )
         tree_resp.raise_for_status()
