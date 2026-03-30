@@ -36,7 +36,6 @@ def _load_agents():
 async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
     """Worker loop for a single agent type."""
     agent_cls = AGENT_REGISTRY[agent_type]
-    agent = agent_cls()
     consumer = StreamConsumer(agent_type)
     await consumer.connect()
 
@@ -65,11 +64,59 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                             await consumer.ack(entry_id)
                             continue
 
-                    result = await agent.process_task(data)
+                    # Create a Task record in DB so dashboard can track progress
+                    db_task_id = None
+                    msg_type_check = data.get("type", "")
+                    project_id = data.get("project_id")
+                    if msg_type_check == "task" and project_id and agent_type not in ("reviewer",):
+                        try:
+                            from openclaw.db.session import async_session_factory
+                            from openclaw.services.task_service import create_task
+                            prompt_text = data.get("payload", {}).get("prompt", "")
+                            # Build a short title from the prompt
+                            title = prompt_text[:100].split("\n")[0] if prompt_text else f"{agent_type} task"
+                            async with async_session_factory() as session:
+                                db_task = await create_task(
+                                    session=session,
+                                    project_id=project_id,
+                                    agent_type=agent_type,
+                                    title=title,
+                                    description=prompt_text[:2000] if prompt_text else None,
+                                    input_data={"entry_id": entry_id, "task_id": task_id},
+                                )
+                                db_task_id = str(db_task.id)
+                                # Mark as in_progress
+                                from openclaw.services.task_service import update_task_status
+                                await update_task_status(session, db_task_id, "in_progress")
+                            logger.info("db_task_created", agent=agent_type, db_task_id=db_task_id)
+                        except Exception as te:
+                            logger.warning("db_task_create_failed", agent=agent_type, error=str(te)[:200])
+
+                    # Fresh agent instance per task to prevent cross-task state bleed
+                    agent = agent_cls()
+                    result = await asyncio.wait_for(
+                        agent.process_task(data),
+                        timeout=settings.TASK_TIMEOUT_S,
+                    )
                     await consumer.ack(entry_id)
                     logger.info(
                         "message_processed", agent=agent_type, entry_id=entry_id
                     )
+
+                    # Update Task record to completed
+                    if db_task_id:
+                        try:
+                            from openclaw.db.session import async_session_factory
+                            from openclaw.services.task_service import update_task_status
+                            result_preview = str(result)[:2000] if result else ""
+                            async with async_session_factory() as session:
+                                await update_task_status(
+                                    session, db_task_id, "completed",
+                                    output_data={"result_preview": result_preview},
+                                )
+                            logger.info("db_task_completed", agent=agent_type, db_task_id=db_task_id)
+                        except Exception as te:
+                            logger.warning("db_task_update_failed", agent=agent_type, error=str(te)[:200])
 
                     # Auto-report results back to the source agent
                     # IMPORTANT: reviewer results should NOT auto-report back to avoid infinite loops
@@ -147,7 +194,36 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                         })
                     except Exception as de:
                         logger.warning("dashboard_event_failed", error=str(de))
+                except asyncio.TimeoutError:
+                    logger.error(
+                        "task_timed_out",
+                        agent=agent_type,
+                        entry_id=entry_id,
+                        timeout_s=settings.TASK_TIMEOUT_S,
+                    )
+                    await consumer.send_to_deadletter(
+                        entry_id, data, f"Task timed out after {settings.TASK_TIMEOUT_S}s"
+                    )
+                    # Mark DB task as failed if we created one
+                    if db_task_id:
+                        try:
+                            async with async_session_factory() as session:
+                                await update_task_status(session, db_task_id, "failed")
+                        except Exception:
+                            pass
+                    continue
                 except Exception as e:
+                    # Mark DB task as failed
+                    if db_task_id:
+                        try:
+                            async with async_session_factory() as session:
+                                await update_task_status(
+                                    session, db_task_id, "failed",
+                                    error=str(e)[:1000],
+                                )
+                        except Exception:
+                            pass
+
                     retry_count = data.get("_retry_count", 0)
                     max_retries = data.get("_max_retries", 3)
                     if retry_count < max_retries:
