@@ -498,3 +498,128 @@ async def list_messages(
         .limit(limit)
     )
     return [MessageSummary.model_validate(m) for m in result.scalars().all()]
+
+
+# --- Queue Management ---
+
+@router.get("/queues")
+async def get_queues(
+    _: str = Depends(verify_dashboard_token),
+):
+    """Get queue depths and pending messages for all agents."""
+    from openclaw.queue.streams import AGENT_TYPES, stream_name, group_name
+
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        queues = []
+        for agent_type in AGENT_TYPES:
+            stream = stream_name(agent_type)
+            group = group_name(agent_type)
+            try:
+                # Get stream length
+                length = await r.xlen(stream)
+
+                # Get pending messages
+                pending = 0
+                try:
+                    info = await r.xpending(stream, group)
+                    pending = info.get("pending", 0) if isinstance(info, dict) else (info[0] if info else 0)
+                except Exception:
+                    pass
+
+                # Get last 10 messages for preview
+                messages = []
+                try:
+                    entries = await r.xrevrange(stream, count=10)
+                    import json as _json
+                    for entry_id, fields in entries:
+                        try:
+                            data = _json.loads(fields.get("data", "{}"))
+                            messages.append({
+                                "entry_id": entry_id,
+                                "type": data.get("type", "?"),
+                                "source": data.get("source_agent", "?"),
+                                "target": data.get("target_agent", agent_type),
+                                "task_id": data.get("task_id"),
+                                "preview": str(data.get("payload", {}).get("prompt", ""))[:150],
+                                "timestamp": fields.get("timestamp"),
+                            })
+                        except Exception:
+                            messages.append({"entry_id": entry_id, "raw": str(fields)[:150]})
+                except Exception:
+                    pass
+
+                queues.append({
+                    "agent_type": agent_type,
+                    "stream_length": length,
+                    "pending": pending,
+                    "messages": messages,
+                })
+            except Exception as e:
+                queues.append({"agent_type": agent_type, "error": str(e)[:200]})
+        return queues
+    finally:
+        await r.aclose()
+
+
+@router.delete("/queues/{agent_type}")
+async def flush_queue(
+    agent_type: str,
+    _: str = Depends(verify_dashboard_token),
+):
+    """Flush all messages from an agent's queue."""
+    from openclaw.queue.streams import AGENT_TYPES, stream_name, group_name
+
+    if agent_type != "all" and agent_type not in AGENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown agent type: {agent_type}")
+
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        flushed = []
+        targets = AGENT_TYPES if agent_type == "all" else [agent_type]
+        for at in targets:
+            stream = stream_name(at)
+            try:
+                length = await r.xlen(stream)
+                await r.delete(stream)
+                # Recreate stream and consumer group
+                group = group_name(at)
+                try:
+                    await r.xgroup_create(stream, group, id="0", mkstream=True)
+                except redis.ResponseError:
+                    pass
+                flushed.append({"agent_type": at, "messages_flushed": length})
+            except Exception as e:
+                flushed.append({"agent_type": at, "error": str(e)[:200]})
+
+        # Also flush dedup keys
+        dedup_keys = []
+        async for key in r.scan_iter("openclaw:dedup:*"):
+            dedup_keys.append(key)
+        if dedup_keys:
+            await r.delete(*dedup_keys)
+
+        return {"status": "flushed", "details": flushed, "dedup_keys_cleared": len(dedup_keys)}
+    finally:
+        await r.aclose()
+
+
+@router.delete("/queues/{agent_type}/{entry_id}")
+async def cancel_message(
+    agent_type: str,
+    entry_id: str,
+    _: str = Depends(verify_dashboard_token),
+):
+    """Delete a specific message from an agent's queue."""
+    from openclaw.queue.streams import AGENT_TYPES, stream_name
+
+    if agent_type not in AGENT_TYPES:
+        raise HTTPException(status_code=400, detail=f"Unknown agent type: {agent_type}")
+
+    r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        stream = stream_name(agent_type)
+        deleted = await r.xdel(stream, entry_id)
+        return {"status": "cancelled" if deleted else "not_found", "entry_id": entry_id, "agent_type": agent_type}
+    finally:
+        await r.aclose()
