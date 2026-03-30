@@ -240,8 +240,8 @@ export default function AgentsPage() {
   return (
     <div className="h-full flex">
       {/* Org chart area */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="flex items-center justify-between mb-4">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 shrink-0">
           <h2 className="text-xl font-bold text-foreground">Agents</h2>
           {data && (
             <span className="text-sm text-muted-foreground">
@@ -253,6 +253,7 @@ export default function AgentsPage() {
           )}
         </div>
 
+        <div className="flex-1 overflow-auto px-6 pb-6">
         <div className="relative" style={{ width: canvasW, height: canvasH, minWidth: canvasW }}>
           {/* SVG connection lines */}
           <svg
@@ -344,6 +345,7 @@ export default function AgentsPage() {
               </div>
             );
           })}
+        </div>
         </div>
       </div>
 
