@@ -163,6 +163,13 @@ class EngineerAgent(BaseAgent):
     max_turns = 50
     tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, VERIFY_BUILD_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL]
 
+    async def process_task(self, message: dict) -> dict:
+        self._current_project_id = message.get("project_id")
+        payload = message.get("payload", {})
+        if not self._current_project_id:
+            self._current_project_id = payload.get("project_id")
+        return await super().process_task(message)
+
     def _project_dir(self, project_name: str) -> str:
         return os.path.join(settings.STORAGE_PATH, project_name, "site")
 
@@ -429,7 +436,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     async def _get_project_metadata(self, project_name: str, key: str) -> str | None:
         """Look up a metadata value from the Project record.
 
-        Searches for a project whose slug starts with the project_name.
+        Tries project_id first, then slug prefix, then name search.
         Returns None if the project or key is not found.
         """
         try:
@@ -438,11 +445,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             from slugify import slugify
             from sqlalchemy import select
 
-            slug_prefix = slugify(project_name)
             async with async_session_factory() as session:
-                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-                result = await session.execute(stmt)
-                project = result.scalars().first()
+                project = None
+
+                # Primary: look up by project_id if available
+                pid = getattr(self, "_current_project_id", None)
+                if pid:
+                    project = await session.get(Project, pid)
+
+                # Fallback: slug prefix match
+                if not project:
+                    slug_prefix = slugify(project_name)
+                    stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+                    result = await session.execute(stmt)
+                    project = result.scalars().first()
+
+                # Fallback: name search
+                if not project:
+                    stmt = select(Project).where(
+                        Project.name.ilike(f"%{project_name}%")
+                    ).limit(1)
+                    result = await session.execute(stmt)
+                    project = result.scalars().first()
+
                 if project and project.metadata_:
                     return project.metadata_.get(key)
         except Exception as exc:

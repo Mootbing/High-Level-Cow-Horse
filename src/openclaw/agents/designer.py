@@ -104,19 +104,45 @@ class DesignerAgent(BaseAgent):
     system_prompt = DESIGNER_SYSTEM_PROMPT
     tools = [GENERATE_KEYFRAME_TOOL, GENERATE_VIDEO_TOOL]
 
+    async def process_task(self, message: dict) -> dict:
+        # Capture project_id so _get_project_repo can use it
+        self._current_project_id = message.get("project_id")
+        payload = message.get("payload", {})
+        if not self._current_project_id:
+            self._current_project_id = payload.get("project_id")
+        return await super().process_task(message)
+
     async def _get_project_repo(self, project_name: str) -> str:
         """Look up the GitHub repo full name from project metadata."""
         try:
             from openclaw.db.session import async_session_factory
             from openclaw.models.project import Project
             from slugify import slugify
-            from sqlalchemy import select
+            from sqlalchemy import select, or_
 
-            slug_prefix = slugify(project_name)
             async with async_session_factory() as session:
-                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-                result = await session.execute(stmt)
-                project = result.scalars().first()
+                project = None
+
+                # Primary: look up by project_id if available
+                pid = getattr(self, "_current_project_id", None)
+                if pid:
+                    project = await session.get(Project, pid)
+
+                # Fallback: slug prefix match
+                if not project:
+                    slug_prefix = slugify(project_name)
+                    stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+                    result = await session.execute(stmt)
+                    project = result.scalars().first()
+
+                # Fallback: name search
+                if not project:
+                    stmt = select(Project).where(
+                        Project.name.ilike(f"%{project_name}%")
+                    ).limit(1)
+                    result = await session.execute(stmt)
+                    project = result.scalars().first()
+
                 if project and project.metadata_:
                     repo = project.metadata_.get("github_repo")
                     if repo:

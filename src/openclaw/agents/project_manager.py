@@ -117,6 +117,14 @@ class ProjectManagerAgent(BaseAgent):
     max_turns = 30  # PM needs more turns for the sequential pipeline
     tools = [DELEGATE_TOOL, DELEGATE_AND_WAIT_TOOL]
 
+    async def process_task(self, message: dict) -> dict:
+        # Capture project_id from the incoming message so we can forward it
+        self._current_project_id = message.get("project_id")
+        payload = message.get("payload", {})
+        if not self._current_project_id:
+            self._current_project_id = payload.get("project_id")
+        return await super().process_task(message)
+
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "delegate_task":
             target = tool_input["target_agent"]
@@ -127,6 +135,7 @@ class ProjectManagerAgent(BaseAgent):
                     "project_name": tool_input.get("project_name", ""),
                     "source": "project_manager",
                 },
+                project_id=getattr(self, "_current_project_id", None),
             )
             return {"status": "delegated", "to": target}
 
@@ -148,6 +157,7 @@ class ProjectManagerAgent(BaseAgent):
                     "project_name": project_name,
                     "source": "project_manager",
                 },
+                project_id=getattr(self, "_current_project_id", None),
                 task_id=task_id,
             )
             self.log.info("delegate_and_wait_sent", target=target, task_id=task_id)
@@ -190,6 +200,10 @@ class ProjectManagerAgent(BaseAgent):
                                 elapsed_s=elapsed,
                                 result_len=len(result_text),
                             )
+                            # Set dedup key so the worker loop doesn't
+                            # reprocess this result as a new task
+                            dedup_key = f"openclaw:dedup:project_manager:{task_id}"
+                            await r.set(dedup_key, "1", ex=3600)
                             return {
                                 "status": "completed",
                                 "from": target,
