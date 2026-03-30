@@ -12,6 +12,7 @@ import {
   BookOpen,
   ScrollText,
   LogOut,
+  ListOrdered,
 } from "lucide-react";
 
 const NAV = [
@@ -23,6 +24,7 @@ const NAV = [
   { to: "/emails", label: "Emails", icon: Mail },
   { to: "/knowledge", label: "Knowledge", icon: BookOpen },
   { to: "/logs", label: "Logs", icon: ScrollText },
+  { to: "/queues", label: "Queues", icon: ListOrdered },
 ];
 
 export default function Layout({ children }: { children: React.ReactNode }) {

@@ -124,4 +124,24 @@ export const api = {
 
   messages: (limit = 50) =>
     apiFetch<import("../types").ChatMessage[]>(`/dashboard/messages?limit=${limit}`),
+
+  // Queue management
+  queues: () =>
+    apiFetch<import("../types").QueueInfo[]>("/dashboard/queues"),
+
+  flushQueue: (agentType: string) =>
+    apiFetch<{ status: string }>(`/dashboard/queues/${agentType}`, {
+      method: "DELETE",
+    }),
+
+  flushAllQueues: () =>
+    apiFetch<{ status: string }>("/dashboard/queues/all", {
+      method: "DELETE",
+    }),
+
+  cancelQueueMessage: (agentType: string, entryId: string) =>
+    apiFetch<{ status: string; entry_id: string; agent_type: string }>(
+      `/dashboard/queues/${agentType}/${entryId}`,
+      { method: "DELETE" }
+    ),
 };

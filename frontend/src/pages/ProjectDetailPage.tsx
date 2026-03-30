@@ -18,6 +18,9 @@ import {
   Terminal,
   Activity,
   ChevronDown,
+  GitFork,
+  Globe,
+  Triangle,
 } from "lucide-react";
 import ProjectPipelineBar from "../components/ProjectPipelineBar";
 
@@ -167,17 +170,47 @@ export default function ProjectDetailPage() {
         <div className="flex items-center gap-4">
           <h2 className="text-2xl font-bold text-foreground">{project.name}</h2>
           <StatusBadge status={project.status} />
-          {project.deployed_url && (
-            <a
-              href={project.deployed_url}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-1 text-foreground/50 hover:text-foreground text-sm hover:underline"
-            >
-              <ExternalLink className="w-3.5 h-3.5" />
-              {project.deployed_url}
-            </a>
-          )}
+          <div className="flex items-center gap-2">
+            {typeof project.metadata_ === "object" &&
+              project.metadata_ &&
+              typeof project.metadata_.github_url === "string" &&
+              project.metadata_.github_url && (
+                <a
+                  href={project.metadata_.github_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card/50 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                >
+                  <GitFork className="w-3.5 h-3.5" />
+                  GitHub
+                </a>
+              )}
+            {typeof project.metadata_ === "object" &&
+              project.metadata_ &&
+              typeof project.metadata_.vercel_project === "string" &&
+              project.metadata_.vercel_project && (
+                <a
+                  href={`https://vercel.com/~/projects/${project.metadata_.vercel_project}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card/50 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+                >
+                  <Triangle className="w-3.5 h-3.5" />
+                  Vercel
+                </a>
+              )}
+            {project.deployed_url && (
+              <a
+                href={project.deployed_url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card/50 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                Live Site
+              </a>
+            )}
+          </div>
         </div>
         <Button
           variant="destructive"

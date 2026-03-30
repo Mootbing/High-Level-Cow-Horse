@@ -11,6 +11,7 @@ import ProspectsPage from "./pages/ProspectsPage";
 import EmailsPage from "./pages/EmailsPage";
 import KnowledgePage from "./pages/KnowledgePage";
 import LogsPage from "./pages/LogsPage";
+import QueuesPage from "./pages/QueuesPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated()) return <Navigate to="/login" replace />;
@@ -36,6 +37,7 @@ export default function App() {
                 <Route path="/emails" element={<EmailsPage />} />
                 <Route path="/knowledge" element={<KnowledgePage />} />
                 <Route path="/logs" element={<LogsPage />} />
+                <Route path="/queues" element={<QueuesPage />} />
               </Routes>
             </Layout>
           </ProtectedRoute>

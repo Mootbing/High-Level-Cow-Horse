@@ -143,3 +143,22 @@ export interface WsMessage {
   agent_type?: string;
   status?: string;
 }
+
+export interface QueueMessage {
+  entry_id: string;
+  type?: string;
+  source?: string;
+  target?: string;
+  task_id?: string;
+  preview?: string;
+  timestamp?: string;
+  raw?: string;
+}
+
+export interface QueueInfo {
+  agent_type: string;
+  stream_length?: number;
+  pending?: number;
+  messages?: QueueMessage[];
+  error?: string;
+}
