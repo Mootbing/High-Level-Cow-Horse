@@ -54,11 +54,11 @@ async def update_task_status(
         if error:
             task.error = error
         if status == "in_progress":
-            from datetime import datetime, timezone
-            task.started_at = datetime.now(timezone.utc)
+            from datetime import datetime
+            task.started_at = datetime.utcnow()
         elif status in ("completed", "failed"):
-            from datetime import datetime, timezone
-            task.completed_at = datetime.now(timezone.utc)
+            from datetime import datetime
+            task.completed_at = datetime.utcnow()
         await session.commit()
         await session.refresh(task)
     return task
