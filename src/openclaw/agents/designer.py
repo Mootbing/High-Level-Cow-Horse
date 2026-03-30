@@ -23,10 +23,13 @@ DESIGN DIRECTION:
 - Confident, technical, cinematic feel
 - Inspired by AI agent runtimes, robotics infra, and developer tools
 
+CRITICAL: NEVER include text, words, letters, typography, or logos in any generated image.
+All text will be added by the engineer via HTML/CSS. Images should be purely visual/abstract.
+
 When using generate_keyframe, write DETAILED prompts like:
-"High-end website hero section mockup, dark background (#0a0a0a), large bold white typography,
+"High-end website hero section mockup, dark background (#0a0a0a),
 subtle cyan neon glow accents, volumetric lighting, abstract geometric shapes floating in depth,
-cinematic composition, 16:9, ultra-modern AI company aesthetic, inspired by Anthropic.com"
+cinematic composition, no text, no words, no typography, no logos, 16:9, ultra-modern AI company aesthetic, inspired by Anthropic.com"
 
 When using generate_video, write prompts for CINEMATIC LOOPS:
 "Seamless looping cinematic background video for a scroll-driven website.

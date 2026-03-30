@@ -178,6 +178,21 @@ class EngineerAgent(BaseAgent):
         project_dir = self._project_dir(project_name)
 
         if tool_name == "scaffold_nextjs":
+            # Guard: if we already have a repo + vercel for this project, skip re-scaffolding
+            existing_repo = await self._get_project_metadata(project_name, "github_repo")
+            existing_vercel = await self._get_project_metadata(project_name, "vercel_project")
+            if existing_repo and existing_vercel:
+                self.log.info("scaffold_skipped_already_exists", repo=existing_repo, vercel=existing_vercel)
+                return {
+                    "status": "already_scaffolded",
+                    "path": project_dir,
+                    "github_repo": existing_repo,
+                    "github_url": f"https://github.com/{existing_repo}",
+                    "vercel_project": existing_vercel,
+                    "vercel_auto_deploy": True,
+                    "note": "Project already scaffolded. Skipping to avoid duplicate repos. Proceed with generate_code.",
+                }
+
             # 1. Create a clean Next.js app with proper package.json
             os.makedirs(project_dir, exist_ok=True)
             self.log.info("scaffold_creating_nextjs", project=project_name)
@@ -297,7 +312,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 vercel_name = vercel_project.get("name")
                 vercel_linked = bool(vercel_project.get("link"))
 
-            # 5. Push initial scaffold to main
+            # 5. Save repo + vercel back to Project metadata so subsequent calls reuse them
+            #    This prevents duplicate repos/vercel projects on retries
+            await self._save_project_metadata(project_name, {
+                "github_repo": repo_full_name,
+                "vercel_project": vercel_name,
+            })
+
+            # 6. Push initial scaffold to main
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
@@ -461,6 +483,47 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             return {"error": "No deployments found yet. Vercel may still be building."}
 
         return await super().handle_tool_call(tool_name, tool_input)
+
+    async def _save_project_metadata(self, project_name: str, data: dict) -> None:
+        """Save metadata keys to the Project record so subsequent calls find them.
+
+        Prevents duplicate GitHub repos and Vercel projects on retries.
+        """
+        try:
+            from openclaw.db.session import async_session_factory
+            from openclaw.models.project import Project
+            from slugify import slugify
+            from sqlalchemy import select
+
+            async with async_session_factory() as session:
+                project = None
+
+                pid = getattr(self, "_current_project_id", None)
+                if pid:
+                    project = await session.get(Project, pid)
+
+                if not project:
+                    slug_prefix = slugify(project_name)
+                    stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+                    result = await session.execute(stmt)
+                    project = result.scalars().first()
+
+                if not project:
+                    stmt = select(Project).where(
+                        Project.name.ilike(f"%{project_name}%")
+                    ).limit(1)
+                    result = await session.execute(stmt)
+                    project = result.scalars().first()
+
+                if project:
+                    existing = project.metadata_ or {}
+                    project.metadata_ = {**existing, **data}
+                    await session.commit()
+                    self.log.info("project_metadata_saved", project=project_name, keys=list(data.keys()))
+                else:
+                    self.log.warning("project_metadata_save_skipped_no_project", project=project_name)
+        except Exception as exc:
+            self.log.warning("project_metadata_save_failed", project=project_name, error=str(exc)[:200])
 
     async def _get_project_metadata(self, project_name: str, key: str) -> str | None:
         """Look up a metadata value from the Project record.

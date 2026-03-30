@@ -107,11 +107,21 @@ class ReviewerAgent(BaseAgent):
     system_prompt = REVIEWER_SYSTEM_PROMPT
     tools = [REPORT_TOOL, VERIFY_URL_TOOL, VERIFY_FILE_TOOL]
 
+    async def process_task(self, message: dict) -> dict:
+        self._review_verdict: str | None = None
+        result = await super().process_task(message)
+        # Prepend machine-readable verdict line for PM pipeline gating
+        verdict = self._review_verdict or "unknown"
+        result_text = result.get("result", "")
+        result["result"] = f"VERDICT:{verdict}\n{result_text}"
+        return result
+
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "review_report":
             status = tool_input["status"]
             findings = tool_input["findings"]
             recommendations = tool_input.get("recommendations", "")
+            self._review_verdict = status  # "pass" or "fail"
             self.log.info(
                 "review_complete",
                 status=status,

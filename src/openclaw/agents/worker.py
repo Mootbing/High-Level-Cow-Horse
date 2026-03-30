@@ -158,7 +158,7 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                     source = data.get("source_agent")
                     msg_type = data.get("type", "")
                     logger.info("auto_report_check", agent=agent_type, source=source, msg_type=msg_type)
-                    if source and source != agent_type and msg_type == "task" and agent_type != "reviewer":
+                    if source and source != agent_type and msg_type == "task" and (agent_type != "reviewer" or source == "project_manager"):
                         try:
                             from openclaw.queue.producer import publish as _publish
                             # Truncate result to prevent huge messages
@@ -190,37 +190,20 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                         except Exception as re:
                             logger.error("auto_report_failed", agent=agent_type, error=str(re))
 
-                    # If this agent IS the reviewer, forward findings to PM for visibility
+                    # Reviewer results are logged only — NOT forwarded to PM stream.
+                    # Forwarding caused late-arriving failures to re-trigger pipeline
+                    # steps the PM had already advanced past, wasting tokens.
                     if agent_type == "reviewer":
-                        try:
-                            reviewed_agent = data.get("payload", {}).get("source", "")
-                            reviewer_result_str = ""
-                            if isinstance(result, dict):
-                                reviewer_result_str = result.get("result", str(result))
-                            else:
-                                reviewer_result_str = str(result)
-                            reviewer_result_str = reviewer_result_str[:2000]
-
-                            from openclaw.queue.producer import publish as _publish_review
-                            await _publish_review("project_manager", {
-                                "type": "result",
-                                "source_agent": "reviewer",
-                                "target_agent": "project_manager",
-                                "project_id": data.get("project_id"),
-                                "task_id": f"review_{data.get('task_id', 'unknown')}",
-                                "payload": {
-                                    "result": f"[REVIEWER] Review of {reviewed_agent}: {reviewer_result_str}",
-                                    "reviewed_agent": reviewed_agent,
-                                },
-                            })
-                            logger.info("reviewer_findings_forwarded_to_pm", reviewed_agent=reviewed_agent)
-                        except Exception as re:
-                            logger.warning("reviewer_forward_to_pm_failed", error=str(re))
+                        reviewed_agent = data.get("payload", {}).get("source", "")
+                        logger.info("reviewer_completed", reviewed_agent=reviewed_agent)
 
                     # Send to reviewer for validation
-                    # Skip: reviewer itself, CEO, learning, research, and tasks that came FROM the reviewer (avoid loops)
+                    # Skip: reviewer itself, CEO, learning, research, tasks from reviewer (avoid loops),
+                    # and PM-delegated pipeline steps (PM already has QA as quality gate —
+                    # async reviewer feedback arrives too late and causes duplicate work)
                     is_from_reviewer = data.get("source_agent") == "reviewer" or data.get("type") == "result"
-                    if agent_type not in ("reviewer", "ceo", "learning", "research") and not is_from_reviewer:
+                    is_pm_pipeline = data.get("source_agent") == "project_manager"
+                    if agent_type not in ("reviewer", "ceo", "learning", "research") and not is_from_reviewer and not is_pm_pipeline:
                         try:
                             result_preview = ""
                             if isinstance(result, dict):

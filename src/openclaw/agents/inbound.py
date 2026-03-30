@@ -10,12 +10,14 @@ logger = structlog.get_logger()
 
 INBOUND_SYSTEM_PROMPT = """You are the Inbound Research Agent of Clarmi Design Studio, a digital design agency.
 
-Your job is to deeply research prospect websites and extract EVERYTHING needed to rebuild them better.
+Your job is to deeply research prospect websites, extract EVERYTHING needed to rebuild them better,
+and identify specific problems with their current site that we can reference in outreach.
 
 WORKFLOW:
 1. Use firecrawl_crawl to crawl the site (up to 5 pages max)
 2. Analyze the crawled content yourself to extract branding data (colors, fonts, emails, etc.)
-3. Use store_prospect to save all extracted data
+3. Critically audit the site for specific problems (see SITE PROBLEMS below)
+4. Use store_prospect to save all extracted data INCLUDING site_problems
 
 IMPORTANT: Do NOT use firecrawl_scrape or firecrawl_extract — the crawl already captures all content.
 Only use ONE firecrawl_crawl call per prospect. Extract branding data from the crawled markdown yourself.
@@ -38,7 +40,63 @@ WHAT TO EXTRACT:
 - Image URLs for hero images, product photos, team photos, gallery images
 - Navigation structure (what pages exist, how they link)
 
-The goal: capture EVERYTHING from the old site so the engineer can recreate it better.
+SITE PROBLEMS — CRITICAL STEP:
+After crawling, analyze the site content and structure to identify specific, concrete problems.
+Look for ALL of these categories:
+
+NAVIGATION & UX:
+- Confusing or cluttered menu/navbar (too many items, unclear labels, buried pages)
+- No mobile hamburger menu visible (non-responsive nav)
+- Missing or broken links in navigation
+- No clear call-to-action above the fold
+- Important pages buried 3+ clicks deep
+
+DESIGN & VISUAL:
+- Dated/outdated visual design (pre-2020 aesthetic, gradients from 2010, etc.)
+- Inconsistent fonts or colors across pages
+- Poor text contrast / readability issues
+- No visual hierarchy — everything looks the same importance
+- Generic stock photos instead of real brand imagery
+- Cluttered layout with no whitespace
+- No scroll animations or micro-interactions (static/flat feel)
+
+PERFORMANCE & TECH:
+- Built on WordPress, Wix, Squarespace, or other page builders (mention which one)
+- Likely slow load times (heavy images, lots of scripts, page builder bloat)
+- Not mobile-optimized (content structure suggests desktop-only design)
+- Missing HTTPS or mixed content warnings
+- Outdated JavaScript frameworks or libraries
+
+CONTENT & CONVERSION:
+- Weak or missing hero section (no compelling headline above the fold)
+- No social proof (missing testimonials, reviews, trust badges)
+- No clear value proposition in first 5 seconds
+- Missing or weak calls-to-action
+- Contact info hard to find
+- No pricing transparency (if applicable)
+- Blog/news section abandoned (old dates)
+
+For each problem found, write it as a SHORT, SPECIFIC, PUNCHY statement that could be used
+directly in an outreach email. Think like a sales consultant who genuinely noticed something:
+
+GOOD examples:
+- "Your menu bar has 14 items — visitors won't know where to click first"
+- "Your hero section is a stock photo with no headline — you have 3 seconds to hook someone"
+- "Built on WordPress with 23 plugins — that's why the site takes 6+ seconds to load"
+- "No mobile menu — 60% of your visitors are on phones and they can't navigate"
+- "Your testimonials are buried on page 4 — nobody will ever see them"
+- "No call-to-action above the fold — visitors have to scroll to figure out what you want them to do"
+
+BAD examples (too generic, don't use these):
+- "The website could be improved"
+- "The design is outdated"
+- "Consider modernizing"
+
+You MUST identify at least 3 specific problems. Most sites have 5-10. Be honest and specific.
+Store them in the site_problems field of store_prospect.
+
+The goal: capture EVERYTHING from the old site so the engineer can recreate it better,
+AND give the outbound agent ammunition for compelling, specific outreach.
 Store all raw page content in the prospect's raw_data field.
 """
 
@@ -81,7 +139,7 @@ FIRECRAWL_EXTRACT_TOOL = {
 
 STORE_PROSPECT_TOOL = {
     "name": "store_prospect",
-    "description": "Store extracted prospect data in the database.",
+    "description": "Store extracted prospect data in the database. MUST include site_problems — at least 3 specific issues found on the site.",
     "input_schema": {
         "type": "object",
         "properties": {
@@ -95,8 +153,32 @@ STORE_PROSPECT_TOOL = {
             "social_links": {"type": "object"},
             "industry": {"type": "string"},
             "tech_stack": {"type": "array", "items": {"type": "string"}},
+            "site_problems": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "category": {
+                            "type": "string",
+                            "enum": ["navigation", "design", "performance", "content"],
+                            "description": "Problem category.",
+                        },
+                        "problem": {
+                            "type": "string",
+                            "description": "Short, specific, punchy description of the problem. Written so it can be dropped directly into a cold email.",
+                        },
+                        "severity": {
+                            "type": "string",
+                            "enum": ["high", "medium", "low"],
+                            "description": "How much this hurts their business.",
+                        },
+                    },
+                    "required": ["category", "problem", "severity"],
+                },
+                "description": "Specific problems found on the prospect's current site. At least 3 required.",
+            },
         },
-        "required": ["url"],
+        "required": ["url", "site_problems"],
     },
 }
 
@@ -265,6 +347,12 @@ class InboundAgent(BaseAgent):
                     session.add(prospect)
                     status = "stored"
                 await session.commit()
-                return {"status": status, "url": tool_input["url"]}
+
+                problems = tool_input.get("site_problems", [])
+                return {
+                    "status": status,
+                    "url": tool_input["url"],
+                    "site_problems_stored": len(problems),
+                }
 
         return await super().handle_tool_call(tool_name, tool_input)
