@@ -29,6 +29,52 @@ function TaskStatusSummary({ projectId }: { projectId: string }) {
   );
 }
 
+const PLACEHOLDER_GRADIENTS = [
+  "from-violet-600 to-indigo-600",
+  "from-cyan-600 to-blue-600",
+  "from-emerald-600 to-teal-600",
+  "from-orange-600 to-rose-600",
+  "from-fuchsia-600 to-pink-600",
+  "from-sky-600 to-cyan-600",
+];
+
+function hashIndex(str: string, max: number) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+  return Math.abs(h) % max;
+}
+
+function WebsiteThumbnail({ url, name }: { url: string | null; name: string }) {
+  const [imgError, setImgError] = useState(false);
+  const gradient = PLACEHOLDER_GRADIENTS[hashIndex(name, PLACEHOLDER_GRADIENTS.length)];
+
+  if (!url || imgError) {
+    return (
+      <div
+        className={`w-full h-40 rounded-t-lg bg-gradient-to-br ${gradient} flex items-center justify-center`}
+      >
+        <span className="text-white/80 text-3xl font-bold uppercase tracking-wider">
+          {name.slice(0, 2)}
+        </span>
+      </div>
+    );
+  }
+
+  const thumbUrl = `https://image.thum.io/get/width/600/crop/400/${url}`;
+
+  return (
+    <div className="w-full h-40 rounded-t-lg overflow-hidden bg-muted">
+      <img
+        src={thumbUrl}
+        alt={`${name} preview`}
+        className="w-full h-full object-cover object-top"
+        loading="lazy"
+        onError={() => setImgError(true)}
+      />
+    </div>
+  );
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [filter, setFilter] = useState("");
@@ -56,37 +102,40 @@ export default function ProjectsPage() {
           No projects yet. Use Chat to create one.
         </p>
       ) : (
-        <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {projects.map((p) => (
             <Link key={p.id} to={`/projects/${p.id}`}>
-              <Card className="p-4 hover:bg-accent/50 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-foreground">
-                      {p.name}
-                    </span>
-                    <span className="text-muted-foreground text-sm ml-2">
-                      {p.slug}
-                    </span>
+              <Card className="overflow-hidden hover:bg-accent/50 transition-colors group">
+                <WebsiteThumbnail url={p.deployed_url} name={p.name} />
+                <div className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0">
+                      <span className="font-medium text-foreground truncate block">
+                        {p.name}
+                      </span>
+                      <span className="text-muted-foreground text-sm">
+                        {p.slug}
+                      </span>
+                    </div>
+                    <StatusBadge status={p.status} />
                   </div>
-                  <StatusBadge status={p.status} />
-                </div>
-                <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                  <TaskStatusSummary projectId={p.id} />
-                  {p.deployed_url && (
-                    <a
-                      href={p.deployed_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-foreground/60 hover:text-foreground hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {p.deployed_url}
-                    </a>
-                  )}
-                  {p.created_at && (
-                    <span>{parseUTC(p.created_at)?.toLocaleDateString()}</span>
-                  )}
+                  <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground flex-wrap">
+                    <TaskStatusSummary projectId={p.id} />
+                    {p.deployed_url && (
+                      <a
+                        href={p.deployed_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-foreground/60 hover:text-foreground hover:underline truncate max-w-[200px]"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {p.deployed_url.replace(/^https?:\/\//, "")}
+                      </a>
+                    )}
+                    {p.created_at && (
+                      <span>{parseUTC(p.created_at)?.toLocaleDateString()}</span>
+                    )}
+                  </div>
                 </div>
               </Card>
             </Link>

@@ -67,6 +67,7 @@ class Settings(BaseSettings):
 
     # Railway auto-scaling
     RAILWAY_API_TOKEN: str = ""
+    RAILWAY_LIGHT_SERVICE_ID: str = ""  # Service ID for light workers
     RAILWAY_HEAVY_SERVICE_ID: str = ""  # Service ID for heavy workers
     AUTOSCALE_ENABLED: bool = True
     AUTOSCALE_MIN_REPLICAS: int = 1

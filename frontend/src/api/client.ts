@@ -59,6 +59,12 @@ export const api = {
   agentsStatus: () =>
     apiFetch<import("../types").AgentsStatusResponse>("/dashboard/agents/status"),
 
+  restartAgent: (agentType: string) =>
+    apiFetch<{ status: string; tier: string; agent_type: string }>(
+      `/dashboard/agents/${agentType}/restart`,
+      { method: "POST" }
+    ),
+
   prospects: () =>
     apiFetch<import("../types").ProspectSummary[]>("/dashboard/prospects"),
 

@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
-import type { AgentLogEntry, AgentsStatusResponse, AgentStatus } from "../types";
+import type { AgentLogEntry, AgentsStatusResponse, AgentStatus, QueueInfo } from "../types";
 import { cn, parseUTC } from "@/lib/utils";
-import { X } from "lucide-react";
+import { X, Inbox, FolderOpen, RotateCw } from "lucide-react";
 
 // --- Org hierarchy ---
 const HIERARCHY: Record<string, string[]> = {
@@ -106,6 +107,22 @@ const STATE_LABELS = {
   offline: "Offline",
 } as const;
 
+// --- Agent reference detection for log enrichment ---
+const ALL_AGENTS = Object.keys(LABELS);
+const AGENT_REF_PATTERNS: [string, RegExp][] = ALL_AGENTS.map((agent) => [
+  agent,
+  new RegExp(`\\b${agent.replace(/_/g, "[_ ]")}\\b`, "i"),
+]);
+
+function detectAgentRefs(content: string, selfAgent: string): string[] {
+  const found: string[] = [];
+  for (const [agent, pattern] of AGENT_REF_PATTERNS) {
+    if (agent === selfAgent) continue;
+    if (pattern.test(content)) found.push(agent);
+  }
+  return found;
+}
+
 // --- Main Component ---
 export default function AgentsPage() {
   const [data, setData] = useState<AgentsStatusResponse | null>(null);
@@ -115,6 +132,23 @@ export default function AgentsPage() {
   const [dragOffsets, setDragOffsets] = useState<Record<string, { x: number; y: number }>>({});
   const dragging = useRef<{ agent: string; startX: number; startY: number; ox: number; oy: number } | null>(null);
   const didDrag = useRef(false);
+  const navigate = useNavigate();
+  const [queueData, setQueueData] = useState<QueueInfo[]>([]);
+  const [restarting, setRestarting] = useState<Record<string, boolean>>({});
+
+  const handleRestart = async (agentType: string) => {
+    setRestarting((prev) => ({ ...prev, [agentType]: true }));
+    try {
+      await api.restartAgent(agentType);
+    } catch {
+      // Silently fail — status will update on next poll
+    }
+    // Keep the spinner for 10s to give the service time to restart
+    setTimeout(() => {
+      setRestarting((prev) => ({ ...prev, [agentType]: false }));
+      load();
+    }, 10_000);
+  };
 
   // Load agents status
   const load = useCallback(() => {
@@ -126,6 +160,15 @@ export default function AgentsPage() {
     const iv = setInterval(load, 10_000);
     return () => clearInterval(iv);
   }, [load]);
+
+  // Load queue data for snippets
+  useEffect(() => {
+    api.queues().then(setQueueData).catch(() => {});
+    const iv = setInterval(() => {
+      api.queues().then(setQueueData).catch(() => {});
+    }, 10_000);
+    return () => clearInterval(iv);
+  }, []);
 
   // Load logs when agent is selected
   useEffect(() => {
@@ -147,6 +190,9 @@ export default function AgentsPage() {
   if (data) {
     for (const a of data.agents) agentMap[a.agent_type] = a;
   }
+
+  const queueMap: Record<string, QueueInfo> = {};
+  for (const q of queueData) queueMap[q.agent_type] = q;
 
   // Drag handlers
   const onMouseDown = (agent: string, e: React.MouseEvent) => {
@@ -257,6 +303,11 @@ export default function AgentsPage() {
                 onMouseDown={(e) => onMouseDown(agent, e)}
                 onClick={() => { if (!didDrag.current) setSelected(selected === agent ? null : agent); }}
               >
+                {a && a.queue_depth > 0 && (
+                  <span className="absolute -top-2 -right-2 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold px-1.5 ring-2 ring-card z-10">
+                    {a.queue_depth}
+                  </span>
+                )}
                 <div className="flex items-center gap-2">
                   <span
                     className={cn(
@@ -269,11 +320,27 @@ export default function AgentsPage() {
                     {LABELS[agent] ?? agent}
                   </span>
                 </div>
-                <p className="text-[10px] text-muted-foreground truncate mt-0.5 pl-4">
-                  {state === "busy" && a?.current_task
-                    ? a.current_task
-                    : STATE_LABELS[state]}
-                </p>
+                <div className="flex items-center justify-between mt-0.5 pl-4">
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {restarting[agent]
+                      ? "Restarting..."
+                      : state === "busy" && a?.current_task
+                        ? a.current_task
+                        : STATE_LABELS[state]}
+                  </p>
+                  {state === "offline" && !restarting[agent] && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleRestart(agent); }}
+                      className="ml-1 text-muted-foreground hover:text-amber-400 transition-colors shrink-0"
+                      title="Restart agent"
+                    >
+                      <RotateCw size={10} />
+                    </button>
+                  )}
+                  {restarting[agent] && (
+                    <RotateCw size={10} className="ml-1 text-amber-400 animate-spin shrink-0" />
+                  )}
+                </div>
               </div>
             );
           })}
@@ -313,17 +380,34 @@ export default function AgentsPage() {
           {/* Agent meta */}
           {agentMap[selected] && (
             <div className="p-4 border-b border-border space-y-2 text-sm">
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Status</span>
-                <span
-                  className={cn(
-                    agentMap[selected].status === "alive"
-                      ? "text-emerald-400"
-                      : "text-red-400",
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      agentMap[selected].status === "alive"
+                        ? "text-emerald-400"
+                        : "text-red-400",
+                    )}
+                  >
+                    {restarting[selected] ? "restarting" : agentMap[selected].status}
+                  </span>
+                  {agentMap[selected].status !== "alive" && (
+                    <button
+                      onClick={() => handleRestart(selected)}
+                      disabled={!!restarting[selected]}
+                      className={cn(
+                        "inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded border transition-colors",
+                        restarting[selected]
+                          ? "text-amber-400 border-amber-400/30 bg-amber-400/10 cursor-wait"
+                          : "text-amber-400 border-amber-400/30 bg-amber-400/10 hover:bg-amber-400/20",
+                      )}
+                    >
+                      <RotateCw size={10} className={cn(restarting[selected] && "animate-spin")} />
+                      {restarting[selected] ? "Restarting" : "Restart"}
+                    </button>
                   )}
-                >
-                  {agentMap[selected].status}
-                </span>
+                </div>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Tier</span>
@@ -371,34 +455,102 @@ export default function AgentsPage() {
               <p className="text-xs text-muted-foreground">No recent activity</p>
             ) : (
               <div className="space-y-3">
-                {logs.map((log) => (
-                  <div key={log.id} className="text-xs">
-                    <div className="flex items-center gap-2 mb-0.5">
-                      <span
-                        className={cn(
-                          "font-medium",
-                          log.role === "assistant"
-                            ? "text-blue-400"
-                            : log.role === "tool"
-                              ? "text-purple-400"
-                              : "text-muted-foreground",
-                        )}
-                      >
-                        {log.role}
-                      </span>
-                      {log.created_at && (
-                        <span className="text-muted-foreground/50">
-                          {parseUTC(log.created_at)?.toLocaleTimeString()}
+                {logs.map((log) => {
+                  const agentRefs = selected ? detectAgentRefs(log.content, selected) : [];
+                  const displayContent = log.content.length > 500
+                    ? log.content.slice(0, 500) + "..."
+                    : log.content;
+                  const hasLinks = agentRefs.length > 0 || log.project_id || log.task_id;
+
+                  return (
+                    <div key={log.id} className="text-xs">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span
+                          className={cn(
+                            "font-medium",
+                            log.role === "assistant"
+                              ? "text-blue-400"
+                              : log.role === "tool"
+                                ? "text-purple-400"
+                                : "text-muted-foreground",
+                          )}
+                        >
+                          {log.role}
                         </span>
+                        {log.created_at && (
+                          <span className="text-muted-foreground/50">
+                            {parseUTC(log.created_at)?.toLocaleTimeString()}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-foreground/60 whitespace-pre-wrap break-words leading-relaxed">
+                        {displayContent}
+                      </p>
+
+                      {/* Queue snippets for referenced agents */}
+                      {agentRefs.map((ref) => {
+                        const q = queueMap[ref];
+                        const depth = q?.stream_length ?? agentMap[ref]?.queue_depth ?? 0;
+                        if (depth === 0) return null;
+                        return (
+                          <div
+                            key={ref}
+                            className="mt-1.5 bg-muted/20 border border-border/50 rounded-md px-2.5 py-1.5 cursor-pointer hover:bg-muted/40 transition-colors"
+                            onClick={() => setSelected(ref)}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <Inbox size={10} className="text-amber-400 shrink-0" />
+                              <span className="text-[10px] font-medium text-amber-400">
+                                {LABELS[ref]} queue
+                              </span>
+                              <span className="text-[10px] text-red-400 font-bold">
+                                {depth}
+                              </span>
+                            </div>
+                            {q?.messages?.[0]?.preview && (
+                              <p className="text-[10px] text-foreground/40 truncate mt-0.5 pl-4">
+                                {q.messages[0].preview}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Deep link buttons */}
+                      {hasLinks && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {agentRefs.map((ref) => (
+                            <button
+                              key={ref}
+                              onClick={() => setSelected(ref)}
+                              className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300 bg-blue-400/10 hover:bg-blue-400/20 border border-blue-400/20 rounded px-1.5 py-0.5 transition-colors"
+                            >
+                              {LABELS[ref]}
+                            </button>
+                          ))}
+                          {agentRefs.some((ref) => (queueMap[ref]?.stream_length ?? 0) > 0) && (
+                            <button
+                              onClick={() => navigate("/queues")}
+                              className="inline-flex items-center gap-1 text-[10px] text-amber-400 hover:text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/20 rounded px-1.5 py-0.5 transition-colors"
+                            >
+                              <Inbox size={9} />
+                              Queues
+                            </button>
+                          )}
+                          {log.project_id && (
+                            <button
+                              onClick={() => navigate(`/projects/${log.project_id}`)}
+                              className="inline-flex items-center gap-1 text-[10px] text-emerald-400 hover:text-emerald-300 bg-emerald-400/10 hover:bg-emerald-400/20 border border-emerald-400/20 rounded px-1.5 py-0.5 transition-colors"
+                            >
+                              <FolderOpen size={9} />
+                              Project
+                            </button>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <p className="text-foreground/60 whitespace-pre-wrap break-words leading-relaxed">
-                      {log.content.length > 500
-                        ? log.content.slice(0, 500) + "..."
-                        : log.content}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

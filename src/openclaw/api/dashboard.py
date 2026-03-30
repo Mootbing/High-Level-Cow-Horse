@@ -334,6 +334,75 @@ async def agents_status(
     return AgentsStatusResponse(agents=agents, total_pending=total_pending)
 
 
+RAILWAY_GQL_URL = "https://backboard.railway.app/graphql/v2"
+
+
+@router.post("/agents/{agent_type}/restart")
+async def restart_agent(
+    agent_type: str,
+    _: str = Depends(verify_dashboard_token),
+):
+    """Restart the Railway service that runs this agent's tier."""
+    if agent_type not in AGENT_TYPES:
+        raise HTTPException(404, f"Unknown agent type: {agent_type}")
+
+    tier = "light" if agent_type in LIGHT_AGENTS else "heavy"
+    service_id = (
+        settings.RAILWAY_LIGHT_SERVICE_ID if tier == "light"
+        else settings.RAILWAY_HEAVY_SERVICE_ID
+    )
+
+    if not service_id or not settings.RAILWAY_API_TOKEN:
+        raise HTTPException(503, "Railway API not configured for this tier")
+
+    import httpx
+
+    headers = {
+        "Authorization": f"Bearer {settings.RAILWAY_API_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    # Get the latest deployment for this service
+    query = """
+    query($serviceId: String!) {
+        deployments(first: 1, input: { serviceId: $serviceId }) {
+            edges { node { id status } }
+        }
+    }
+    """
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            RAILWAY_GQL_URL,
+            json={"query": query, "variables": {"serviceId": service_id}},
+            headers=headers,
+        )
+        if resp.status_code != 200:
+            raise HTTPException(502, f"Railway API error: {resp.status_code}")
+
+        data = resp.json()
+        edges = data.get("data", {}).get("deployments", {}).get("edges", [])
+        if not edges:
+            raise HTTPException(404, "No deployments found for this service")
+
+        deployment_id = edges[0]["node"]["id"]
+
+        # Restart the deployment
+        mutation = """
+        mutation($id: String!) {
+            deploymentRestart(id: $id)
+        }
+        """
+        resp = await client.post(
+            RAILWAY_GQL_URL,
+            json={"query": mutation, "variables": {"id": deployment_id}},
+            headers=headers,
+        )
+        if resp.status_code != 200 or "errors" in resp.json():
+            raise HTTPException(502, f"Restart failed: {resp.text[:200]}")
+
+    return {"status": "restarting", "tier": tier, "agent_type": agent_type}
+
+
 # --- Prospects ---
 
 @router.get("/prospects", response_model=list[ProspectSummary])
