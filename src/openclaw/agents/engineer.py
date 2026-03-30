@@ -33,15 +33,15 @@ WORKFLOW (follow this EXACT order):
 6. get_deploy_url — return the live URL (1 call)
 
 BRANCHING STRATEGY:
-- Engineers ALWAYS work on feature branches, never push directly to main.
-- commit_and_deploy creates a feature branch (e.g. feat/<project>-build) and pushes there.
-- Use merge_to_main to merge your feature branch into main after QA passes.
-- The main branch should always be in a deployable state.
+- Push directly to main. Vercel auto-deploys from main.
+- commit_and_deploy pushes your code to the main branch.
 
 CRITICAL RULES:
 - You receive ONE comprehensive task with all sections and brand data. Build everything in this session.
 - ALWAYS customize page.tsx and layout.tsx for the specific client — never leave generic template content.
-- NEVER build a generic/template site. Every piece of text must be specific to the client's business.
+- NEVER build a generic/template site. Every piece of text, heading, company name, and description must come DIRECTLY from the brand data or old site content provided in your task.
+- If your task does NOT contain real brand data (company name, colors, actual content from the client's site), STOP and respond with an error: "ERROR: No brand data provided. Cannot build site without real client content." Do NOT invent fake company names, fake testimonials, or placeholder content.
+- NEVER invent company names, product names, testimonials, team members, pricing, or any content. Use ONLY what was given to you.
 - If your task is about fixing infrastructure issues (Vercel 401, deployment config, etc.) that you cannot fix with code, respond with a message explaining the issue is not code-related and requires manual infrastructure configuration. Do NOT rebuild the site.
 - ALWAYS call verify_build before commit_and_deploy to catch syntax errors.
 - ALWAYS call commit_and_deploy before your turn budget runs out.
@@ -161,7 +161,7 @@ class EngineerAgent(BaseAgent):
     agent_type = "engineer"
     system_prompt = ENGINEER_SYSTEM_PROMPT
     max_turns = 50
-    tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, VERIFY_BUILD_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL, MERGE_TO_MAIN_TOOL]
+    tools = [SCAFFOLD_TOOL, GENERATE_CODE_TOOL, VERIFY_BUILD_TOOL, COMMIT_AND_DEPLOY_TOOL, GET_DEPLOY_URL_TOOL]
 
     def _project_dir(self, project_name: str) -> str:
         return os.path.join(settings.STORAGE_PATH, project_name, "site")
@@ -382,8 +382,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             from openclaw.integrations.github_client import (
                 get_authenticated_user,
                 push_directory,
-                create_branch,
-                create_pull_request,
             )
 
             # Resolve the repo — prefer pre-created metadata
@@ -392,59 +390,21 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 user = await get_authenticated_user()
                 repo_full_name = f"{user}/{project_name}"
 
-            # Push to a feature branch instead of main
-            feature_branch = f"feat/{project_name}-build"
-            try:
-                await create_branch(repo_full_name, feature_branch, from_branch="main")
-            except Exception as exc:
-                self.log.warning("create_branch_failed", error=str(exc)[:200])
-                # Fall back to main if branch creation fails
-                feature_branch = "main"
-
+            # Push directly to main — Vercel auto-deploys from main
             push_result = await push_directory(
                 repo_full_name,
                 project_dir,
                 commit_message=tool_input["commit_message"],
-                branch=feature_branch,
+                branch="main",
             )
-
-            # Create a PR and auto-merge to main
-            pr_url = None
-            merged = False
-            if feature_branch != "main":
-                try:
-                    from openclaw.integrations.github_client import merge_pull_request
-                    pr_data = await create_pull_request(
-                        repo_full_name,
-                        head=feature_branch,
-                        base="main",
-                        title=f"Build: {project_name}",
-                        body=tool_input["commit_message"],
-                    )
-                    pr_url = pr_data.get("html_url")
-                    pr_number = pr_data.get("number")
-
-                    # Auto-merge so main always has the latest code
-                    if pr_number:
-                        merge_result = await merge_pull_request(
-                            repo_full_name,
-                            pull_number=pr_number,
-                            merge_method="squash",
-                        )
-                        merged = merge_result.get("merged", False)
-                        self.log.info("auto_merged_to_main", pr=pr_number, merged=merged)
-                except Exception as exc:
-                    self.log.warning("create_pr_or_merge_failed", error=str(exc)[:200])
 
             return {
                 "status": "committed_and_deploying",
                 "commit": push_result.get("commit_sha", "")[:8],
                 "commit_url": push_result.get("url"),
                 "files_pushed": push_result.get("files_pushed"),
-                "branch": feature_branch,
-                "pr_url": pr_url,
-                "merged_to_main": merged,
-                "note": f"Pushed to '{feature_branch}', PR created and {'merged into main' if merged else 'pending merge'}. Vercel auto-deploys. Use get_deploy_url to check.",
+                "branch": "main",
+                "note": "Pushed to main. Vercel auto-deploys from GitHub push. Use get_deploy_url to check.",
             }
 
         elif tool_name == "get_deploy_url":
@@ -458,49 +418,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                     "state": deployment.get("readyState"),
                 }
             return {"error": "No deployments found yet. Vercel may still be building."}
-
-        elif tool_name == "merge_to_main":
-            from openclaw.integrations.github_client import (
-                get_authenticated_user,
-                create_pull_request,
-                merge_pull_request,
-            )
-
-            branch = tool_input.get("branch", f"feat/{project_name}-build")
-
-            # Resolve the repo
-            repo_full_name = await self._get_project_metadata(project_name, "github_repo")
-            if not repo_full_name:
-                user = await get_authenticated_user()
-                repo_full_name = f"{user}/{project_name}"
-
-            # Create PR and merge it
-            try:
-                pr_data = await create_pull_request(
-                    repo_full_name,
-                    head=branch,
-                    base="main",
-                    title=f"Merge: {project_name} build",
-                    body=f"Merging feature branch {branch} into main after QA.",
-                )
-                pr_number = pr_data["number"]
-
-                merge_data = await merge_pull_request(
-                    repo_full_name,
-                    pull_number=pr_number,
-                    merge_method="squash",
-                )
-
-                return {
-                    "status": "merged",
-                    "pr_number": pr_number,
-                    "pr_url": pr_data.get("html_url"),
-                    "merge_sha": merge_data.get("sha", "")[:8],
-                    "note": "Feature branch merged into main. Vercel will auto-deploy the production build.",
-                }
-            except Exception as exc:
-                self.log.error("merge_to_main_failed", error=str(exc)[:300])
-                return {"status": "error", "error": str(exc)[:500]}
 
         return await super().handle_tool_call(tool_name, tool_input)
 
