@@ -26,6 +26,7 @@ class BaseAgent:
     def __init__(self):
         self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
         self.model = self.model or settings.CLAUDE_MODEL
+        self._current_project_id = None
         # Each agent instance gets its own bound logger with agent_type
         self.log = structlog.get_logger().bind(agent=self.agent_type)
 
@@ -33,6 +34,12 @@ class BaseAgent:
         """Main entry point. Override in subclasses for custom behavior."""
         msg_type = message.get("type", "task")
         payload = message.get("payload", {})
+
+        # Extract project_id for log linking (subclasses that override may set it earlier)
+        if not self._current_project_id:
+            self._current_project_id = message.get("project_id")
+            if not self._current_project_id:
+                self._current_project_id = payload.get("project_id")
 
         self.log.info("process_task_start", msg_type=msg_type, payload_keys=list(payload.keys()))
 
@@ -133,6 +140,9 @@ class BaseAgent:
             # Otherwise, add assistant message + tool results and continue
             messages.append({"role": "assistant", "content": assistant_content})
             messages.append({"role": "user", "content": tool_results})
+        else:
+            # for loop completed without break — hit max_turns limit
+            self.log.warning("max_turns_reached", max_turns=self.max_turns, text_parts=len(final_text_parts))
 
         full_response = "\n".join(final_text_parts)
         await self._persist_log("assistant", full_response, response.usage.output_tokens)
@@ -146,6 +156,7 @@ class BaseAgent:
             async with async_session_factory() as session:
                 log = AgentLog(
                     agent_type=self.agent_type,
+                    project_id=getattr(self, '_current_project_id', None),
                     role=role,
                     content=content[:10000],  # Truncate very long content
                     token_count=token_count,

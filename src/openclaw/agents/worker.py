@@ -163,7 +163,7 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                                 result_str = result.get("result", str(result))
                             else:
                                 result_str = str(result)
-                            result_str = result_str[:3000]  # Cap at 3KB
+                            result_str = result_str[:6000]  # Cap at 6KB (must preserve asset URLs)
 
                             await _publish(source, {
                                 "type": "result",

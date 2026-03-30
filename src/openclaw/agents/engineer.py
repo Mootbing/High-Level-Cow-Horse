@@ -435,8 +435,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
             deployment = await get_latest_deployment(effective_name)
             if deployment:
+                live_url = f"https://{deployment.get('url', '')}"
+
+                # Save deployed URL to project record
+                pid = getattr(self, "_current_project_id", None)
+                if pid and live_url:
+                    try:
+                        from openclaw.db.session import async_session_factory
+                        from openclaw.models.project import Project
+                        async with async_session_factory() as session:
+                            project = await session.get(Project, pid)
+                            if project:
+                                project.deployed_url = live_url
+                                await session.commit()
+                    except Exception as e:
+                        self.log.warning("deployed_url_save_failed", error=str(e)[:200])
+
                 result = {
-                    "url": f"https://{deployment.get('url', '')}",
+                    "url": live_url,
                     "state": deployment.get("readyState"),
                 }
                 if protection_warning:

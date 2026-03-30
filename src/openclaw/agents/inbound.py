@@ -124,8 +124,11 @@ class InboundAgent(BaseAgent):
                 if prospect and prospect.raw_data and prospect.raw_data.get("pages"):
                     crawled_at = prospect.raw_data.get("crawled_at")
                     if crawled_at:
-                        crawl_time = datetime.fromisoformat(crawled_at)
-                        if datetime.now(timezone.utc) - crawl_time < timedelta(hours=24):
+                        try:
+                            crawl_time = datetime.fromisoformat(crawled_at)
+                        except (ValueError, TypeError):
+                            crawl_time = None
+                        if crawl_time and datetime.now(timezone.utc) - crawl_time < timedelta(hours=24):
                             self.log.info("crawl_skipped_cached", url=tool_input["url"])
                             return {
                                 "success": True,
