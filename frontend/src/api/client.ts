@@ -150,4 +150,12 @@ export const api = {
       `/dashboard/queues/${agentType}/${entryId}`,
       { method: "DELETE" }
     ),
+
+  nuclearPreview: () =>
+    apiFetch<Record<string, number>>("/dashboard/nuclear/preview"),
+
+  nuclearReset: () =>
+    apiFetch<{ status: string; results: Record<string, unknown> }>("/dashboard/nuclear", {
+      method: "POST",
+    }),
 };

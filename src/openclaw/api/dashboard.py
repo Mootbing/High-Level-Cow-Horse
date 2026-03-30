@@ -687,6 +687,173 @@ async def flush_queue(
         await r.aclose()
 
 
+# --- Nuclear Reset ---
+
+@router.get("/nuclear/preview")
+async def nuclear_preview(
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """Preview what a nuclear reset would delete."""
+    import httpx
+
+    projects = await session.scalar(select(func.count()).select_from(Project))
+    tasks = await session.scalar(select(func.count()).select_from(Task))
+    agent_logs = await session.scalar(select(func.count()).select_from(AgentLog))
+    prospects = await session.scalar(select(func.count()).select_from(Prospect))
+    emails = await session.scalar(select(func.count()).select_from(EmailLog))
+    messages = await session.scalar(select(func.count()).select_from(Message))
+    knowledge = await session.scalar(select(func.count()).select_from(KnowledgeBase))
+
+    # Count Vercel projects
+    vercel_count = 0
+    if settings.VERCEL_TOKEN:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(
+                    "https://api.vercel.com/v9/projects?limit=100",
+                    headers={"Authorization": f"Bearer {settings.VERCEL_TOKEN}"},
+                )
+                if resp.status_code == 200:
+                    vercel_count = len(resp.json().get("projects", []))
+        except Exception:
+            pass
+
+    # Count GitHub repos
+    github_repos = 0
+    try:
+        from openclaw.integrations.github_client import get_authenticated_user
+        user = await get_authenticated_user()
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"https://api.github.com/users/{user}/repos?per_page=100",
+                headers={"Authorization": f"token {settings.GITHUB_PAT}"},
+            )
+            if resp.status_code == 200:
+                github_repos = len(resp.json())
+    except Exception:
+        pass
+
+    return {
+        "projects": projects or 0,
+        "tasks": tasks or 0,
+        "agent_logs": agent_logs or 0,
+        "prospects": prospects or 0,
+        "emails": emails or 0,
+        "messages": messages or 0,
+        "knowledge": knowledge or 0,
+        "vercel_projects": vercel_count,
+        "github_repos": github_repos,
+    }
+
+
+@router.post("/nuclear")
+async def nuclear_reset(
+    session: AsyncSession = Depends(get_session),
+    _: str = Depends(verify_dashboard_token),
+):
+    """Delete ALL data: DB rows, Redis queues, Vercel projects, GitHub repos."""
+    import httpx
+
+    results: dict = {"db": {}, "redis": "skipped", "vercel": [], "github": []}
+
+    # 1. Delete DB rows (order matters for FK constraints)
+    for model, name in [
+        (AgentLog, "agent_logs"),
+        (Task, "tasks"),
+        (EmailLog, "emails"),
+        (Message, "messages"),
+        (Prospect, "prospects"),
+        (KnowledgeBase, "knowledge"),
+    ]:
+        count = await session.scalar(select(func.count()).select_from(model))
+        await session.execute(model.__table__.delete())
+        results["db"][name] = count or 0
+
+    # Assets + Deployments before Projects
+    from openclaw.models.asset import Asset
+    from openclaw.models.deployment import Deployment
+    for model, name in [(Asset, "assets"), (Deployment, "deployments")]:
+        count = await session.scalar(select(func.count()).select_from(model))
+        await session.execute(model.__table__.delete())
+        results["db"][name] = count or 0
+
+    proj_count = await session.scalar(select(func.count()).select_from(Project))
+    await session.execute(Project.__table__.delete())
+    results["db"]["projects"] = proj_count or 0
+    await session.commit()
+
+    # 2. Flush all Redis queues
+    try:
+        r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        flushed = 0
+        for agent_type in AGENT_TYPES:
+            stream = stream_name(agent_type)
+            try:
+                length = await r.xlen(stream)
+                await r.delete(stream)
+                group = group_name(agent_type)
+                try:
+                    await r.xgroup_create(stream, group, id="0", mkstream=True)
+                except redis.ResponseError:
+                    pass
+                flushed += length
+            except Exception:
+                pass
+        # Clear dedup keys
+        dedup_keys = []
+        async for key in r.scan_iter("openclaw:dedup:*"):
+            dedup_keys.append(key)
+        if dedup_keys:
+            await r.delete(*dedup_keys)
+        await r.aclose()
+        results["redis"] = {"queues_flushed": len(AGENT_TYPES), "messages": flushed, "dedup_cleared": len(dedup_keys)}
+    except Exception as e:
+        results["redis"] = {"error": str(e)[:200]}
+
+    # 3. Delete all Vercel projects
+    if settings.VERCEL_TOKEN:
+        try:
+            async with httpx.AsyncClient(timeout=30) as client:
+                resp = await client.get(
+                    "https://api.vercel.com/v9/projects?limit=100",
+                    headers={"Authorization": f"Bearer {settings.VERCEL_TOKEN}"},
+                )
+                if resp.status_code == 200:
+                    for proj in resp.json().get("projects", []):
+                        try:
+                            await client.delete(
+                                f"https://api.vercel.com/v9/projects/{proj['id']}",
+                                headers={"Authorization": f"Bearer {settings.VERCEL_TOKEN}"},
+                            )
+                            results["vercel"].append(proj["name"])
+                        except Exception:
+                            pass
+        except Exception as e:
+            results["vercel"] = {"error": str(e)[:200]}
+
+    # 4. Delete all GitHub repos from agent account
+    try:
+        from openclaw.integrations.github_client import get_authenticated_user, delete_repo
+        user = await get_authenticated_user()
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.get(
+                f"https://api.github.com/users/{user}/repos?per_page=100",
+                headers={"Authorization": f"token {settings.GITHUB_PAT}"},
+            )
+            if resp.status_code == 200:
+                for repo in resp.json():
+                    try:
+                        await delete_repo(f"{user}/{repo['name']}")
+                        results["github"].append(repo["name"])
+                    except Exception:
+                        pass
+    except Exception as e:
+        results["github"] = {"error": str(e)[:200]}
+
+    return {"status": "nuked", "results": results}
+
+
 @router.delete("/queues/{agent_type}/{entry_id}")
 async def cancel_message(
     agent_type: str,
