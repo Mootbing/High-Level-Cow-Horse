@@ -184,6 +184,11 @@ class CEOAgent(BaseAgent):
             project_name = tool_input.get("project_name", "")
             project_id = None
 
+            # Auto-derive project name for PM delegations when not provided
+            if not project_name and target == "project_manager":
+                desc = tool_input["task_description"]
+                project_name = desc.split("\n")[0][:80].strip() or "Untitled Project"
+
             # Create or fetch Project record so it appears immediately in the dashboard
             if project_name:
                 try:
@@ -279,7 +284,7 @@ class CEOAgent(BaseAgent):
                 # Count tasks per status
                 from openclaw.models.task import Task
                 task_counts = {}
-                for status in ["queued", "in_progress", "completed", "failed"]:
+                for status in ["pending", "in_progress", "completed", "failed"]:
                     count = await session.scalar(
                         select(func.count()).select_from(Task).where(
                             Task.project_id == p.id, Task.status == status

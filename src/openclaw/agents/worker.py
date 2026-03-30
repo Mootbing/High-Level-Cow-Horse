@@ -17,6 +17,30 @@ from openclaw.agents.registry import AGENT_REGISTRY, register_agent  # noqa: F40
 
 logger = structlog.get_logger()
 
+# Pipeline stage auto-advancement: when a task for a specific agent starts/completes,
+# advance the project to the corresponding pipeline stage (never backward).
+_PIPELINE_ORDER = ["intake", "design", "build", "qa", "deployed"]
+_ADVANCE_ON_START = {"designer": "design", "engineer": "build", "qa": "qa"}
+_ADVANCE_ON_COMPLETE = {"qa": "deployed"}
+
+
+async def _advance_pipeline(project_id: str, new_status: str) -> None:
+    """Advance project pipeline status forward (never backward)."""
+    try:
+        from openclaw.db.session import async_session_factory
+        from openclaw.services.project_service import get_project, update_project_status
+        async with async_session_factory() as session:
+            project = await get_project(session, project_id)
+            if not project:
+                return
+            current_idx = _PIPELINE_ORDER.index(project.status) if project.status in _PIPELINE_ORDER else -1
+            new_idx = _PIPELINE_ORDER.index(new_status) if new_status in _PIPELINE_ORDER else -1
+            if new_idx > current_idx:
+                await update_project_status(session, project_id, new_status)
+                logger.info("pipeline_advanced", project_id=project_id, old=project.status, new=new_status)
+    except Exception as e:
+        logger.warning("pipeline_advance_failed", project_id=project_id, error=str(e)[:200])
+
 
 def _load_agents():
     """Import all agent modules to trigger registration."""
@@ -82,13 +106,16 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                                     agent_type=agent_type,
                                     title=title,
                                     description=prompt_text[:2000] if prompt_text else None,
-                                    input_data={"entry_id": entry_id, "task_id": task_id},
+                                    input_data={"entry_id": entry_id, "task_id": task_id, "source_agent": data.get("source_agent")},
                                 )
                                 db_task_id = str(db_task.id)
                                 # Mark as in_progress
                                 from openclaw.services.task_service import update_task_status
                                 await update_task_status(session, db_task_id, "in_progress")
                             logger.info("db_task_created", agent=agent_type, db_task_id=db_task_id)
+                            # Advance pipeline when specific agents start work
+                            if agent_type in _ADVANCE_ON_START:
+                                await _advance_pipeline(project_id, _ADVANCE_ON_START[agent_type])
                         except Exception as te:
                             logger.warning("db_task_create_failed", agent=agent_type, error=str(te)[:200])
 
@@ -115,6 +142,9 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                                     output_data={"result_preview": result_preview},
                                 )
                             logger.info("db_task_completed", agent=agent_type, db_task_id=db_task_id)
+                            # Advance pipeline on completion (e.g., QA passed → deployed)
+                            if agent_type in _ADVANCE_ON_COMPLETE and project_id:
+                                await _advance_pipeline(project_id, _ADVANCE_ON_COMPLETE[agent_type])
                         except Exception as te:
                             logger.warning("db_task_update_failed", agent=agent_type, error=str(te)[:200])
 
