@@ -22,8 +22,14 @@ SCRAPE REVIEW:
 - Is the data structured and complete?
 
 DESIGN REVIEW:
-- Were keyframe images generated? Check file paths exist.
-- Was a hero video generated? Check file path or URI.
+- Were keyframe images generated? Check the output lists specific asset filenames with
+  UUID suffixes (e.g., keyframe-hero-e168b65c.png). Do NOT use verify_file for /assets/
+  paths — they are GitHub/Vercel web paths, not local files on this machine.
+- Look for "UPLOAD_FAILED" or "status: failed" — these indicate real failures.
+- If the PM provided a VERIFIED ASSETS list, trust it — PM extracted these from the
+  designer's actual tool results.
+- Was a hero video generated or was a fallback keyframe used? (Video failures are OK
+  as long as a hero keyframe was generated instead.)
 - Is there a design spec (colors, fonts, layout)?
 
 BUILD REVIEW:
@@ -151,27 +157,9 @@ class ReviewerAgent(BaseAgent):
 
         elif tool_name == "verify_file":
             import os
-            import glob as globmod
-            from openclaw.config import settings
-
             path = tool_input["path"]
             exists = os.path.exists(path)
             size = os.path.getsize(path) if exists else 0
-
-            # /assets/... paths are web URLs served by Vercel, not local paths.
-            # The designer saves local backups under STORAGE_PATH/{project}/.
-            # Search there so the reviewer can confirm assets were generated.
-            if not exists and path.startswith("/assets/"):
-                filename = os.path.basename(path)
-                matches = globmod.glob(
-                    os.path.join(settings.STORAGE_PATH, "**", filename),
-                    recursive=True,
-                )
-                if matches:
-                    exists = True
-                    size = os.path.getsize(matches[0])
-                    path = matches[0]  # Return actual local path
-
             return {"path": path, "exists": exists, "size": size}
 
         return await super().handle_tool_call(tool_name, tool_input)

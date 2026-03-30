@@ -281,8 +281,15 @@ class ProjectManagerAgent(BaseAgent):
             f"Review the output of the {reviewed_agent} agent.\n\n"
             f"Result:\n{result_text[:3000]}\n\n"
             f"Verify this step completed correctly. "
-            f"Use verify_url or verify_file tools if needed."
+            f"Use verify_url for deployed URLs. Do NOT use verify_file for /assets/ paths."
         )
+
+        # For designer reviews, include the assets PM extracted from tool results
+        if reviewed_agent == "designer" and self._designer_assets:
+            review_prompt += (
+                f"\n\nVERIFIED ASSETS (extracted from designer tool results by PM):\n"
+                + "\n".join(f"  - {url}" for url in self._designer_assets)
+            )
 
         await self.delegate(
             target_agent="reviewer",
