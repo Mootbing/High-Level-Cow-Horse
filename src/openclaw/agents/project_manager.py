@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import structlog
 
 from openclaw.agents.base import BaseAgent
 from openclaw.agents.registry import register_agent
 
 logger = structlog.get_logger()
+
+# Regex for asset paths the designer uploads to public/assets/
+_ASSET_RE = re.compile(r'/assets/[\w\-]+\.(?:mp4|png|jpg|jpeg|webp|svg|gif|webm)')
+_FAILED_ASSET_RE = re.compile(r'UPLOAD_FAILED:(/assets/[\w\-]+\.(?:mp4|png|jpg|jpeg|webp|svg|gif|webm))')
 
 PM_SYSTEM_PROMPT = """You are the Project Manager of Clarmi Design Studio, an AI-powered digital design agency.
 
@@ -126,7 +131,27 @@ class ProjectManagerAgent(BaseAgent):
         payload = message.get("payload", {})
         if not self._current_project_id:
             self._current_project_id = payload.get("project_id")
+        self._designer_assets: list[str] = []  # Populated when designer result arrives
         return await super().process_task(message)
+
+    @staticmethod
+    def _format_asset_block(assets: list[str]) -> str:
+        """Build a deterministic asset injection block for the engineer task."""
+        block = "\n\n=== DESIGNER ASSETS — MANDATORY, EMBED ALL IN THE SITE ===\n"
+        for url in assets:
+            if url.endswith((".mp4", ".webm")):
+                block += (
+                    f"- HERO VIDEO: {url}\n"
+                    f'  Embed: <video autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover">'
+                    f'<source src="{url}" type="video/mp4" /></video>\n'
+                )
+            else:
+                block += (
+                    f"- SECTION IMAGE: {url}\n"
+                    f"  Embed as: <img src=\"{url}\" /> or background-image: url({url})\n"
+                )
+        block += "=== END DESIGNER ASSETS ===\n"
+        return block
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "delegate_task":
@@ -145,10 +170,14 @@ class ProjectManagerAgent(BaseAgent):
                         "reason": "Cannot send outreach: QA has not passed. Pipeline stops here.",
                     }
 
+            task_desc = tool_input["task_description"]
+            if target == "engineer" and self._designer_assets:
+                task_desc += self._format_asset_block(self._designer_assets)
+
             await self.delegate(
                 target_agent=target,
                 payload={
-                    "prompt": tool_input["task_description"],
+                    "prompt": task_desc,
                     "project_name": tool_input.get("project_name", ""),
                     "source": "project_manager",
                 },
@@ -166,11 +195,15 @@ class ProjectManagerAgent(BaseAgent):
                 f"pm_wait:{target}:{project_name}:{tool_input['task_description'][:100]}".encode()
             ).hexdigest()[:16]
 
+            task_desc = tool_input["task_description"]
+            if target == "engineer" and self._designer_assets:
+                task_desc += self._format_asset_block(self._designer_assets)
+
             # Delegate the task
             await self.delegate(
                 target_agent=target,
                 payload={
-                    "prompt": tool_input["task_description"],
+                    "prompt": task_desc,
                     "project_name": project_name,
                     "source": "project_manager",
                 },
@@ -210,6 +243,19 @@ class ProjectManagerAgent(BaseAgent):
                         ):
                             result_payload = data.get("payload", {})
                             result_text = result_payload.get("result", str(result_payload))
+
+                            # Extract designer asset URLs deterministically
+                            if target == "designer":
+                                all_paths = _ASSET_RE.findall(result_text)
+                                failed = set(_FAILED_ASSET_RE.findall(result_text))
+                                self._designer_assets = list(dict.fromkeys(
+                                    p for p in all_paths if p not in failed
+                                ))
+                                self.log.info(
+                                    "designer_assets_extracted",
+                                    count=len(self._designer_assets),
+                                    urls=self._designer_assets,
+                                )
 
                             # Track QA pass/fail for hard gate
                             if target == "qa":
