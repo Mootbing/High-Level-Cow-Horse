@@ -49,7 +49,9 @@ Step 4: [qa] Verify the deployed site loads correctly
   - Tell QA: "First verify_url to confirm the site is live, then verify_assets to check all designer assets load, then take screenshots and run Lighthouse."
   - Use delegate_and_wait to get the QA report.
 
-Step 5: [outbound] Draft outreach email
+Step 5: [outbound] Draft outreach email — ONLY if QA passed
+  - HARD GATE: Only proceed to this step if QA returned APPROVED (score >= 85, deployment READY, HTTP 200).
+  - If the QA result contains ANY of: "fail", "FAIL", "401", "protection", "error" — STOP HERE. Do NOT delegate to outbound.
   - Include the live URL from Step 3 and QA pass/fail from Step 4.
   - Use delegate_task (fire-and-forget) for this last step.
 
@@ -57,9 +59,10 @@ IMPORTANT: Use delegate_and_wait (NOT delegate_task) for Steps 1-4 so you receiv
 before proceeding to the next step. This ensures the designer's assets are available for
 the engineer, and the engineer's URL is available for QA.
 
-IMPORTANT: If QA reports a 401 or deployment protection issue, that is an INFRASTRUCTURE issue,
-not a code issue. Do NOT re-delegate to the engineer to "fix" it. Just note it in the report
-and proceed to the outbound step. Never send the engineer a second task for the same project.
+IMPORTANT: If QA reports a FAIL, a 401, or any deployment protection issue, do NOT proceed to
+the outbound step. The pipeline must stop here. Report the failure and end your task.
+Do NOT re-delegate to the engineer either — the failure is an infrastructure issue.
+Never send the engineer a second task for the same project.
 
 For scraping tasks: delegate directly to inbound agent.
 For email tasks: delegate directly to outbound agent.
@@ -128,6 +131,20 @@ class ProjectManagerAgent(BaseAgent):
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "delegate_task":
             target = tool_input["target_agent"]
+
+            # HARD GATE: block outbound if QA has not passed
+            if target == "outbound":
+                qa_passed = getattr(self, "_qa_passed", None)
+                if qa_passed is not True:
+                    self.log.warning(
+                        "outbound_blocked_qa_not_passed",
+                        qa_passed=qa_passed,
+                    )
+                    return {
+                        "status": "blocked",
+                        "reason": "Cannot send outreach: QA has not passed. Pipeline stops here.",
+                    }
+
             await self.delegate(
                 target_agent=target,
                 payload={
@@ -193,6 +210,17 @@ class ProjectManagerAgent(BaseAgent):
                         ):
                             result_payload = data.get("payload", {})
                             result_text = result_payload.get("result", str(result_payload))
+
+                            # Track QA pass/fail for hard gate
+                            if target == "qa":
+                                result_lower = result_text.lower()
+                                qa_failed = any(kw in result_lower for kw in [
+                                    "fail", "401", "protection_enabled",
+                                    "protection_unresolved", "error", "not approved",
+                                ])
+                                self._qa_passed = not qa_failed
+                                self.log.info("qa_gate_evaluated", qa_passed=self._qa_passed)
+
                             self.log.info(
                                 "delegate_and_wait_received",
                                 target=target,

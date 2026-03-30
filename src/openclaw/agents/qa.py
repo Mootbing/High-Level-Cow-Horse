@@ -15,7 +15,7 @@ You test generated websites for quality. WORKFLOW (follow this exact order):
 
 1. FIRST: call verify_url to confirm the Vercel deployment is live and returns HTTP 200.
    - If the deployment is still building (readyState != READY), wait and retry.
-   - If the URL returns 401, it means Vercel deployment protection is on — this is a CONFIG issue, not a code issue. Mark as PASS with a note about protection.
+   - If the URL returns 401, Vercel deployment protection is on. Call disable_protection with the project name, then retry verify_url. If it STILL returns 401 after disabling protection, mark as FAIL with "deployment_protection_unresolved".
    - If the URL returns other non-200 status, report FAIL.
 2. THEN: Take screenshots at multiple viewports (1440px, 1024px, 768px, 375px)
 3. THEN: Run Lighthouse audit (performance, accessibility, SEO, best practices)
@@ -92,12 +92,24 @@ LIGHTHOUSE_TOOL = {
     },
 }
 
+DISABLE_PROTECTION_TOOL = {
+    "name": "disable_protection",
+    "description": "Disable Vercel deployment protection for a project. Use this if verify_url returns a 401. After calling this, retry verify_url.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "project_name": {"type": "string", "description": "Vercel project name."},
+        },
+        "required": ["project_name"],
+    },
+}
+
 
 @register_agent("qa")
 class QAAgent(BaseAgent):
     agent_type = "qa"
     system_prompt = QA_SYSTEM_PROMPT
-    tools = [VERIFY_URL_TOOL, VERIFY_ASSETS_TOOL, SCREENSHOT_TOOL, LIGHTHOUSE_TOOL]
+    tools = [VERIFY_URL_TOOL, VERIFY_ASSETS_TOOL, SCREENSHOT_TOOL, LIGHTHOUSE_TOOL, DISABLE_PROTECTION_TOOL]
 
     async def handle_tool_call(self, tool_name: str, tool_input: dict) -> dict:
         if tool_name == "verify_url":
@@ -141,14 +153,17 @@ class QAAgent(BaseAgent):
                                 "deploy_url": deploy_url or url,
                             }
                         elif resp.status_code == 401:
-                            # Vercel deployment protection — site is deployed but protected
+                            # Vercel deployment protection is blocking access
                             return {
-                                "status": "deployed_but_protected",
+                                "status": "protection_enabled",
                                 "http_status": 401,
                                 "url": url,
                                 "deploy_state": deploy_state or "READY",
                                 "deploy_url": deploy_url or url,
-                                "message": "Site is deployed but Vercel deployment protection is enabled. The build succeeded and code is on GitHub. Score this as a PASS — the protection is a config issue, not a code issue.",
+                                "message": (
+                                    "Vercel deployment protection is blocking access (HTTP 401). "
+                                    "Call disable_protection with the project name, then retry verify_url."
+                                ),
                             }
                 except Exception as e:
                     last_status = str(e)
@@ -230,7 +245,11 @@ class QAAgent(BaseAgent):
                     os.makedirs(os.path.dirname(filepath), exist_ok=True)
                     with open(filepath, "wb") as f:
                         f.write(screenshot)
-                    return {"status": "captured", "path": filepath}
+                    # Verify the file was actually written and has content
+                    if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                        return {"status": "captured", "path": filepath, "size": os.path.getsize(filepath)}
+                    else:
+                        return {"status": "failed", "error": f"Screenshot file missing or empty at {filepath}", "path": filepath}
             except Exception as e:
                 return {"error": str(e)}
 
@@ -252,5 +271,21 @@ class QAAgent(BaseAgent):
                 return {"error": result.stderr[:500]}
             except Exception as e:
                 return {"error": str(e)}
+
+        elif tool_name == "disable_protection":
+            project_name = tool_input["project_name"]
+            try:
+                from openclaw.integrations.vercel_client import ensure_protection_disabled
+                await ensure_protection_disabled(project_name)
+                return {
+                    "status": "success",
+                    "message": f"Deployment protection disabled for {project_name}. Retry verify_url now.",
+                }
+            except Exception as e:
+                return {
+                    "status": "failed",
+                    "error": str(e)[:500],
+                    "message": "Could not disable protection. Mark the site as FAIL.",
+                }
 
         return await super().handle_tool_call(tool_name, tool_input)

@@ -12,6 +12,10 @@ logger = structlog.get_logger()
 VERCEL_API = "https://api.vercel.com"
 
 
+class VercelProtectionError(Exception):
+    """Raised when Vercel deployment protection cannot be disabled."""
+
+
 def _headers() -> dict:
     h = {
         "Authorization": f"Bearer {settings.VERCEL_TOKEN}",
@@ -28,18 +32,70 @@ def _params() -> dict:
     return p
 
 
-async def _disable_protection(client: httpx.AsyncClient, project_name: str) -> None:
-    """Disable deployment protection so sites are publicly accessible."""
-    try:
-        await client.patch(
-            f"{VERCEL_API}/v9/projects/{project_name}",
-            json={"passwordProtection": None, "trustedIps": None},
-            headers=_headers(),
-            params=_params(),
-        )
-        logger.info("vercel_protection_disabled", name=project_name)
-    except Exception:
-        pass
+async def disable_protection(
+    client: httpx.AsyncClient, project_name: str, max_retries: int = 3
+) -> bool:
+    """Disable all deployment protection so sites are publicly accessible.
+
+    Retries up to max_retries times with 2s backoff.
+    Raises VercelProtectionError if all retries fail.
+    """
+    import asyncio
+
+    last_error = None
+    for attempt in range(max_retries):
+        if attempt > 0:
+            await asyncio.sleep(2)
+        try:
+            resp = await client.patch(
+                f"{VERCEL_API}/v9/projects/{project_name}",
+                json={
+                    "passwordProtection": None,
+                    "trustedIps": None,
+                    "ssoProtection": None,
+                    "protection": {"deploymentType": "none"},
+                },
+                headers=_headers(),
+                params=_params(),
+            )
+            if resp.status_code in (200, 201):
+                logger.info("vercel_protection_disabled", name=project_name)
+                return True
+            last_error = f"HTTP {resp.status_code}: {resp.text[:200]}"
+            logger.warning(
+                "vercel_protection_disable_attempt_failed",
+                name=project_name,
+                attempt=attempt + 1,
+                status=resp.status_code,
+                body=resp.text[:200],
+            )
+        except Exception as e:
+            last_error = str(e)
+            logger.warning(
+                "vercel_protection_disable_attempt_error",
+                name=project_name,
+                attempt=attempt + 1,
+                error=str(e)[:200],
+            )
+
+    logger.error(
+        "vercel_protection_disable_failed",
+        name=project_name,
+        last_error=last_error,
+    )
+    raise VercelProtectionError(
+        f"Failed to disable protection for {project_name} after {max_retries} attempts: {last_error}"
+    )
+
+
+async def ensure_protection_disabled(project_name: str) -> bool:
+    """Public convenience wrapper: disable all deployment protection.
+
+    Creates its own httpx client. Returns True on success,
+    raises VercelProtectionError on failure.
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        return await disable_protection(client, project_name)
 
 
 async def create_project_from_github(
@@ -77,7 +133,7 @@ async def create_project_from_github(
             data = resp.json()
             logger.info("vercel_project_created", name=data.get("name"), id=data.get("id"))
             # Disable deployment protection so sites are publicly accessible
-            await _disable_protection(client, project_name)
+            await disable_protection(client, project_name)
             return data
 
         # If GitHub link fails (needs installation ID), create without it
@@ -94,7 +150,7 @@ async def create_project_from_github(
         if resp2.status_code in (200, 201):
             data = resp2.json()
             logger.info("vercel_project_created_no_git", name=data.get("name"))
-            await _disable_protection(client, project_name)
+            await disable_protection(client, project_name)
             return data
 
         resp2.raise_for_status()

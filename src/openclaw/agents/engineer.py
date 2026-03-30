@@ -420,15 +420,28 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             }
 
         elif tool_name == "get_deploy_url":
-            from openclaw.integrations.vercel_client import get_latest_deployment
+            from openclaw.integrations.vercel_client import get_latest_deployment, ensure_protection_disabled
             # Resolve vercel project name — prefer pre-created metadata
             vercel_name = await self._get_project_metadata(project_name, "vercel_project")
-            deployment = await get_latest_deployment(vercel_name or project_name)
+            effective_name = vercel_name or project_name
+
+            # Ensure protection is off before QA runs
+            protection_warning = None
+            try:
+                await ensure_protection_disabled(effective_name)
+            except Exception as e:
+                protection_warning = f"Could not disable deployment protection: {e}"
+                self.log.warning("protection_disable_failed_at_deploy", error=str(e)[:200])
+
+            deployment = await get_latest_deployment(effective_name)
             if deployment:
-                return {
+                result = {
                     "url": f"https://{deployment.get('url', '')}",
                     "state": deployment.get("readyState"),
                 }
+                if protection_warning:
+                    result["protection_warning"] = protection_warning
+                return result
             return {"error": "No deployments found yet. Vercel may still be building."}
 
         return await super().handle_tool_call(tool_name, tool_input)
