@@ -310,6 +310,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         elif tool_name == "generate_code":
             filepath = os.path.join(project_dir, tool_input["file_path"])
+            # Prevent path traversal — resolved path must stay inside project_dir
+            real_filepath = os.path.realpath(filepath)
+            real_project_dir = os.path.realpath(project_dir)
+            if not real_filepath.startswith(real_project_dir + os.sep):
+                return {"status": "error", "message": f"Path traversal blocked: {tool_input['file_path']}"}
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
             # Single API call — no multi-turn loop, no tools

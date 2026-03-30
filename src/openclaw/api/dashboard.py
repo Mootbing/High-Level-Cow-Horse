@@ -83,36 +83,50 @@ async def list_projects(
     session: AsyncSession = Depends(get_session),
     _: str = Depends(verify_dashboard_token),
 ):
-    q = select(Project).order_by(Project.created_at.desc())
+    # Single query with aggregated task counts (avoids N+1)
+    task_total = (
+        select(Task.project_id, func.count().label("total"))
+        .group_by(Task.project_id)
+        .subquery()
+    )
+    task_done = (
+        select(Task.project_id, func.count().label("done"))
+        .where(Task.status == "completed")
+        .group_by(Task.project_id)
+        .subquery()
+    )
+
+    q = (
+        select(
+            Project,
+            func.coalesce(task_total.c.total, 0).label("task_count"),
+            func.coalesce(task_done.c.done, 0).label("completed_task_count"),
+        )
+        .outerjoin(task_total, Project.id == task_total.c.project_id)
+        .outerjoin(task_done, Project.id == task_done.c.project_id)
+        .order_by(Project.created_at.desc())
+    )
     if status:
         q = q.where(Project.status == status)
 
     result = await session.execute(q)
-    projects = result.scalars().all()
+    rows = result.all()
 
-    summaries = []
-    for p in projects:
-        task_count = await session.scalar(
-            select(func.count()).select_from(Task).where(Task.project_id == p.id)
+    return [
+        ProjectSummary(
+            id=row.Project.id,
+            name=row.Project.name,
+            slug=row.Project.slug,
+            status=row.Project.status,
+            priority=row.Project.priority,
+            deployed_url=row.Project.deployed_url,
+            task_count=row.task_count,
+            completed_task_count=row.completed_task_count,
+            created_at=row.Project.created_at,
+            updated_at=row.Project.updated_at,
         )
-        completed = await session.scalar(
-            select(func.count()).select_from(Task).where(
-                Task.project_id == p.id, Task.status == "completed"
-            )
-        )
-        summaries.append(ProjectSummary(
-            id=p.id,
-            name=p.name,
-            slug=p.slug,
-            status=p.status,
-            priority=p.priority,
-            deployed_url=p.deployed_url,
-            task_count=task_count or 0,
-            completed_task_count=completed or 0,
-            created_at=p.created_at,
-            updated_at=p.updated_at,
-        ))
-    return summaries
+        for row in rows
+    ]
 
 
 @router.get("/projects/{project_id}", response_model=ProjectDetail)

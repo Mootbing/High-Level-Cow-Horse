@@ -49,7 +49,9 @@ class StreamConsumer:
                         data = json.loads(fields.get("data", "{}"))
                         messages.append((entry_id, data))
                     except json.JSONDecodeError:
-                        await self.ack(entry_id)
+                        await self.send_to_deadletter(
+                            entry_id, {"raw": str(fields)[:500]}, "JSONDecodeError"
+                        )
         return messages
 
     async def ack(self, entry_id: str) -> None:

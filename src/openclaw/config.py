@@ -59,6 +59,11 @@ class Settings(BaseSettings):
 
     # Dashboard
     DASHBOARD_SECRET: str = "changeme-openclaw-dashboard"
+    JWT_SECRET: str = ""  # Falls back to DASHBOARD_SECRET if empty
+    JWT_EXPIRY_HOURS: int = 24
+
+    # Worker
+    TASK_TIMEOUT_S: int = 600  # 10 minutes max per task
 
     # Railway auto-scaling
     RAILWAY_API_TOKEN: str = ""

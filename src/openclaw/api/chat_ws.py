@@ -22,8 +22,12 @@ router = APIRouter()
 @router.websocket("/ws/chat")
 async def chat_websocket(websocket: WebSocket):
     """Multiplexed WebSocket: CEO chat + real-time dashboard events."""
+    import jwt as _jwt
     token = websocket.query_params.get("token", "")
-    if token != settings.DASHBOARD_SECRET:
+    jwt_secret = settings.JWT_SECRET or settings.DASHBOARD_SECRET
+    try:
+        _jwt.decode(token, jwt_secret, algorithms=["HS256"])
+    except _jwt.InvalidTokenError:
         await websocket.close(code=4001, reason="Unauthorized")
         return
 
