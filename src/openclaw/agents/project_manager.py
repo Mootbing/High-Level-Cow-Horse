@@ -244,6 +244,22 @@ class ProjectManagerAgent(BaseAgent):
                             result_payload = data.get("payload", {})
                             result_text = result_payload.get("result", str(result_payload))
 
+                            # Fetch full (untruncated) result from DB if available
+                            _db_task_id = result_payload.get("db_task_id")
+                            if _db_task_id:
+                                try:
+                                    from openclaw.db.session import async_session_factory
+                                    from openclaw.services.task_service import get_task
+                                    async with async_session_factory() as _s:
+                                        _task = await get_task(_s, _db_task_id)
+                                        if _task and _task.output_data:
+                                            _full = _task.output_data.get("result", "")
+                                            if _full and len(_full) > len(result_text):
+                                                result_text = _full
+                                                self.log.info("full_result_from_db", db_task_id=_db_task_id, len=len(result_text))
+                                except Exception:
+                                    pass  # Fall back to stream version
+
                             # Extract designer asset URLs deterministically
                             if target == "designer":
                                 all_paths = _ASSET_RE.findall(result_text)

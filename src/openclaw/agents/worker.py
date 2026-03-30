@@ -135,11 +135,15 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                         try:
                             from openclaw.db.session import async_session_factory
                             from openclaw.services.task_service import update_task_status
-                            result_preview = str(result)[:2000] if result else ""
+                            result_full = ""
+                            if isinstance(result, dict):
+                                result_full = result.get("result", str(result))
+                            else:
+                                result_full = str(result)
                             async with async_session_factory() as session:
                                 await update_task_status(
                                     session, db_task_id, "completed",
-                                    output_data={"result_preview": result_preview},
+                                    output_data={"result": result_full},
                                 )
                             logger.info("db_task_completed", agent=agent_type, db_task_id=db_task_id)
                             # Advance pipeline on completion (e.g., QA passed → deployed)
@@ -174,6 +178,7 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
                                 "payload": {
                                     "result": result_str,
                                     "original_prompt": data.get("payload", {}).get("prompt", "")[:200],
+                                    "db_task_id": db_task_id,
                                 },
                             })
                             logger.info(
