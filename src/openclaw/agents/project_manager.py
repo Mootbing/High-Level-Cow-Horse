@@ -80,8 +80,10 @@ reviewer logic yourself — just call delegate_and_wait and it handles review + 
 
 IMPORTANT: If QA reports a FAIL, a 401, or any deployment protection issue, do NOT proceed to
 the outbound step. The pipeline must stop here. Report the failure and end your task.
-Do NOT re-delegate to the engineer either — the failure is an infrastructure issue.
-Never send the engineer a second task for the same project.
+
+IMPORTANT: If a step returns "timeout", do NOT restart the whole pipeline. Report the timeout
+and stop. The timed-out agent may still be running — re-delegating would cause duplicate work.
+Never re-delegate to an agent that already received a task for this project.
 
 For scraping tasks: delegate directly to inbound agent.
 For email tasks: delegate directly to outbound agent.
@@ -449,9 +451,11 @@ class ProjectManagerAgent(BaseAgent):
                     attempt=attempt + 1,
                 )
 
-                # Wait for agent result
+                # Wait for agent result (heavy agents like engineer need longer)
+                from openclaw.queue.streams import HEAVY_AGENTS
+                poll_timeout = settings.HEAVY_TASK_TIMEOUT_S + 120 if target in HEAVY_AGENTS else 900
                 result_text = await self._poll_for_result(
-                    r, pm_stream, target, task_id, timeout_s=900
+                    r, pm_stream, target, task_id, timeout_s=poll_timeout
                 )
                 if result_text is None:
                     return {

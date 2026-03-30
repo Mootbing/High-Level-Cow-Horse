@@ -121,9 +121,11 @@ async def _run_single_worker(agent_type: str, shutdown: asyncio.Event) -> None:
 
                     # Fresh agent instance per task to prevent cross-task state bleed
                     agent = agent_cls()
+                    from openclaw.queue.streams import HEAVY_AGENTS
+                    timeout = settings.HEAVY_TASK_TIMEOUT_S if agent_type in HEAVY_AGENTS else settings.TASK_TIMEOUT_S
                     result = await asyncio.wait_for(
                         agent.process_task(data),
-                        timeout=settings.TASK_TIMEOUT_S,
+                        timeout=timeout,
                     )
                     await consumer.ack(entry_id)
                     logger.info(

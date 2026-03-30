@@ -151,9 +151,27 @@ class ReviewerAgent(BaseAgent):
 
         elif tool_name == "verify_file":
             import os
+            import glob as globmod
+            from openclaw.config import settings
+
             path = tool_input["path"]
             exists = os.path.exists(path)
             size = os.path.getsize(path) if exists else 0
+
+            # /assets/... paths are web URLs served by Vercel, not local paths.
+            # The designer saves local backups under STORAGE_PATH/{project}/.
+            # Search there so the reviewer can confirm assets were generated.
+            if not exists and path.startswith("/assets/"):
+                filename = os.path.basename(path)
+                matches = globmod.glob(
+                    os.path.join(settings.STORAGE_PATH, "**", filename),
+                    recursive=True,
+                )
+                if matches:
+                    exists = True
+                    size = os.path.getsize(matches[0])
+                    path = matches[0]  # Return actual local path
+
             return {"path": path, "exists": exists, "size": size}
 
         return await super().handle_tool_call(tool_name, tool_input)

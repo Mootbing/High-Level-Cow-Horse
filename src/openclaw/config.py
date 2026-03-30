@@ -63,7 +63,8 @@ class Settings(BaseSettings):
     JWT_EXPIRY_HOURS: int = 24
 
     # Worker
-    TASK_TIMEOUT_S: int = 600  # 10 minutes max per task
+    TASK_TIMEOUT_S: int = 600  # 10 minutes max per task (light agents)
+    HEAVY_TASK_TIMEOUT_S: int = 1800  # 30 minutes for designer/engineer/QA
 
     # Railway auto-scaling
     RAILWAY_API_TOKEN: str = ""
