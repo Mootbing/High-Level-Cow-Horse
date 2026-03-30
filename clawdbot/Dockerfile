@@ -4,8 +4,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /
 
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 COPY . .
 
