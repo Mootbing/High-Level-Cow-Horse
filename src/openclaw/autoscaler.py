@@ -58,15 +58,20 @@ async def get_queue_depths() -> dict[str, int]:
 
 def compute_desired_replicas(total_pending: int) -> int:
     """Compute desired replica count from total pending messages."""
+    min_replicas = getattr(settings, "AUTOSCALE_MIN_REPLICAS", 1)
+    max_replicas = getattr(settings, "AUTOSCALE_MAX_REPLICAS", 5)
+    threshold = getattr(settings, "AUTOSCALE_QUEUE_THRESHOLD", 4)
     if total_pending <= 0:
-        return settings.AUTOSCALE_MIN_REPLICAS
-    desired = math.ceil(total_pending / max(settings.AUTOSCALE_QUEUE_THRESHOLD, 1))
-    return max(settings.AUTOSCALE_MIN_REPLICAS, min(desired, settings.AUTOSCALE_MAX_REPLICAS))
+        return min_replicas
+    desired = math.ceil(total_pending / max(threshold, 1))
+    return max(min_replicas, min(desired, max_replicas))
 
 
 async def get_current_replicas() -> int | None:
     """Get current replica count from Railway API."""
-    if not settings.RAILWAY_API_TOKEN or not settings.RAILWAY_HEAVY_SERVICE_ID:
+    api_token = getattr(settings, "RAILWAY_API_TOKEN", "")
+    service_id = getattr(settings, "RAILWAY_HEAVY_SERVICE_ID", "")
+    if not api_token or not service_id:
         return None
 
     query = """
@@ -85,9 +90,9 @@ async def get_current_replicas() -> int | None:
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(
             RAILWAY_GQL_URL,
-            json={"query": query, "variables": {"serviceId": settings.RAILWAY_HEAVY_SERVICE_ID}},
+            json={"query": query, "variables": {"serviceId": service_id}},
             headers={
-                "Authorization": f"Bearer {settings.RAILWAY_API_TOKEN}",
+                "Authorization": f"Bearer {api_token}",
                 "Content-Type": "application/json",
             },
         )
@@ -106,7 +111,9 @@ async def get_current_replicas() -> int | None:
 
 async def set_replicas(count: int) -> bool:
     """Set replica count for the heavy worker service via Railway API."""
-    if not settings.RAILWAY_API_TOKEN or not settings.RAILWAY_HEAVY_SERVICE_ID:
+    api_token = getattr(settings, "RAILWAY_API_TOKEN", "")
+    service_id = getattr(settings, "RAILWAY_HEAVY_SERVICE_ID", "")
+    if not api_token or not service_id:
         return False
 
     mutation = """
@@ -120,7 +127,7 @@ async def set_replicas(count: int) -> bool:
             json={
                 "query": mutation,
                 "variables": {
-                    "serviceId": settings.RAILWAY_HEAVY_SERVICE_ID,
+                    "serviceId": service_id,
                     "input": {"numReplicas": count},
                 },
             },
@@ -138,23 +145,30 @@ async def set_replicas(count: int) -> bool:
 
 async def autoscale_loop(shutdown: asyncio.Event) -> None:
     """Main autoscaler loop. Runs until shutdown is set."""
-    if not settings.AUTOSCALE_ENABLED:
+    if not getattr(settings, "AUTOSCALE_ENABLED", False):
         logger.info("autoscaler_disabled")
         return
 
-    if not settings.RAILWAY_API_TOKEN or not settings.RAILWAY_HEAVY_SERVICE_ID:
+    api_token = getattr(settings, "RAILWAY_API_TOKEN", "")
+    service_id = getattr(settings, "RAILWAY_HEAVY_SERVICE_ID", "")
+    if not api_token or not service_id:
         logger.info("autoscaler_skipped", reason="RAILWAY_API_TOKEN or RAILWAY_HEAVY_SERVICE_ID not set")
         return
 
+    poll_seconds = getattr(settings, "AUTOSCALE_POLL_SECONDS", 30)
+    min_replicas = getattr(settings, "AUTOSCALE_MIN_REPLICAS", 1)
+    max_replicas = getattr(settings, "AUTOSCALE_MAX_REPLICAS", 5)
+    threshold = getattr(settings, "AUTOSCALE_QUEUE_THRESHOLD", 4)
+
     logger.info(
         "autoscaler_started",
-        poll_seconds=settings.AUTOSCALE_POLL_SECONDS,
-        min=settings.AUTOSCALE_MIN_REPLICAS,
-        max=settings.AUTOSCALE_MAX_REPLICAS,
-        threshold=settings.AUTOSCALE_QUEUE_THRESHOLD,
+        poll_seconds=poll_seconds,
+        min=min_replicas,
+        max=max_replicas,
+        threshold=threshold,
     )
 
-    last_desired = settings.AUTOSCALE_MIN_REPLICAS
+    last_desired = min_replicas
 
     while not shutdown.is_set():
         try:
@@ -181,7 +195,7 @@ async def autoscale_loop(shutdown: asyncio.Event) -> None:
 
         # Wait for next poll, but break early on shutdown
         try:
-            await asyncio.wait_for(shutdown.wait(), timeout=settings.AUTOSCALE_POLL_SECONDS)
+            await asyncio.wait_for(shutdown.wait(), timeout=poll_seconds)
             break  # shutdown was set
         except asyncio.TimeoutError:
             pass  # Normal — poll again

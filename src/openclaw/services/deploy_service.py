@@ -4,14 +4,14 @@ import structlog
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from openclaw.models.deployment import Deployment
-from openclaw.integrations.vercel_client import create_deployment, get_deployment_status
+from openclaw.integrations.vercel_client import trigger_deployment, get_deployment_status
 
 logger = structlog.get_logger()
 
 
 async def deploy_project(session: AsyncSession, project_id: str, project_name: str, files: list[dict]) -> Deployment:
     """Deploy a project to Vercel and track the deployment."""
-    result = await create_deployment(project_name, files)
+    result = await trigger_deployment(project_name, files)
     deployment = Deployment(
         project_id=project_id,
         deployment_id=result.get("id", ""),

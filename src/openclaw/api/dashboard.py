@@ -342,23 +342,25 @@ async def restart_agent(
     agent_type: str,
     _: str = Depends(verify_dashboard_token),
 ):
-    """Restart the Railway service that runs this agent's tier."""
+    """Restart the service that runs this agent's tier.
+
+    On EC2 single-instance deployments this is a no-op — use
+    ``systemctl restart openclaw`` on the host instead.
+    """
     if agent_type not in AGENT_TYPES:
         raise HTTPException(404, f"Unknown agent type: {agent_type}")
 
     tier = "light" if agent_type in LIGHT_AGENTS else "heavy"
-    service_id = (
-        settings.RAILWAY_LIGHT_SERVICE_ID if tier == "light"
-        else settings.RAILWAY_HEAVY_SERVICE_ID
-    )
+    service_id = getattr(settings, "RAILWAY_LIGHT_SERVICE_ID", "") if tier == "light" else getattr(settings, "RAILWAY_HEAVY_SERVICE_ID", "")
 
-    if not service_id or not settings.RAILWAY_API_TOKEN:
-        raise HTTPException(503, "Railway API not configured for this tier")
+    api_token = getattr(settings, "RAILWAY_API_TOKEN", "")
+    if not service_id or not api_token:
+        raise HTTPException(503, "Railway API not configured — on EC2, restart via systemctl")
 
     import httpx
 
     headers = {
-        "Authorization": f"Bearer {settings.RAILWAY_API_TOKEN}",
+        "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
     }
 
