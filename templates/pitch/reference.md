@@ -28,7 +28,7 @@ Based on [frontend-slides](https://github.com/zarazhangrui/frontend-slides). Rea
 
 Content exceeds limits? **Split into multiple slides. Never cram.**
 
-## Pitch Slide Structure (5 slides)
+## Pitch Slide Structure (5 slides max, 6 with live demo — NO extra slides)
 
 ### Slide 1: Title
 - "Prepared for [COMPANY]" subtitle
@@ -38,6 +38,7 @@ Content exceeds limits? **Split into multiple slides. Never cram.**
 ### Slide 2: The Current Reality
 - Use prospect's `site_problems` from `lookup_prospect(url)`
 - 3-4 punchy bullets max (split if more)
+- **Keep it clean**: plain bold text only — no numbered badges, no cards, no boxes, no icons, no decorative UI elements. Just a simple list of bold statements with generous spacing.
 - Impact statement at bottom
 
 ### Slide 3: What We're Proposing
@@ -104,6 +105,7 @@ Include a `SlidePresentation` class with:
 
 ## DO NOT
 
+- Add a closing/footer slide (e.g. "Clarmi Design Studio · clarmi.studio") — the last slide is Pricing or Live Demo, nothing after
 - Use generic fonts (Inter, Roboto, Arial, system fonts)
 - Use ultra-wide/stretched bold display fonts for headings (e.g. Unbounded, Rubik Mono One) — pick elegant, well-proportioned typefaces
 - Use images, illustrations, or mockups
