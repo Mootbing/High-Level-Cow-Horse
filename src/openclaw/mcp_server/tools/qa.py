@@ -105,7 +105,8 @@ async def run_lighthouse(url: str) -> str:
     Requires Node.js and npx to be available. Score >= 85 is considered passing.
     """
     try:
-        result = subprocess.run(
+        result = await asyncio.to_thread(
+            subprocess.run,
             [
                 "npx", "lighthouse", url,
                 "--output=json", "--chrome-flags=--headless --no-sandbox",

@@ -1,5 +1,6 @@
 """Engineering tools — scaffold, write code, build, and deploy Next.js projects."""
 
+import asyncio
 import json
 import os
 import subprocess
@@ -158,9 +159,10 @@ export default function RootLayout({{ children }}: {{ children: React.ReactNode 
         f.write(f"export default function Home() {{ return <main><h1>{project_name}</h1></main> }}\n")
     os.makedirs(os.path.join(project_dir, "components"), exist_ok=True)
 
-    # npm install
+    # npm install (run in thread to avoid blocking event loop)
     try:
-        subprocess.run(
+        await asyncio.to_thread(
+            subprocess.run,
             ["npm", "install", "--legacy-peer-deps"],
             cwd=project_dir, capture_output=True, text=True, timeout=120,
         )
@@ -240,11 +242,13 @@ async def verify_build(project_name: str) -> str:
     project_dir = _project_dir(project_name)
 
     try:
-        subprocess.run(
+        await asyncio.to_thread(
+            subprocess.run,
             ["npm", "install", "--legacy-peer-deps"],
             cwd=project_dir, capture_output=True, text=True, timeout=120,
         )
-        build_result = subprocess.run(
+        build_result = await asyncio.to_thread(
+            subprocess.run,
             ["npm", "run", "build"],
             cwd=project_dir, capture_output=True, text=True, timeout=120,
         )

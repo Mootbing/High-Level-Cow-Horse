@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # Database
-    DATABASE_URL: str = "postgresql+asyncpg://openclaw:password@localhost:5432/openclaw"
+    DATABASE_URL: str = "postgresql+asyncpg://openclaw:changeme@localhost:5432/openclaw"
 
     # Google AI (Nano Banana + Veo 3)
     GOOGLE_AI_API_KEY: str = ""

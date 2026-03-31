@@ -1,5 +1,7 @@
 """Scraping tools — website crawling and branding extraction via Firecrawl."""
 
+import json
+
 from openclaw.mcp_server.server import mcp
 
 
@@ -12,7 +14,11 @@ async def scrape_website(url: str, max_pages: int = 5) -> str:
     """
     from openclaw.integrations.firecrawl_client import firecrawl_client
 
-    result = await firecrawl_client.crawl(url, max_pages=min(max_pages, 5))
+    try:
+        result = await firecrawl_client.crawl(url, max_pages=min(max_pages, 5))
+    except Exception as exc:
+        return json.dumps({"error": f"Crawl failed for {url}: {str(exc)[:200]}"})
+
     status = result.get("status", "unknown")
     pages = result.get("data", [])
 
@@ -23,7 +29,6 @@ async def scrape_website(url: str, max_pages: int = 5) -> str:
     for i, page in enumerate(pages):
         page_url = page.get("metadata", {}).get("sourceURL", f"page-{i}")
         markdown = page.get("markdown", "")
-        # Truncate very long pages
         if len(markdown) > 8000:
             markdown = markdown[:8000] + "\n\n... [truncated]"
         output_parts.append(f"--- PAGE {i + 1}: {page_url} ---\n{markdown}\n")
@@ -38,7 +43,6 @@ async def extract_branding(url: str) -> str:
     Returns company name, tagline, colors, fonts, emails, social links, tech stack.
     """
     from openclaw.integrations.firecrawl_client import firecrawl_client
-    import json
 
     schema = {
         "type": "object",
@@ -55,9 +59,12 @@ async def extract_branding(url: str) -> str:
         },
     }
 
-    result = await firecrawl_client.extract(
-        urls=[url],
-        schema=schema,
-        prompt="Extract all branding information: company name, tagline, contact emails, brand colors (hex), fonts, logo URL, social media links, industry, and tech stack.",
-    )
-    return json.dumps(result, indent=2)
+    try:
+        result = await firecrawl_client.extract(
+            urls=[url],
+            schema=schema,
+            prompt="Extract all branding information: company name, tagline, contact emails, brand colors (hex), fonts, logo URL, social media links, industry, and tech stack.",
+        )
+        return json.dumps(result, indent=2)
+    except Exception as exc:
+        return json.dumps({"error": f"Branding extraction failed for {url}: {str(exc)[:200]}"})

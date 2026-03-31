@@ -1,6 +1,7 @@
 """Email tools — draft and send emails via Gmail."""
 
 import json
+import uuid as _uuid
 from datetime import datetime
 
 from openclaw.mcp_server.server import mcp
@@ -23,6 +24,14 @@ async def draft_email(
     from openclaw.models.prospect import Prospect
     from sqlalchemy import select
 
+    # Coerce project_id to UUID
+    pid = None
+    if project_id:
+        try:
+            pid = _uuid.UUID(project_id)
+        except ValueError:
+            return json.dumps({"error": f"Invalid project_id: {project_id}"})
+
     async with async_session_factory() as session:
         # Try to link to prospect by email
         prospect_id = None
@@ -38,7 +47,7 @@ async def draft_email(
             to_email=to,
             subject=subject,
             body=body,
-            project_id=project_id,
+            project_id=pid,
             prospect_id=prospect_id,
             status="draft",
         )
@@ -62,8 +71,13 @@ async def send_email(email_id: str) -> str:
     from openclaw.models.email_log import EmailLog
     from openclaw.integrations.gmail_client import send_email as _send
 
+    try:
+        eid = _uuid.UUID(email_id)
+    except ValueError:
+        return json.dumps({"error": f"Invalid email_id: {email_id}"})
+
     async with async_session_factory() as session:
-        email_log = await session.get(EmailLog, email_id)
+        email_log = await session.get(EmailLog, eid)
         if not email_log:
             return json.dumps({"error": f"Email {email_id} not found"})
         if email_log.status == "sent":
@@ -73,7 +87,12 @@ async def send_email(email_id: str) -> str:
         subject = email_log.edited_subject or email_log.subject
         body = email_log.edited_body or email_log.body
 
-        result = await _send(to=email_log.to_email, subject=subject, body=body)
+        try:
+            result = await _send(to=email_log.to_email, subject=subject, body=body)
+        except Exception as exc:
+            email_log.status = "failed"
+            await session.commit()
+            return json.dumps({"error": f"Gmail send failed: {str(exc)[:200]}"})
 
         email_log.status = "sent"
         email_log.gmail_message_id = result.get("id")

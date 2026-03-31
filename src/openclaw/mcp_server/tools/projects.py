@@ -64,6 +64,7 @@ async def get_project_status(project_name: str | None = None) -> str:
                     task_counts[status] = count
 
             summaries.append({
+                "project_id": str(p.id),
                 "name": p.name,
                 "slug": p.slug,
                 "status": p.status,
@@ -79,8 +80,14 @@ async def get_project_status(project_name: str | None = None) -> str:
 @mcp.tool()
 async def update_project_status(project_id: str, status: str) -> str:
     """Update a project's pipeline status. Valid statuses: intake, design, build, qa, deployed."""
+    import uuid as _uuid
     from openclaw.db.session import async_session_factory
     from openclaw.services.project_service import update_project_status as _update
+
+    try:
+        _uuid.UUID(project_id)
+    except ValueError:
+        return json.dumps({"error": f"Invalid project_id: {project_id}"})
 
     async with async_session_factory() as session:
         project = await _update(session=session, project_id=project_id, status=status)

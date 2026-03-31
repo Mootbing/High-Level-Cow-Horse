@@ -21,9 +21,8 @@
   "mcp": {
     "clarmi-tools": {
       "transport": "stdio",
-      "command": "python",
+      "command": "python3",
       "args": ["-m", "openclaw.mcp_server"],
-      "cwd": ".",
       "env": {
         "DATABASE_URL": "${DATABASE_URL}",
         "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",

@@ -21,14 +21,20 @@ openclaw onboard --install-daemon
 
 # 4. Install Python dependencies (MCP server)
 echo "[4/7] Installing Python MCP server dependencies..."
-pip install -e .
+python3 -m pip install -e .
 
 # 5. Install Playwright browsers (for QA screenshots)
 echo "[5/7] Installing Playwright Chromium..."
 playwright install chromium
 playwright install-deps chromium 2>/dev/null || true
 
-# 6. Start PostgreSQL
+# 6. Setup environment (before Docker so .env is available for compose)
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "  Created .env from template — edit it with your API keys."
+fi
+
+# 7. Start PostgreSQL
 echo "[6/7] Starting PostgreSQL..."
 docker compose up -d postgres
 
@@ -38,16 +44,14 @@ until docker compose exec postgres pg_isready -U openclaw >/dev/null 2>&1; do
 done
 echo "  PostgreSQL ready."
 
-# 7. Run database migrations
+# 8. Run database migrations
 echo "[7/7] Running database migrations..."
-alembic upgrade head
-
-# Setup environment
-if [ ! -f .env ]; then
-  cp .env.example .env
-  echo ""
-  echo "  Created .env from template — edit it with your API keys."
+# Generate initial migration if none exist
+if [ -z "$(ls -A alembic/versions/*.py 2>/dev/null)" ]; then
+  echo "  No migrations found — generating initial migration..."
+  alembic revision --autogenerate -m "initial schema"
 fi
+alembic upgrade head
 
 # Create local project storage
 mkdir -p ./data/projects

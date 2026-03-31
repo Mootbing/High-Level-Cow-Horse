@@ -73,7 +73,16 @@ async def generate_image(prompt: str, project_name: str, section: str) -> str:
     """
     from openclaw.integrations.google_ai import generate_image as _generate
 
-    image_data = await _generate(prompt)
+    try:
+        image_data = await _generate(prompt)
+    except Exception as exc:
+        logger.warning("image_generation_failed", error=str(exc)[:300])
+        return json.dumps({
+            "status": "failed",
+            "error": f"Image generation failed: {str(exc)[:200]}",
+            "section": section,
+        })
+
     filename = f"keyframe-{section}-{uuid.uuid4().hex[:8]}.png"
 
     # Save locally as backup

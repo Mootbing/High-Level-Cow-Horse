@@ -9,13 +9,19 @@ from openclaw.mcp_server.server import mcp
 @mcp.tool()
 async def analyze_project(project_id: str) -> str:
     """Analyze a completed project — returns task history, timings, and success/failure data for learning."""
+    import uuid as _uuid
     from openclaw.db.session import async_session_factory
     from openclaw.models.project import Project
     from openclaw.models.task import Task
     from sqlalchemy import select
 
+    try:
+        pid = _uuid.UUID(project_id)
+    except ValueError:
+        return json.dumps({"error": f"Invalid project_id: {project_id}"})
+
     async with async_session_factory() as session:
-        project = await session.get(Project, project_id)
+        project = await session.get(Project, pid)
         if not project:
             return json.dumps({"error": f"Project {project_id} not found"})
 
