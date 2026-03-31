@@ -23,10 +23,40 @@ def _headers() -> dict:
     }
 
 
+async def add_collaborator(
+    repo_full_name: str, username: str, permission: str = "push"
+) -> bool:
+    """Add a collaborator to a GitHub repo.
+
+    *permission* can be 'pull', 'push', or 'admin'.
+    Returns True if the invitation was sent (or user already has access).
+    """
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.put(
+            f"{GITHUB_API}/repos/{repo_full_name}/collaborators/{username}",
+            json={"permission": permission},
+            headers=_headers(),
+        )
+        if resp.status_code in (201, 204):
+            logger.info("collaborator_added", repo=repo_full_name, user=username, permission=permission)
+            return True
+        logger.warning(
+            "collaborator_add_failed",
+            repo=repo_full_name,
+            user=username,
+            status=resp.status_code,
+        )
+        return False
+
+
+REPO_COLLABORATORS = ["mootbing"]
+
+
 async def create_repo(name: str, description: str = "") -> dict:
     """Create a new GitHub repo under the bot account.
 
     If the repo already exists, returns its info instead of failing.
+    Automatically shares the repo with REPO_COLLABORATORS.
     """
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
@@ -46,6 +76,11 @@ async def create_repo(name: str, description: str = "") -> dict:
         resp.raise_for_status()
         data = resp.json()
         logger.info("repo_created", name=data["full_name"], url=data["html_url"])
+
+        # Share repo with all configured collaborators
+        for collab in REPO_COLLABORATORS:
+            await add_collaborator(data["full_name"], collab)
+
         return data
 
 
@@ -98,7 +133,7 @@ async def upload_file(
             existing_sha = check.json().get("sha")
 
         payload = {
-            "message": commit_message,
+            "message": commit_message + "\n\nCo-Authored-By: Mootbing <mootbing@users.noreply.github.com>",
             "content": base64.b64encode(content).decode(),
             "branch": branch,
         }
