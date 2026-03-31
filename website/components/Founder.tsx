@@ -48,7 +48,7 @@ function PortraitCard() {
         }}
       >
         <img
-          src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&h=800&fit=crop&crop=face&q=80"
+          src="/assets/jason.png"
           alt="Jason Xu, Founder of Clarmi Design Studio"
           style={{
             width: "100%",
@@ -70,7 +70,7 @@ function PortraitCard() {
             Jason Xu
           </div>
           <div style={{ fontSize: "clamp(0.72rem, 0.82vw, 0.78rem)", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-            Founder &amp; Lead Engineer
+            Founder &amp; CTO (Eng &amp; Design)
           </div>
         </div>
 
