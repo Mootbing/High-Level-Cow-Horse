@@ -6,7 +6,7 @@ AI-powered digital design agency built on [OpenClaw](https://openclaw.com). A si
 
 Clarmi operates as an OpenClaw agent with a Python MCP tool server. You send it a message like _"build a website for example.com"_ and it runs the full pipeline:
 
-1. **Research** — Crawls the prospect's site with Firecrawl, extracts branding, audits for problems
+1. **Research** — Crawls the prospect's site with WebFetch, extracts branding, audits for problems
 2. **Design** — Generates images and video assets via Google AI
 3. **Build** — Scaffolds a Next.js app (App Router, GSAP, Tailwind), writes code, deploys to Vercel
 4. **QA** — Takes screenshots at multiple viewports, runs Lighthouse (must score >= 85 to proceed)
@@ -33,7 +33,6 @@ After setup, edit `.env` with your API keys:
 ```
 ANTHROPIC_API_KEY=
 GOOGLE_AI_API_KEY=
-FIRECRAWL_API_KEY=
 GMAIL_CLIENT_ID=
 GMAIL_CLIENT_SECRET=
 GMAIL_REFRESH_TOKEN=
@@ -56,8 +55,7 @@ Scan the QR code for WhatsApp pairing, or use `openclaw chat` for CLI mode.
 src/openclaw/
   mcp_server/          # MCP tool server
     tools/             # Tool definitions
-      scraping.py      #   Website crawling
-      research.py      #   Branding extraction
+      research.py      #   Knowledge storage
       prospects.py     #   Prospect management
       design.py        #   Image/video generation (Google AI)
       engineering.py   #   Scaffold, write code, verify builds
@@ -66,7 +64,6 @@ src/openclaw/
       email.py         #   Gmail drafts & sending
       learning.py      #   Trend research, metrics
   integrations/        # External service clients
-    firecrawl_client.py
     github_client.py
     gmail_client.py
     google_ai.py

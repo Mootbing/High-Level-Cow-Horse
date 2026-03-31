@@ -5,7 +5,6 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("clarmi-tools")
 
 # Import all tool modules to register them with the server
-import openclaw.mcp_server.tools.scraping  # noqa: F401
 import openclaw.mcp_server.tools.projects  # noqa: F401
 import openclaw.mcp_server.tools.prospects  # noqa: F401
 import openclaw.mcp_server.tools.design  # noqa: F401

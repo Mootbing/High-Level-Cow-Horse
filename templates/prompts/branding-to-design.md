@@ -1,6 +1,6 @@
 # Convert Prospect Branding to Design Spec
 
-Given the following prospect branding data from Firecrawl:
+Given the following prospect branding data:
 
 ## Prospect: {{prospect_data}}
 

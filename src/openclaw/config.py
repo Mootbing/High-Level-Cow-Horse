@@ -11,9 +11,6 @@ class Settings(BaseSettings):
     # Google AI (Nano Banana + Veo 3)
     GOOGLE_AI_API_KEY: str = ""
 
-    # Firecrawl
-    FIRECRAWL_API_KEY: str = ""
-
     # Gmail
     GMAIL_CLIENT_ID: str = ""
     GMAIL_CLIENT_SECRET: str = ""

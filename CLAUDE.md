@@ -22,9 +22,9 @@ When building a website, follow these steps IN ORDER. Each step depends on the p
 
 Crawl the prospect's site and extract everything needed to rebuild it better.
 
-1. Call `scrape_website(url)` to crawl up to 5 pages
-2. Call `extract_branding(url)` to get structured branding data (company name, colors, fonts, emails, etc.)
-3. Also analyze the crawled markdown to extract: ALL page content (headings, paragraphs, menu items, pricing, team bios, testimonials, image URLs, navigation structure)
+1. Use WebFetch to fetch the prospect's homepage and up to 4 key subpages (about, services, contact, etc.)
+2. Analyze the fetched content to extract structured branding data (company name, tagline, colors, fonts, emails, social links, tech stack, etc.)
+3. Also extract: ALL page content (headings, paragraphs, menu items, pricing, team bios, testimonials, image URLs, navigation structure)
 3. Critically audit the site for specific problems across these categories:
    - **Navigation & UX**: cluttered menu, no mobile menu, buried CTAs, broken links
    - **Design & Visual**: outdated aesthetic, inconsistent fonts/colors, poor contrast, static feel, stock photos
@@ -118,7 +118,7 @@ Within a project, steps are sequential (each depends on the previous).
 ## Research & Learning (Cron)
 
 When triggered by the research cron:
-- Call `search_design_trends()` to scrape Awwwards, Dribbble, CSS-Tricks, Smashing Magazine, Codrops
+- Use WebFetch to scrape Awwwards, Dribbble, CSS-Tricks, Smashing Magazine, and Codrops
 - Analyze findings for actionable insights
 - Call `store_knowledge(...)` for each new trend, technique, or tool discovered
 

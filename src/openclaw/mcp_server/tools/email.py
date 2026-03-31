@@ -35,8 +35,10 @@ async def draft_email(
     async with async_session_factory() as session:
         # Try to link to prospect by email
         prospect_id = None
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB
         stmt = select(Prospect).where(
-            Prospect.contact_emails.contains([to])
+            Prospect.contact_emails.op("@>")(cast([to], JSONB))
         )
         result = await session.execute(stmt)
         prospect = result.scalar_one_or_none()

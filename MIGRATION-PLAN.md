@@ -17,7 +17,7 @@ OpenClaw Daemon (Node.js)
 ├── Cron: research (6h), learning (daily 3am)
 └── MCP Server: clarmi-tools (Python subprocess, stdio)
     ├── Tools: scrape, design, engineer, QA, email, projects, prospects, research, learning
-    ├── Integrations: Firecrawl, GitHub, Vercel, Gmail, Google AI (reused as-is)
+    ├── Integrations: GitHub, Vercel, Gmail, Google AI (reused as-is)
     ├── Services: project_service, task_service, prospect_service (reused as-is)
     └── Database: PostgreSQL via SQLAlchemy async (reused as-is)
 ```
@@ -44,10 +44,6 @@ Parallel execution: each project gets its own OpenClaw session. Sessions run in 
 ### 1.2 Create `src/openclaw/mcp_server/tools/` (9 modules, ~22 tools total)
 
 Each tool is a thin wrapper calling existing integration clients and services. No business logic duplication.
-
-**`scraping.py`**
-- `scrape_website(url, max_pages=5)` — wraps `firecrawl_client.crawl()`
-- `extract_branding(url)` — wraps `firecrawl_client.extract()` with brand schema
 
 **`projects.py`**
 - `create_project(name, brief)` — wraps `project_service.create_project()` (provisions GitHub + Vercel)
@@ -79,7 +75,7 @@ Each tool is a thin wrapper calling existing integration clients and services. N
 - `send_email(email_id)` — loads draft, calls `gmail_client.send_email()`, updates status
 
 **`research.py`**
-- `search_design_trends(sources?)` — scrapes trend sites
+- (scraping handled by agent's WebFetch — no MCP tool needed)
 - `store_knowledge(category, title, content, source_url?, relevance_score?)` — saves to KnowledgeBase
 
 **`learning.py`**
@@ -142,7 +138,7 @@ Keep only `postgres` service. Remove: redis, api, workers-light, workers-heavy, 
 
 ### 3.2 Update `src/openclaw/config.py`
 Remove: REDIS_URL, WA_*, OWNER_PHONE, CLAUDE_MODEL, OPENCLAW_CREDENTIALS_PATH, SKILLS_DIR, EC2_PUBLIC_IP, MAX_PARALLEL_PROJECTS, RESEARCH_*, LEARNING_*, DASHBOARD_SECRET, JWT_*, TASK_TIMEOUT_S, HEAVY_TASK_TIMEOUT_S
-Keep: DATABASE_URL, GOOGLE_AI_API_KEY, FIRECRAWL_API_KEY, GMAIL_*, GITHUB_PAT, VERCEL_*, STORAGE_PATH, POSTGRES_PASSWORD, DEBUG, LOG_LEVEL
+Keep: DATABASE_URL, GOOGLE_AI_API_KEY, GMAIL_*, GITHUB_PAT, VERCEL_*, STORAGE_PATH, POSTGRES_PASSWORD, DEBUG, LOG_LEVEL
 
 ### 3.3 Update `.env.example`
 Simplified — only DB + integration API keys.
@@ -191,7 +187,6 @@ Delete these directories/files:
 | CREATE | `src/openclaw/mcp_server/__main__.py` |
 | CREATE | `src/openclaw/mcp_server/server.py` |
 | CREATE | `src/openclaw/mcp_server/tools/__init__.py` |
-| CREATE | `src/openclaw/mcp_server/tools/scraping.py` |
 | CREATE | `src/openclaw/mcp_server/tools/projects.py` |
 | CREATE | `src/openclaw/mcp_server/tools/prospects.py` |
 | CREATE | `src/openclaw/mcp_server/tools/design.py` |

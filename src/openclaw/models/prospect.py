@@ -1,4 +1,4 @@
-"""Prospect model — Firecrawl-scraped prospect data."""
+"""Prospect model — scraped prospect data."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 
 class Prospect(UUIDPrimaryKeyMixin, Base):
-    """Stores scraped prospect/company data from Firecrawl."""
+    """Stores scraped prospect/company data."""
 
     __tablename__ = "prospects"
 

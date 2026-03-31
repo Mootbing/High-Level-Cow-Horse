@@ -25,7 +25,6 @@
       "args": ["-m", "openclaw.mcp_server"],
       "env": {
         "DATABASE_URL": "${DATABASE_URL}",
-        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",
         "GITHUB_PAT": "${GITHUB_PAT}",
         "VERCEL_TOKEN": "${VERCEL_TOKEN}",
         "VERCEL_TEAM_ID": "${VERCEL_TEAM_ID}",
@@ -43,7 +42,7 @@
     {
       "name": "design-research",
       "schedule": "0 */6 * * *",
-      "prompt": "Run your design research routine: use search_design_trends to scrape Awwwards, Dribbble, CSS-Tricks, Smashing Magazine, and Codrops. Analyze findings and store_knowledge for each actionable insight.",
+      "prompt": "Run your design research routine: use WebFetch to scrape Awwwards, Dribbble, CSS-Tricks, Smashing Magazine, and Codrops. Analyze findings and store_knowledge for each actionable insight.",
       "session": "research"
     },
     {
