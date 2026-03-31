@@ -2,7 +2,7 @@
 
 import json
 import uuid as _uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 from openclaw.mcp_server.server import mcp
 
@@ -98,7 +98,7 @@ async def send_email(email_id: str) -> str:
 
         email_log.status = "sent"
         email_log.gmail_message_id = result.get("id")
-        email_log.sent_at = datetime.now(timezone.utc)
+        email_log.sent_at = datetime.utcnow()
         await session.commit()
 
         return json.dumps({
