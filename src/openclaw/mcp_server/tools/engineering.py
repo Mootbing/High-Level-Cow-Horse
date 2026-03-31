@@ -441,3 +441,120 @@ async def deploy(project_name: str, commit_message: str) -> str:
         "url": live_url,
         "note": "Pushed to main. Vercel auto-deploys." + (" URL may take 30-60s to be ready." if live_url else " Check Vercel dashboard for deploy status."),
     })
+
+
+@mcp.tool()
+async def deploy_preview(project_name: str, branch_name: str, commit_message: str) -> str:
+    """Push code to a feature branch (not main) so Vercel creates a preview deployment.
+
+    Use this for client revisions — the client reviews the preview URL before it goes live.
+    Returns the Vercel preview URL. Call approve_preview to merge to main after client approval.
+    """
+    from openclaw.integrations.github_client import (
+        create_branch,
+        get_authenticated_user,
+        push_directory,
+    )
+    from openclaw.integrations.vercel_client import get_latest_deployment
+
+    project_dir = _project_dir(project_name)
+
+    # Resolve repo
+    repo_full_name = await _get_project_metadata(project_name, "github_repo")
+    if not repo_full_name:
+        user = await get_authenticated_user()
+        repo_full_name = f"{user}/{project_name}"
+
+    # Create branch from main
+    await create_branch(repo_full_name, branch_name, from_branch="main")
+
+    # Push to the branch
+    push_result = await push_directory(
+        repo_full_name, project_dir,
+        commit_message=commit_message, branch=branch_name,
+    )
+
+    # Poll for Vercel preview deployment
+    vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
+    preview_url = None
+    for _ in range(6):
+        await asyncio.sleep(5)
+        deployment = await get_latest_deployment(vercel_name)
+        if deployment:
+            preview_url = f"https://{deployment['url']}"
+            break
+
+    return json.dumps({
+        "status": "preview_deployed",
+        "branch": branch_name,
+        "commit": push_result.get("commit_sha", "")[:8],
+        "preview_url": preview_url,
+        "repo": repo_full_name,
+        "note": f"Preview on branch '{branch_name}'. Call approve_preview to merge to main after client approval.",
+    })
+
+
+@mcp.tool()
+async def approve_preview(project_name: str, branch_name: str) -> str:
+    """Merge a preview branch into main after client approval. Vercel auto-deploys the merge.
+
+    This creates a PR, squash-merges it, and returns the live production URL.
+    """
+    from openclaw.integrations.github_client import (
+        create_pull_request,
+        get_authenticated_user,
+        merge_pull_request,
+    )
+    from openclaw.integrations.vercel_client import get_latest_deployment
+
+    repo_full_name = await _get_project_metadata(project_name, "github_repo")
+    if not repo_full_name:
+        user = await get_authenticated_user()
+        repo_full_name = f"{user}/{project_name}"
+
+    # Create PR and merge
+    pr = await create_pull_request(
+        repo_full_name,
+        head=branch_name,
+        base="main",
+        title=f"Client revision: {branch_name}",
+        body="Approved by client via Clarmi funnel.",
+    )
+    merge_result = await merge_pull_request(repo_full_name, pr["number"], merge_method="squash")
+
+    # Poll for production deployment
+    vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
+    live_url = None
+    for _ in range(5):
+        await asyncio.sleep(5)
+        deployment = await get_latest_deployment(vercel_name)
+        if deployment:
+            live_url = f"https://{deployment['url']}"
+            break
+
+    # Update deployed URL
+    if live_url:
+        from openclaw.db.session import async_session_factory
+        from openclaw.models.project import Project
+        from slugify import slugify
+        from sqlalchemy import select
+        try:
+            async with async_session_factory() as session:
+                slug_prefix = slugify(project_name)
+                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
+                result = await session.execute(stmt)
+                project = result.scalars().first()
+                if project:
+                    project.deployed_url = live_url
+                    await session.commit()
+        except Exception:
+            pass
+
+    return json.dumps({
+        "status": "merged_and_deployed",
+        "branch": branch_name,
+        "pr_number": pr["number"],
+        "merge_sha": merge_result.get("sha", "")[:8],
+        "url": live_url,
+        "note": "Merged to main and deployed to production.",
+    })
