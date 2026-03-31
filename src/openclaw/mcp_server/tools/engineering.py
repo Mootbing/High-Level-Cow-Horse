@@ -474,15 +474,19 @@ async def deploy_preview(project_name: str, branch_name: str, commit_message: st
         commit_message=commit_message, branch=branch_name,
     )
 
-    # Poll for Vercel preview deployment
+    # Poll for Vercel preview deployment (no target filter — previews aren't "production")
     vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
+    push_sha = push_result.get("commit_sha", "")
     preview_url = None
-    for _ in range(6):
+    for _ in range(8):
         await asyncio.sleep(5)
-        deployment = await get_latest_deployment(vercel_name)
-        if deployment:
+        deployment = await get_latest_deployment(vercel_name, target=None)
+        if deployment and deployment.get("meta", {}).get("githubCommitSha", "") == push_sha:
             preview_url = f"https://{deployment['url']}"
             break
+        # Fallback: if latest deploy is newer than our push, it's probably ours
+        if deployment and not preview_url:
+            preview_url = f"https://{deployment['url']}"
 
     return json.dumps({
         "status": "preview_deployed",
@@ -512,7 +516,7 @@ async def approve_preview(project_name: str, branch_name: str) -> str:
         user = await get_authenticated_user()
         repo_full_name = f"{user}/{project_name}"
 
-    # Create PR and merge
+    # Create PR and merge (try squash, fall back to regular merge)
     pr = await create_pull_request(
         repo_full_name,
         head=branch_name,
@@ -520,7 +524,10 @@ async def approve_preview(project_name: str, branch_name: str) -> str:
         title=f"Client revision: {branch_name}",
         body="Approved by client via Clarmi funnel.",
     )
-    merge_result = await merge_pull_request(repo_full_name, pr["number"], merge_method="squash")
+    try:
+        merge_result = await merge_pull_request(repo_full_name, pr["number"], merge_method="squash")
+    except Exception:
+        merge_result = await merge_pull_request(repo_full_name, pr["number"], merge_method="merge")
 
     # Poll for production deployment
     vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name

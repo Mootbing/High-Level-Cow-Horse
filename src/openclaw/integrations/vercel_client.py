@@ -183,12 +183,18 @@ async def get_deployment_status(deployment_id: str) -> dict:
         return resp.json()
 
 
-async def get_latest_deployment(project_name: str) -> dict | None:
-    """Get the latest deployment for a project."""
+async def get_latest_deployment(project_name: str, target: str = "production") -> dict | None:
+    """Get the latest deployment for a project.
+
+    target: "production" for main branch deploys, or omit/pass None for any (including previews).
+    """
     async with httpx.AsyncClient(timeout=30) as client:
+        params = {**_params(), "projectId": project_name, "limit": 1}
+        if target:
+            params["target"] = target
         resp = await client.get(
             f"{VERCEL_API}/v6/deployments",
-            params={**_params(), "projectId": project_name, "limit": 1, "target": "production"},
+            params=params,
             headers=_headers(),
         )
         resp.raise_for_status()
