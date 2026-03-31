@@ -53,7 +53,6 @@ async def disable_protection(
                     "passwordProtection": None,
                     "trustedIps": None,
                     "ssoProtection": None,
-                    "protection": {"deploymentType": "none"},
                 },
                 headers=_headers(),
                 params=_params(),
