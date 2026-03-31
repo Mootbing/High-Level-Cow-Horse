@@ -1,0 +1,62 @@
+# =============================================================================
+# OpenClaw — Systemd Service
+#
+# Manages Docker Compose lifecycle so OpenClaw starts on boot and restarts
+# after failures.
+#
+# Install:
+#   sudo cp deploy/ec2/openclaw.service /etc/systemd/system/openclaw.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable openclaw
+#
+# Usage:
+#   sudo systemctl start openclaw     # start all containers
+#   sudo systemctl stop openclaw      # stop all containers
+#   sudo systemctl restart openclaw   # recreate containers
+#   sudo systemctl status openclaw    # check status
+#   journalctl -u openclaw -f         # view systemd logs
+# =============================================================================
+
+[Unit]
+Description=OpenClaw Multi-Agent System
+Documentation=https://github.com/your-org/openclaw
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+
+User=openclaw
+Group=openclaw
+WorkingDirectory=/opt/openclaw/app
+
+# Use the EC2-specific compose file
+Environment=COMPOSE_FILE=deploy/ec2/docker-compose.yml
+
+# Pull latest images (postgres, redis) before starting
+ExecStartPre=/usr/bin/docker compose pull --quiet
+
+# Start all services
+ExecStart=/usr/bin/docker compose up -d --remove-orphans
+
+# Stop all services
+ExecStop=/usr/bin/docker compose down
+
+# Reload = recreate containers with latest config
+ExecReload=/usr/bin/docker compose up -d --remove-orphans
+
+# Give containers time to initialize (postgres, playwright, etc.)
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+# Restart policy — systemd level (Docker also has restart: unless-stopped)
+Restart=on-failure
+RestartSec=30
+
+# Environment file for the openclaw user's HOME (needed for credential mount)
+Environment=HOME=/opt/openclaw
+
+[Install]
+WantedBy=multi-user.target

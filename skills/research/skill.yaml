@@ -1,0 +1,5 @@
+name: research
+description: Autonomously researches web design trends, animation techniques, and tools
+tier: light
+timeout: 600
+max_concurrent: 1

@@ -14,7 +14,7 @@ from openclaw.schemas.agent import AgentMessage
 
 
 class BaseAgent:
-    """Base class for all Clarmi Design Studio agents."""
+    """Base class for all OpenClaw agents."""
 
     agent_type: str = "base"
     system_prompt: str = "You are a helpful assistant."
@@ -24,11 +24,20 @@ class BaseAgent:
     tools: list[dict] = []
 
     def __init__(self):
-        self.client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        # Client is initialized lazily via _ensure_client() so that
+        # OAuth credentials are read at first use (async context required).
+        self.client: AsyncAnthropic | None = None
         self.model = self.model or settings.CLAUDE_MODEL
         self._current_project_id = None
         # Each agent instance gets its own bound logger with agent_type
         self.log = structlog.get_logger().bind(agent=self.agent_type)
+
+    async def _ensure_client(self) -> AsyncAnthropic:
+        """Lazily initialize the Anthropic client using login credentials."""
+        if self.client is None:
+            from openclaw.auth.claude_login import get_claude_client
+            self.client = await get_claude_client()
+        return self.client
 
     async def process_task(self, message: dict) -> dict:
         """Main entry point. Override in subclasses for custom behavior."""
@@ -55,6 +64,8 @@ class BaseAgent:
 
     async def run(self, prompt: str, context: list[dict] | None = None) -> str:
         """Execute a multi-turn Claude API call, looping until Claude stops requesting tools."""
+        client = await self._ensure_client()
+
         messages = []
         if context:
             messages.extend(context[-self.max_context_messages :])
@@ -83,7 +94,7 @@ class BaseAgent:
                 kwargs["tools"] = self.tools
 
             t0 = time.monotonic()
-            response = await self.client.messages.create(**kwargs)
+            response = await client.messages.create(**kwargs)
             api_elapsed = round(time.monotonic() - t0, 2)
 
             self.log.info(

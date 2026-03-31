@@ -1,0 +1,5 @@
+name: outbound
+description: Drafts personalized cold emails via Gmail for owner approval
+tier: light
+timeout: 600
+max_concurrent: 2

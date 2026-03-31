@@ -1,0 +1,5 @@
+name: project_manager
+description: Manages sequential pipeline - inbound, design, build, QA, outbound
+tier: light
+timeout: 900
+max_concurrent: 3

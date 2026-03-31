@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    APP_NAME: str = "Clarmi Design Studio"
+    APP_NAME: str = "OpenClaw"
     DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
@@ -19,11 +19,17 @@ class Settings(BaseSettings):
     WA_APP_SECRET: str = ""
     OWNER_PHONE: str = ""
 
-    # Anthropic
+    # Anthropic (API key kept as fallback — prefer `openclaw login` OAuth)
     ANTHROPIC_API_KEY: str = ""
     CLAUDE_MODEL: str = "claude-sonnet-4-20250514"
 
-    # Google AI
+    # OpenClaw auth & runtime
+    OPENCLAW_CREDENTIALS_PATH: str = ""  # Override for creds file; default ~/.openclaw/credentials.json
+    SKILLS_DIR: str = ""  # Override for skills directory path
+    EC2_PUBLIC_IP: str = ""  # Public IP for webhook URL configuration
+    MAX_PARALLEL_PROJECTS: int = 5  # Limit parallel project execution
+
+    # Google AI (image/video gen — still uses API key)
     GOOGLE_AI_API_KEY: str = ""
 
     # Firecrawl
@@ -65,16 +71,6 @@ class Settings(BaseSettings):
     # Worker
     TASK_TIMEOUT_S: int = 600  # 10 minutes max per task (light agents)
     HEAVY_TASK_TIMEOUT_S: int = 1800  # 30 minutes for designer/engineer/QA
-
-    # Railway auto-scaling
-    RAILWAY_API_TOKEN: str = ""
-    RAILWAY_LIGHT_SERVICE_ID: str = ""  # Service ID for light workers
-    RAILWAY_HEAVY_SERVICE_ID: str = ""  # Service ID for heavy workers
-    AUTOSCALE_ENABLED: bool = True
-    AUTOSCALE_MIN_REPLICAS: int = 1
-    AUTOSCALE_MAX_REPLICAS: int = 5
-    AUTOSCALE_QUEUE_THRESHOLD: int = 3  # Pending messages to trigger scale-up
-    AUTOSCALE_POLL_SECONDS: int = 60
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

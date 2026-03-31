@@ -1,0 +1,5 @@
+name: learning
+description: Analyzes completed projects to improve agency performance over time
+tier: light
+timeout: 600
+max_concurrent: 1

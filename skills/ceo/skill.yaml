@@ -1,0 +1,5 @@
+name: ceo
+description: Top-level orchestrator that receives owner messages via WhatsApp or Dashboard
+tier: light
+timeout: 600
+max_concurrent: 1

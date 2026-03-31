@@ -1,0 +1,5 @@
+name: engineer
+description: Builds Next.js websites with GSAP animations, deploys to Vercel
+tier: heavy
+timeout: 1800
+max_concurrent: 5

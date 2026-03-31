@@ -1,0 +1,151 @@
+# =============================================================================
+# OpenClaw — Production Docker Compose (Single EC2 Instance)
+#
+# All services on one box: postgres, redis, api, skills, clawdbot.
+# ONE skills container runs ALL 11 skills (no light/heavy split).
+#
+# Usage:
+#   docker compose -f deploy/ec2/docker-compose.yml up -d
+#   docker compose -f deploy/ec2/docker-compose.yml logs -f
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # PostgreSQL 17
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: openclaw
+      POSTGRES_USER: openclaw
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"        # localhost only — not exposed to internet
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openclaw"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+
+  # ---------------------------------------------------------------------------
+  # Redis 7
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 512mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"        # localhost only
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ---------------------------------------------------------------------------
+  # API — FastAPI web server (behind nginx on port 80/443)
+  # Serves API endpoints + dashboard frontend
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ../..
+      dockerfile: deploy/ec2/Dockerfile
+    command: uvicorn openclaw.main:app --host 0.0.0.0 --port 8000 --workers 2
+    ports:
+      - "127.0.0.1:8000:8000"        # nginx proxies to this
+    env_file: ../../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://openclaw:${POSTGRES_PASSWORD:-changeme}@postgres:5432/openclaw
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - projectdata:/data/projects
+      - ${HOME}/.openclaw:/home/openclaw/.openclaw:ro   # Claude login credentials
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # ---------------------------------------------------------------------------
+  # Skills — Unified skill runner (replaces workers-light + workers-heavy)
+  # Runs ALL 11 skills: ceo, project_manager, inbound, designer, engineer,
+  # qa, reviewer, outbound, client_comms, research, learning
+  # ---------------------------------------------------------------------------
+  skills:
+    build:
+      context: ../..
+      dockerfile: deploy/ec2/Dockerfile
+    command: python -m openclaw.runtime.skill_runner --all
+    env_file: ../../.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://openclaw:${POSTGRES_PASSWORD:-changeme}@postgres:5432/openclaw
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - projectdata:/data/projects
+      - ${HOME}/.openclaw:/home/openclaw/.openclaw:ro   # Claude login credentials
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+  # ---------------------------------------------------------------------------
+  # ClawdBot — WhatsApp personal account bridge
+  # ---------------------------------------------------------------------------
+  clawdbot:
+    build:
+      context: ../../clawdbot
+      dockerfile: Dockerfile
+    env_file: ../../.env
+    environment:
+      REDIS_URL: redis://redis:6379/0
+    volumes:
+      - clawdbot_auth:/app/auth_state
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+# =============================================================================
+# Volumes — persistent data survives container rebuilds
+# =============================================================================
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  projectdata:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /data/projects
+  clawdbot_auth:
+    driver: local
