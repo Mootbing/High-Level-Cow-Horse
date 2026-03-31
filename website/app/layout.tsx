@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Clarmi Design Studio — Award-Winning AI Websites for Small Businesses",
+  title: "Clarmi Design Studio — Award-Winning Websites for Small Businesses",
   description:
     "Award-winning design studio building custom websites that make small businesses look like big ones. Founded by a CSS Design Awards recipient. $500 to launch.",
   openGraph: {
@@ -28,7 +28,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&family=Inter:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
       </head>

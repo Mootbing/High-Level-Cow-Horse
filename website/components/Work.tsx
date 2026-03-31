@@ -1,48 +1,206 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { PROJECTS } from "@/lib/projects";
 
-const PROJECTS = [
-  {
-    name: "Bella Vista Ristorante",
-    industry: "Restaurant",
-    improvement: "4.2s \u2192 1.1s load time",
-    description: "Full rebrand and site rebuild. Replaced a 6-year-old WordPress site with a scroll-driven showcase of their menu, ambiance, and story.",
-    gradient: "linear-gradient(135deg, #1a0a00 0%, #2d1800 50%, #0d0d0d 100%)",
-    accent: "#ff8c42",
-  },
-  {
-    name: "Summit Legal Group",
-    industry: "Law Firm",
-    improvement: "312% more contact form submissions",
-    description: "Transformed a generic template site into a trust-building experience. Case results, attorney bios, and practice areas — all above the fold.",
-    gradient: "linear-gradient(135deg, #000a1a 0%, #001a3d 50%, #0d0d0d 100%)",
-    accent: "#4da6ff",
-  },
-  {
-    name: "Pure Glow Aesthetics",
-    industry: "Medical Spa",
-    improvement: "First page of Google in 3 weeks",
-    description: "Cinematic hero video, before/after gallery, and online booking integration. Every section designed to build confidence and drive bookings.",
-    gradient: "linear-gradient(135deg, #1a0012 0%, #2d0020 50%, #0d0d0d 100%)",
-    accent: "#ff4da6",
-  },
-];
+function PolaroidCard({
+  project,
+  index,
+}: {
+  project: (typeof PROJECTS)[number];
+  index: number;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const cardRef = useRef<HTMLAnchorElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width - 0.5;
+    const y = (e.clientY - rect.top) / rect.height - 0.5;
+    setTilt({ x: y * -8, y: x * 8 });
+  };
+
+  const handleMouseLeave = () => {
+    setHovered(false);
+    setTilt({ x: 0, y: 0 });
+  };
+
+  return (
+    <Link
+      ref={cardRef}
+      href={`/work/${project.slug}`}
+      className={`reveal delay-${index + 2}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{
+        display: "block",
+        textDecoration: "none",
+        cursor: "pointer",
+        perspective: "800px",
+      }}
+    >
+      <div
+        style={{
+          background: "#fff",
+          padding: "clamp(10px, 1.5vw, 14px)",
+          paddingBottom: "clamp(44px, 6vw, 60px)",
+          borderRadius: "4px",
+          boxShadow: hovered
+            ? "0 20px 50px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)"
+            : "0 4px 14px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.06)",
+          transform: hovered
+            ? `rotate(0deg) scale(1.04) rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`
+            : `rotate(${project.rotation}deg) scale(1)`,
+          transition: hovered
+            ? "box-shadow 0.3s ease, transform 0.1s ease"
+            : "box-shadow 0.4s ease, transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+          transformStyle: "preserve-3d",
+          position: "relative",
+        }}
+      >
+        {/* Image area */}
+        <div
+          style={{
+            width: "100%",
+            aspectRatio: "1 / 1",
+            borderRadius: "2px",
+            overflow: "hidden",
+            background: project.gradient,
+            position: "relative",
+          }}
+        >
+          {/* Project preview mockup */}
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "clamp(0.5rem, 1vw, 0.8rem)",
+            }}
+          >
+            {/* Browser mockup */}
+            <div
+              style={{
+                width: "80%",
+                height: "65%",
+                background: "rgba(255,255,255,0.95)",
+                borderRadius: "8px",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                overflow: "hidden",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* Browser bar */}
+              <div
+                style={{
+                  height: "clamp(16px, 2vw, 22px)",
+                  background: "#f5f5f5",
+                  borderBottom: "1px solid #e5e5e5",
+                  display: "flex",
+                  alignItems: "center",
+                  padding: "0 8px",
+                  gap: "4px",
+                }}
+              >
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5f57" }} />
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ffbd2e" }} />
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#28c840" }} />
+              </div>
+              {/* Content area */}
+              <div style={{ flex: 1, padding: "clamp(6px, 1vw, 12px)", display: "flex", flexDirection: "column", gap: "clamp(3px, 0.5vw, 6px)" }}>
+                <div style={{ width: "60%", height: "clamp(6px, 1vw, 10px)", borderRadius: 3, background: project.color, opacity: 0.7 }} />
+                <div style={{ width: "80%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: "#e5e5e5" }} />
+                <div style={{ width: "70%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: "#e5e5e5" }} />
+                <div style={{ flex: 1, borderRadius: 4, background: `${project.color}15`, marginTop: "clamp(2px, 0.3vw, 4px)" }} />
+              </div>
+            </div>
+            {/* Industry badge */}
+            <div
+              style={{
+                padding: "3px 10px",
+                background: "rgba(255,255,255,0.85)",
+                borderRadius: "100px",
+                fontSize: "clamp(0.6rem, 0.75vw, 0.7rem)",
+                fontWeight: 600,
+                color: project.color,
+                letterSpacing: "0.05em",
+                backdropFilter: "blur(4px)",
+              }}
+            >
+              {project.industry}
+            </div>
+          </div>
+        </div>
+
+        {/* Caption (handwritten) */}
+        <div
+          style={{
+            position: "absolute",
+            bottom: "clamp(10px, 1.5vw, 16px)",
+            left: 0,
+            right: 0,
+            textAlign: "center",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: '"Caveat", cursive',
+              fontSize: "clamp(1rem, 1.4vw, 1.2rem)",
+              fontWeight: 600,
+              color: "#333",
+              letterSpacing: "0.01em",
+            }}
+          >
+            {project.caption}
+          </span>
+        </div>
+
+        {/* Improvement badge (appears on hover) */}
+        <div
+          style={{
+            position: "absolute",
+            top: "clamp(16px, 2.5vw, 22px)",
+            right: "clamp(16px, 2.5vw, 22px)",
+            padding: "4px 10px",
+            background: "rgba(255,255,255,0.92)",
+            borderRadius: "100px",
+            fontSize: "clamp(0.65rem, 0.75vw, 0.72rem)",
+            fontWeight: 600,
+            color: project.color,
+            backdropFilter: "blur(8px)",
+            opacity: hovered ? 1 : 0,
+            transform: hovered ? "translateY(0)" : "translateY(-6px)",
+            transition: "all 0.3s ease",
+            pointerEvents: "none",
+          }}
+        >
+          {project.improvement}
+        </div>
+      </div>
+    </Link>
+  );
+}
 
 export default function Work() {
   const sectionRef = useRef<HTMLElement>(null);
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
 
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const reveals = el.querySelectorAll(".reveal");
-            reveals.forEach((r, i) => {
+            el.querySelectorAll(".reveal").forEach((r, i) => {
               setTimeout(() => r.classList.add("active"), i * 120);
             });
             observer.disconnect();
@@ -51,7 +209,6 @@ export default function Work() {
       },
       { threshold: 0.1 }
     );
-
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
@@ -59,179 +216,31 @@ export default function Work() {
   return (
     <section ref={sectionRef} className="section" id="work">
       <div className="container">
-        {/* Header */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "flex-end",
-            justifyContent: "space-between",
-            marginBottom: "clamp(3rem, 6vh, 5rem)",
-            flexWrap: "wrap",
-            gap: "1.5rem",
-          }}
-        >
-          <div>
-            <span className="text-label reveal">Selected Work</span>
-            <h2
-              className="text-display-lg reveal delay-1"
-              style={{ marginTop: "clamp(0.8rem, 1.5vh, 1.2rem)" }}
-            >
-              Sites we&apos;ve
-              <br />
-              <span style={{ color: "var(--accent)" }}>shipped</span>
-            </h2>
-          </div>
-          <p className="text-body reveal delay-2" style={{ maxWidth: "400px" }}>
-            Real businesses. Real results. Every project built from scratch with
-            AI-powered precision.
+        <div style={{ textAlign: "center", marginBottom: "clamp(3rem, 6vh, 5rem)" }}>
+          <h2
+            className="text-display-lg reveal delay-1"
+            style={{ marginTop: "clamp(0.8rem, 1.5vh, 1.2rem)" }}
+          >
+            Sites we&apos;ve <em className="font-serif" style={{ fontStyle: "italic" }}>shipped</em>
+          </h2>
+          <p className="text-body-lg reveal delay-1" style={{ maxWidth: "420px", margin: "clamp(0.8rem, 1.5vh, 1rem) auto 0" }}>
+            Real businesses. Real results. Click to read the full story.
           </p>
         </div>
 
-        {/* Projects */}
+        {/* Polaroid grid */}
         <div
           style={{
-            display: "flex",
-            flexDirection: "column",
-            gap: "clamp(1rem, 2vw, 1.5rem)",
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
+            gap: "clamp(2rem, 4vw, 3.5rem)",
+            maxWidth: "960px",
+            margin: "0 auto",
+            padding: "1rem 0",
           }}
         >
           {PROJECTS.map((project, i) => (
-            <div
-              key={project.name}
-              className={`reveal delay-${i + 3}`}
-              onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
-              style={{
-                position: "relative",
-                borderRadius: "var(--radius-lg)",
-                overflow: "hidden",
-                border: `1px solid ${hoveredIndex === i ? project.accent + "40" : "var(--gray-700)"}`,
-                background: project.gradient,
-                transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
-                transform: hoveredIndex === i ? "scale(1.01)" : "scale(1)",
-                cursor: "pointer",
-              }}
-            >
-              {/* Decorative SVG pattern */}
-              <svg
-                style={{
-                  position: "absolute",
-                  right: "clamp(-40px, -3vw, -20px)",
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  width: "clamp(200px, 30vw, 400px)",
-                  height: "clamp(200px, 30vw, 400px)",
-                  opacity: 0.05,
-                }}
-                viewBox="0 0 400 400"
-                fill="none"
-              >
-                <circle cx="200" cy="200" r="180" stroke={project.accent} strokeWidth="1" />
-                <circle cx="200" cy="200" r="130" stroke={project.accent} strokeWidth="1" />
-                <circle cx="200" cy="200" r="80" stroke={project.accent} strokeWidth="1" />
-                <line x1="200" y1="20" x2="200" y2="380" stroke={project.accent} strokeWidth="0.5" />
-                <line x1="20" y1="200" x2="380" y2="200" stroke={project.accent} strokeWidth="0.5" />
-              </svg>
-
-              <div
-                style={{
-                  position: "relative",
-                  zIndex: 2,
-                  padding: "clamp(2rem, 4vw, 3.5rem)",
-                  display: "grid",
-                  gridTemplateColumns: "1fr auto",
-                  alignItems: "center",
-                  gap: "clamp(1.5rem, 3vw, 3rem)",
-                }}
-              >
-                <div>
-                  {/* Industry tag */}
-                  <span
-                    style={{
-                      display: "inline-block",
-                      padding: "0.3rem 0.75rem",
-                      background: `${project.accent}15`,
-                      border: `1px solid ${project.accent}30`,
-                      borderRadius: "100px",
-                      fontFamily: '"Space Grotesk", sans-serif',
-                      fontSize: "clamp(0.7rem, 0.85vw, 0.8rem)",
-                      fontWeight: 600,
-                      color: project.accent,
-                      letterSpacing: "0.05em",
-                      marginBottom: "clamp(0.8rem, 1.5vh, 1.2rem)",
-                    }}
-                  >
-                    {project.industry}
-                  </span>
-
-                  {/* Project Name */}
-                  <h3
-                    style={{
-                      fontFamily: '"Syne", sans-serif',
-                      fontWeight: 700,
-                      fontSize: "clamp(1.5rem, 3vw, 2.5rem)",
-                      color: "var(--white)",
-                      lineHeight: 1.1,
-                      marginBottom: "clamp(0.5rem, 1vh, 0.8rem)",
-                    }}
-                  >
-                    {project.name}
-                  </h3>
-
-                  <p
-                    className="text-body"
-                    style={{ maxWidth: "550px", marginBottom: "clamp(0.8rem, 1.5vh, 1.2rem)" }}
-                  >
-                    {project.description}
-                  </p>
-
-                  {/* Improvement stat */}
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.5rem",
-                    }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                      <path d="M2 14L8 4L14 14" stroke={project.accent} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                    </svg>
-                    <span
-                      style={{
-                        fontFamily: '"Space Grotesk", sans-serif',
-                        fontSize: "clamp(0.85rem, 1vw, 0.95rem)",
-                        fontWeight: 600,
-                        color: project.accent,
-                      }}
-                    >
-                      {project.improvement}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Arrow */}
-                <div
-                  className="hide-mobile"
-                  style={{
-                    width: 56,
-                    height: 56,
-                    borderRadius: "50%",
-                    border: `1px solid ${hoveredIndex === i ? project.accent : "var(--gray-600)"}`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    transition: "all 0.4s ease",
-                    transform: hoveredIndex === i ? "rotate(-45deg)" : "none",
-                    flexShrink: 0,
-                  }}
-                >
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                    <line x1="4" y1="10" x2="16" y2="10" stroke={hoveredIndex === i ? project.accent : "var(--gray-400)"} strokeWidth="1.5" strokeLinecap="round" />
-                    <polyline points="11,5 16,10 11,15" stroke={hoveredIndex === i ? project.accent : "var(--gray-400)"} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-            </div>
+            <PolaroidCard key={project.slug} project={project} index={i} />
           ))}
         </div>
       </div>

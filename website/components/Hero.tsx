@@ -1,177 +1,117 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
+import dynamic from "next/dynamic";
 
-function AnimatedGrid() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const PrismScene = dynamic(() => import("@/components/PrismScene"), {
+  ssr: false,
+  loading: () => null,
+});
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+const ROTATING_WORDS = ["convert", "attract", "inspire", "perform", "deliver"];
 
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+function RotatingWord() {
+  const [wordIndex, setWordIndex] = useState(0);
+  const [charStates, setCharStates] = useState<("hidden" | "blurring" | "visible")[]>([]);
+  const [phase, setPhase] = useState<"entering" | "holding" | "exiting">("entering");
 
-    let animationId: number;
-    let time = 0;
+  const currentWord = ROTATING_WORDS[wordIndex];
 
-    const resize = () => {
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = window.innerWidth * dpr;
-      canvas.height = window.innerHeight * dpr;
-      canvas.style.width = window.innerWidth + "px";
-      canvas.style.height = window.innerHeight + "px";
-      ctx.scale(dpr, dpr);
-    };
+  const animateIn = useCallback((word: string) => {
+    setPhase("entering");
+    const states: ("hidden" | "blurring" | "visible")[] = new Array(word.length).fill("hidden");
+    setCharStates([...states]);
 
-    resize();
-    window.addEventListener("resize", resize);
+    word.split("").forEach((_, i) => {
+      setTimeout(() => {
+        setCharStates((prev) => {
+          const next = [...prev];
+          next[i] = "blurring";
+          return next;
+        });
+      }, i * 60);
 
-    const spacing = 40;
-    const dotRadius = 1.2;
+      setTimeout(() => {
+        setCharStates((prev) => {
+          const next = [...prev];
+          next[i] = "visible";
+          return next;
+        });
+      }, i * 60 + 120);
+    });
 
-    const animate = () => {
-      time += 0.008;
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      ctx.clearRect(0, 0, w, h);
-
-      const cols = Math.ceil(w / spacing) + 1;
-      const rows = Math.ceil(h / spacing) + 1;
-
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols; col++) {
-          const x = col * spacing;
-          const y = row * spacing;
-
-          // Wave-based opacity
-          const dist = Math.sqrt(
-            Math.pow(x - w / 2, 2) + Math.pow(y - h / 2, 2)
-          );
-          const wave = Math.sin(dist * 0.008 - time * 2) * 0.5 + 0.5;
-          const opacity = 0.03 + wave * 0.08;
-
-          ctx.beginPath();
-          ctx.arc(x, y, dotRadius, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(200, 255, 0, ${opacity})`;
-          ctx.fill();
-        }
-      }
-
-      // Draw some connecting lines near center
-      ctx.strokeStyle = "rgba(200, 255, 0, 0.03)";
-      ctx.lineWidth = 0.5;
-      for (let row = 0; row < rows; row++) {
-        for (let col = 0; col < cols - 1; col++) {
-          const x = col * spacing;
-          const y = row * spacing;
-          const dist = Math.sqrt(
-            Math.pow(x - w / 2, 2) + Math.pow(y - h / 2, 2)
-          );
-          if (dist < 300) {
-            const lineOpacity = (1 - dist / 300) * 0.06;
-            ctx.strokeStyle = `rgba(200, 255, 0, ${lineOpacity})`;
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x + spacing, y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.lineTo(x, y + spacing);
-            ctx.stroke();
-          }
-        }
-      }
-
-      animationId = requestAnimationFrame(animate);
-    };
-
-    animate();
-
-    return () => {
-      cancelAnimationFrame(animationId);
-      window.removeEventListener("resize", resize);
-    };
+    // After all chars visible, hold, then exit
+    setTimeout(() => setPhase("holding"), word.length * 60 + 200);
   }, []);
 
-  return (
-    <canvas
-      ref={canvasRef}
-      style={{
-        position: "absolute",
-        inset: 0,
-        zIndex: 0,
-        pointerEvents: "none",
-      }}
-    />
-  );
-}
+  const animateOut = useCallback((word: string, onDone: () => void) => {
+    setPhase("exiting");
+    word.split("").forEach((_, i) => {
+      setTimeout(() => {
+        setCharStates((prev) => {
+          const next = [...prev];
+          next[i] = "blurring";
+          return next;
+        });
+      }, i * 40);
 
-function FloatingShapes() {
+      setTimeout(() => {
+        setCharStates((prev) => {
+          const next = [...prev];
+          next[i] = "hidden";
+          return next;
+        });
+      }, i * 40 + 100);
+    });
+
+    setTimeout(onDone, word.length * 40 + 150);
+  }, []);
+
+  useEffect(() => {
+    animateIn(ROTATING_WORDS[0]);
+  }, [animateIn]);
+
+  useEffect(() => {
+    if (phase !== "holding") return;
+    const timer = setTimeout(() => {
+      animateOut(ROTATING_WORDS[wordIndex], () => {
+        const next = (wordIndex + 1) % ROTATING_WORDS.length;
+        setWordIndex(next);
+        animateIn(ROTATING_WORDS[next]);
+      });
+    }, 2200);
+    return () => clearTimeout(timer);
+  }, [phase, wordIndex, animateIn, animateOut]);
+
   return (
-    <div style={{ position: "absolute", inset: 0, zIndex: 0, overflow: "hidden", pointerEvents: "none" }}>
-      {/* Large blurred accent circle */}
-      <div
-        style={{
-          position: "absolute",
-          top: "10%",
-          right: "-10%",
-          width: "clamp(300px, 50vw, 700px)",
-          height: "clamp(300px, 50vw, 700px)",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(200,255,0,0.06) 0%, transparent 70%)",
-          animation: "float 8s ease-in-out infinite",
-        }}
-      />
-      {/* Smaller secondary glow */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: "5%",
-          left: "-5%",
-          width: "clamp(200px, 30vw, 500px)",
-          height: "clamp(200px, 30vw, 500px)",
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(200,255,0,0.04) 0%, transparent 70%)",
-          animation: "float 10s ease-in-out infinite reverse",
-        }}
-      />
-      {/* Geometric accent */}
-      <svg
-        style={{
-          position: "absolute",
-          top: "20%",
-          left: "8%",
-          width: "clamp(60px, 8vw, 120px)",
-          height: "clamp(60px, 8vw, 120px)",
-          opacity: 0.08,
-          animation: "rotate-slow 40s linear infinite",
-        }}
-        viewBox="0 0 100 100"
-        fill="none"
-      >
-        <rect x="10" y="10" width="80" height="80" rx="8" stroke="var(--accent)" strokeWidth="1" />
-        <rect x="25" y="25" width="50" height="50" rx="4" stroke="var(--accent)" strokeWidth="1" />
-      </svg>
-      {/* Cross shape */}
-      <svg
-        style={{
-          position: "absolute",
-          bottom: "25%",
-          right: "12%",
-          width: "clamp(40px, 5vw, 80px)",
-          height: "clamp(40px, 5vw, 80px)",
-          opacity: 0.06,
-          animation: "rotate-slow 60s linear infinite reverse",
-        }}
-        viewBox="0 0 60 60"
-        fill="none"
-      >
-        <line x1="30" y1="5" x2="30" y2="55" stroke="var(--accent)" strokeWidth="1.5" />
-        <line x1="5" y1="30" x2="55" y2="30" stroke="var(--accent)" strokeWidth="1.5" />
-      </svg>
-    </div>
+    <span style={{ display: "inline-block", position: "relative" }}>
+      {currentWord.split("").map((char, i) => {
+        const state = charStates[i] || "hidden";
+        return (
+          <span
+            key={`${wordIndex}-${i}`}
+            style={{
+              display: "inline-block",
+              transition: "all 0.25s cubic-bezier(0.16, 1, 0.3, 1)",
+              opacity: state === "hidden" ? 0 : state === "blurring" ? 0.4 : 1,
+              filter: state === "hidden"
+                ? "blur(12px)"
+                : state === "blurring"
+                  ? "blur(4px)"
+                  : "blur(0px)",
+              transform:
+                state === "hidden"
+                  ? "translateY(0.15em)"
+                  : state === "blurring"
+                    ? "translateY(0.05em)"
+                    : "translateY(0)",
+            }}
+          >
+            {char}
+          </span>
+        );
+      })}
+    </span>
   );
 }
 
@@ -183,10 +123,9 @@ export default function Hero() {
   useEffect(() => {
     const el = heroRef.current;
     if (!el) return;
-
     const reveals = el.querySelectorAll(".reveal");
     reveals.forEach((r, i) => {
-      setTimeout(() => r.classList.add("active"), 200 + i * 150);
+      setTimeout(() => r.classList.add("active"), 150 + i * 100);
     });
   }, []);
 
@@ -194,7 +133,6 @@ export default function Hero() {
     e.preventDefault();
     if (!url.trim()) return;
     setSubmitted(true);
-    // In production, this would POST to the webhook
     setTimeout(() => setSubmitted(false), 4000);
   };
 
@@ -206,82 +144,72 @@ export default function Hero() {
         position: "relative",
         minHeight: "100vh",
         display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
         alignItems: "center",
-        overflow: "hidden",
-        paddingTop: "clamp(6rem, 12vh, 10rem)",
-        paddingBottom: "clamp(4rem, 8vh, 8rem)",
+        overflow: "visible",
       }}
     >
-      <AnimatedGrid />
-      <FloatingShapes />
-
+      {/* Three.js Prism — right 50% on desktop, full width on mobile */}
       <div
-        className="container"
+        className="hero-canvas"
+        style={{
+          position: "absolute",
+          top: 0,
+          right: 0,
+          height: "100%",
+          zIndex: 1,
+          pointerEvents: "none",
+        }}
+      >
+        <PrismScene />
+      </div>
+
+      {/* Text content with frosted glass backdrop on mobile */}
+      <div
+        className="hero-content"
         style={{
           position: "relative",
           zIndex: 2,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          textAlign: "center",
-          gap: "clamp(1.5rem, 3vh, 2.5rem)",
+          paddingTop: "clamp(7rem, 15vh, 12rem)",
+          paddingBottom: "clamp(5rem, 10vh, 8rem)",
+          maxWidth: "700px",
+          marginLeft: "clamp(1.5rem, 4vw, 4rem)",
+          marginRight: "auto",
         }}
       >
-        {/* Eyebrow */}
-        <div className="reveal" style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              background: "var(--accent)",
-              animation: "glow-pulse 2s ease-in-out infinite",
-            }}
-          />
-          <span className="text-label">Award-Winning AI Design Studio</span>
-        </div>
 
-        {/* Main Headline */}
-        <h1 className="text-display-xl reveal delay-1" style={{ maxWidth: "14ch" }}>
-          Websites that{" "}
-          <span style={{ color: "var(--accent)" }}>
-            convert
-          </span>
+        {/* Headline with rotating word */}
+        <h1 className="text-display-hero reveal delay-1">
+          Websites that
+          <br />
+          <em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>
+              <RotatingWord />
+          </em>
         </h1>
 
-        {/* Sub-headline */}
+        {/* Sub */}
         <p
           className="text-body-lg reveal delay-2"
-          style={{
-            maxWidth: "580px",
-            color: "var(--gray-300)",
-          }}
+          style={{ maxWidth: "480px", marginTop: "clamp(1.2rem, 2.5vh, 2rem)" }}
         >
-          We build custom sites that make small businesses look like industry leaders.
-          No templates. No WordPress. Just results.
+          We&apos;ll audit your site and build you a new one — free. Don&apos;t pay until you&apos;re happy.
         </p>
 
         {/* URL Input CTA */}
         <form
           onSubmit={handleSubmit}
           className="reveal delay-3"
-          style={{ width: "100%", maxWidth: "620px", marginTop: "0.5rem" }}
+          style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)" }}
         >
           <div className="url-input-wrapper">
             <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              style={{ marginLeft: "clamp(1rem, 1.5vw, 1.5rem)", flexShrink: 0, opacity: 0.4 }}
+              width="18" height="18" viewBox="0 0 18 18" fill="none"
+              style={{ marginLeft: "clamp(0.9rem, 1.2vw, 1.3rem)", flexShrink: 0, opacity: 0.3 }}
             >
-              <circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10 2C10 2 6 6 6 10C6 14 10 18 10 18" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M10 2C10 2 14 6 14 10C14 14 10 18 10 18" stroke="currentColor" strokeWidth="1.5" />
-              <line x1="2.5" y1="8" x2="17.5" y2="8" stroke="currentColor" strokeWidth="1.5" />
-              <line x1="2.5" y1="12" x2="17.5" y2="12" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="9" cy="9" r="7" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M9 2C9 2 5.5 5.5 5.5 9C5.5 12.5 9 16 9 16" stroke="currentColor" strokeWidth="1.5" />
+              <path d="M9 2C9 2 12.5 5.5 12.5 9C12.5 12.5 9 16 9 16" stroke="currentColor" strokeWidth="1.5" />
+              <line x1="2.5" y1="7" x2="15.5" y2="7" stroke="currentColor" strokeWidth="1.5" />
+              <line x1="2.5" y1="11" x2="15.5" y2="11" stroke="currentColor" strokeWidth="1.5" />
             </svg>
             <input
               type="text"
@@ -296,15 +224,14 @@ export default function Hero() {
           </div>
           <p
             style={{
-              marginTop: "0.75rem",
-              fontSize: "clamp(0.75rem, 0.9vw, 0.85rem)",
-              color: "var(--gray-500)",
-              fontFamily: '"Space Grotesk", sans-serif',
+              marginTop: "0.6rem",
+              fontSize: "clamp(0.75rem, 0.85vw, 0.82rem)",
+              color: submitted ? "var(--accent)" : "var(--text-light)",
             }}
           >
             {submitted
-              ? "Expect a personalized audit in your inbox within the hour."
-              : "Drop your URL \u2014 we\u2019ll send you a free audit within 1 hour."}
+              ? "Expect your personalized audit within 1 hour."
+              : "Personalized audits delivered within 1 hour."}
           </p>
         </form>
 
@@ -314,90 +241,26 @@ export default function Hero() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "clamp(1.5rem, 3vw, 2.5rem)",
-            marginTop: "clamp(1rem, 2vh, 1.5rem)",
+            gap: "clamp(2rem, 4vw, 3rem)",
+            marginTop: "clamp(2rem, 4vh, 3rem)",
             flexWrap: "wrap",
-            justifyContent: "center",
           }}
         >
           {[
-            { value: "48hr", label: "Avg Delivery" },
-            { value: "97+", label: "Lighthouse Score" },
+            { value: "48hr", label: "Delivery" },
+            { value: "97+", label: "Lighthouse" },
             { value: "$500", label: "To Launch" },
           ].map((stat) => (
-            <div key={stat.label} style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: '"Syne", sans-serif',
-                  fontWeight: 800,
-                  fontSize: "clamp(1.3rem, 2vw, 1.6rem)",
-                  color: "var(--white)",
-                  letterSpacing: "-0.02em",
-                }}
-              >
+            <div key={stat.label}>
+              <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "clamp(1.4rem, 2vw, 1.7rem)", color: "var(--text)", letterSpacing: "-0.02em" }}>
                 {stat.value}
               </div>
-              <div
-                style={{
-                  fontFamily: '"Space Grotesk", sans-serif',
-                  fontSize: "clamp(0.7rem, 0.85vw, 0.8rem)",
-                  color: "var(--gray-500)",
-                  fontWeight: 500,
-                  marginTop: "0.15rem",
-                }}
-              >
+              <div style={{ fontSize: "clamp(0.7rem, 0.8vw, 0.78rem)", color: "var(--text-light)", marginTop: "0.1rem" }}>
                 {stat.label}
               </div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div
-        className="reveal delay-5"
-        style={{
-          position: "absolute",
-          bottom: "clamp(1.5rem, 3vh, 2.5rem)",
-          left: "50%",
-          transform: "translateX(-50%)",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "0.5rem",
-          zIndex: 2,
-        }}
-      >
-        <span
-          style={{
-            fontSize: "0.7rem",
-            fontWeight: 500,
-            color: "var(--gray-500)",
-            letterSpacing: "0.15em",
-            textTransform: "uppercase",
-          }}
-        >
-          Scroll
-        </span>
-        <svg width="16" height="24" viewBox="0 0 16 24" fill="none">
-          <rect x="1" y="1" width="14" height="22" rx="7" stroke="var(--gray-600)" strokeWidth="1.5" />
-          <circle cx="8" cy="8" r="2" fill="var(--accent)">
-            <animate
-              attributeName="cy"
-              values="8;16;8"
-              dur="2s"
-              repeatCount="indefinite"
-              calcMode="spline"
-              keySplines="0.45 0 0.55 1;0.45 0 0.55 1"
-            />
-            <animate
-              attributeName="opacity"
-              values="1;0.3;1"
-              dur="2s"
-              repeatCount="indefinite"
-            />
-          </circle>
-        </svg>
       </div>
     </section>
   );

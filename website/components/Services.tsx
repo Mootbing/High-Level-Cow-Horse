@@ -1,63 +1,74 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 
 const SERVICES = [
   {
     title: "Design",
-    description:
-      "Custom designs that capture your brand\u2019s personality. Built from scratch using your real content, colors, and voice. Not a Squarespace template with your logo pasted on.",
-    icon: (
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="service-icon">
-        <rect x="6" y="6" width="36" height="36" rx="4" stroke="var(--accent)" strokeWidth="2" />
-        <circle cx="18" cy="18" r="4" stroke="var(--accent)" strokeWidth="2" />
-        <path d="M6 34L16 24L24 32L32 22L42 34" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-    ),
+    description: "Custom designs built from your real content, colors, and voice. Not a template with your logo slapped on.",
     features: ["Brand-aligned visuals", "Mobile-first layouts", "Conversion-optimized UX"],
   },
   {
     title: "Build",
-    description:
-      "Lightning-fast sites built on Next.js with modern architecture. No WordPress, no page builders, no 47 plugins. Just clean code that loads in under 2 seconds.",
-    icon: (
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="service-icon">
-        <polyline points="18,12 6,24 18,36" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <polyline points="30,12 42,24 30,36" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <line x1="22" y1="8" x2="26" y2="40" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-      </svg>
-    ),
+    description: "Lightning-fast sites on Next.js. No WordPress, no page builders, no 47 plugins. Just clean code that loads in under 2 seconds.",
     features: ["Next.js + React", "Sub-2s load times", "97+ Lighthouse score"],
   },
   {
     title: "Launch",
-    description:
-      "Deployed in days, not months. You get a live URL within 48 hours of approval. We handle hosting, SSL, domain setup, and analytics from day one.",
-    icon: (
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="service-icon">
-        <path d="M24 6L24 42" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-        <polyline points="16,14 24,6 32,14" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M8 28C8 28 12 20 24 20C36 20 40 28 40 28" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="24" cy="38" r="4" stroke="var(--accent)" strokeWidth="2" />
-      </svg>
-    ),
-    features: ["48hr turnaround", "Free SSL + hosting", "Analytics built in"],
+    description: "Live URL within 48 hours of approval. Hosting, SSL, domain setup, and analytics from day one.",
+    features: ["48hr turnaround", "Free SSL + hosting", "Analytics included"],
   },
   {
     title: "Maintain",
-    description:
-      "Your site stays fast, secure, and up-to-date. Monthly revisions, performance monitoring, and content updates included. $50/mo covers everything.",
-    icon: (
-      <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="service-icon">
-        <circle cx="24" cy="24" r="16" stroke="var(--accent)" strokeWidth="2" />
-        <path d="M24 14V24L30 28" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M38 10L42 6" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round" />
-        <circle cx="42" cy="6" r="3" stroke="var(--accent)" strokeWidth="2" />
-      </svg>
-    ),
+    description: "Your site stays fast, secure, and current. Monthly revisions and performance monitoring included.",
     features: ["Monthly updates", "Performance monitoring", "Priority support"],
   },
 ];
+
+function SpotlightCard({ children, className, style }: { children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    el.style.setProperty("--spotlight-x", `${x}px`);
+    el.style.setProperty("--spotlight-y", `${y}px`);
+  }, []);
+
+  return (
+    <div
+      ref={cardRef}
+      className={`spotlight-card ${className || ""}`}
+      style={{
+        ...style,
+        "--spotlight-x": "50%",
+        "--spotlight-y": "50%",
+      } as React.CSSProperties}
+      onMouseMove={handleMouseMove}
+    >
+      <div
+        style={{
+          position: "absolute",
+          width: 300,
+          height: 300,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, var(--accent-soft) 0%, transparent 70%)",
+          left: "var(--spotlight-x)",
+          top: "var(--spotlight-y)",
+          transform: "translate(-50%, -50%)",
+          pointerEvents: "none",
+          opacity: 0,
+          transition: "opacity 0.4s ease",
+        }}
+        className="spotlight-glow"
+      />
+      <div style={{ position: "relative", zIndex: 1 }}>{children}</div>
+    </div>
+  );
+}
 
 export default function Services() {
   const sectionRef = useRef<HTMLElement>(null);
@@ -65,129 +76,80 @@ export default function Services() {
   useEffect(() => {
     const el = sectionRef.current;
     if (!el) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
-            const reveals = el.querySelectorAll(".reveal");
-            reveals.forEach((r, i) => {
-              setTimeout(() => r.classList.add("active"), i * 100);
+            el.querySelectorAll(".reveal").forEach((r, i) => {
+              setTimeout(() => r.classList.add("active"), i * 80);
             });
             observer.disconnect();
           }
         });
       },
-      { threshold: 0.15 }
+      { threshold: 0.1 }
     );
-
     observer.observe(el);
     return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    // Activate spotlight glow on hover via CSS
+    const style = document.createElement("style");
+    style.textContent = `.spotlight-card:hover .spotlight-glow { opacity: 1 !important; }`;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
   }, []);
 
   return (
     <section ref={sectionRef} className="section" id="services">
       <div className="container">
-        {/* Header */}
         <div style={{ textAlign: "center", marginBottom: "clamp(3rem, 6vh, 5rem)" }}>
           <span className="text-label reveal">What We Do</span>
-          <h2
-            className="text-display-lg reveal delay-1"
-            style={{ marginTop: "clamp(0.8rem, 1.5vh, 1.2rem)" }}
-          >
+          <h2 className="text-display-lg reveal delay-1" style={{ marginTop: "clamp(0.8rem, 1.5vh, 1.2rem)" }}>
             Everything your website
             <br />
-            <span style={{ color: "var(--accent)" }}>should already have</span>
+            <em className="font-serif" style={{ fontStyle: "italic" }}>should already have</em>
           </h2>
         </div>
 
-        {/* Services Grid */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 300px), 1fr))",
-            gap: "clamp(1rem, 2vw, 1.5rem)",
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))", gap: "clamp(0.75rem, 1.5vw, 1rem)" }}>
           {SERVICES.map((service, i) => (
-            <div
+            <SpotlightCard
               key={service.title}
-              className={`card reveal delay-${i + 2}`}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "clamp(1.2rem, 2vh, 1.8rem)",
-              }}
+              className={`reveal delay-${i + 2}`}
+              style={{ display: "flex", flexDirection: "column", gap: "clamp(1rem, 2vh, 1.5rem)" }}
             >
-              {/* Icon */}
-              <div
+              {/* Number */}
+              <span
                 style={{
-                  width: "clamp(56px, 7vw, 72px)",
-                  height: "clamp(56px, 7vw, 72px)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: "var(--radius)",
-                  background: "rgba(200, 255, 0, 0.05)",
-                  border: "1px solid rgba(200, 255, 0, 0.1)",
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: "clamp(2.5rem, 4vw, 3.5rem)",
+                  color: "var(--border)",
+                  lineHeight: 1,
+                  letterSpacing: "-0.04em",
                 }}
               >
-                {service.icon}
-              </div>
+                0{i + 1}
+              </span>
 
-              {/* Title */}
-              <h3
-                style={{
-                  fontFamily: '"Syne", sans-serif',
-                  fontWeight: 700,
-                  fontSize: "clamp(1.3rem, 2vw, 1.6rem)",
-                  color: "var(--white)",
-                }}
-              >
+              <h3 style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "clamp(1.4rem, 2vw, 1.7rem)", color: "var(--text)" }}>
                 {service.title}
               </h3>
 
-              {/* Description */}
-              <p className="text-body" style={{ flex: 1 }}>
-                {service.description}
-              </p>
+              <p className="text-body" style={{ flex: 1 }}>{service.description}</p>
 
-              {/* Features list */}
-              <ul
-                style={{
-                  listStyle: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: "0.5rem",
-                }}
-              >
-                {service.features.map((feature) => (
-                  <li
-                    key={feature}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "0.6rem",
-                      fontFamily: '"Space Grotesk", sans-serif',
-                      fontSize: "clamp(0.8rem, 0.95vw, 0.9rem)",
-                      color: "var(--gray-300)",
-                      fontWeight: 500,
-                    }}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
-                      <path
-                        d="M3 7L6 10L11 4"
-                        stroke="var(--accent)"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+              <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+                {service.features.map((f) => (
+                  <li key={f} style={{ display: "flex", alignItems: "center", gap: "0.5rem", fontSize: "clamp(0.82rem, 0.9vw, 0.88rem)", color: "var(--text-muted)" }}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ flexShrink: 0 }}>
+                      <path d="M2.5 6L5 8.5L9.5 3.5" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
-                    {feature}
+                    {f}
                   </li>
                 ))}
               </ul>
-            </div>
+            </SpotlightCard>
           ))}
         </div>
       </div>
