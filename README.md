@@ -7,10 +7,11 @@ AI-powered digital design agency built on [OpenClaw](https://openclaw.com). A si
 Clarmi operates as an OpenClaw agent with a Python MCP tool server. You send it a message like _"build a website for example.com"_ and it runs the full pipeline:
 
 1. **Research** — Crawls the prospect's site with WebFetch, extracts branding, audits for problems
-2. **Design** — Generates images and video assets via Google AI
-3. **Build** — Scaffolds a Next.js app (App Router, GSAP, Tailwind), writes code, deploys to Vercel
-4. **QA** — Takes screenshots at multiple viewports, runs Lighthouse (must score >= 85 to proceed)
-5. **Outreach** — Drafts a personalized cold email referencing specific site problems
+2. **Pitch** — Auto-generates a personalized pitch page at `/pitch` with site audit, proposed improvements, live demo link, and pricing
+3. **Design** — Generates images and video assets via Google AI
+4. **Build** — Scaffolds a Next.js app (App Router, GSAP, Tailwind), writes code, deploys to Vercel
+5. **QA** — Takes screenshots at multiple viewports, runs Lighthouse (must score >= 85 to proceed)
+6. **Outreach** — Drafts a personalized cold email linking to the pitch page
 
 Cron jobs run design research (every 6 hours) and project learning (daily at 3 AM).
 

@@ -214,6 +214,108 @@ export default function RootLayout({{ children }}: {{ children: React.ReactNode 
 
 
 @mcp.tool()
+async def list_files(project_name: str, directory: str = ".") -> str:
+    """List files in a project directory.
+
+    directory is relative to the project root (e.g. ".", "app", "components").
+    Returns a tree of files with sizes. Use this before read_code or edit_code
+    to understand the project structure.
+    """
+    project_dir = _project_dir(project_name)
+    target = os.path.join(project_dir, directory)
+
+    real_target = os.path.realpath(target)
+    real_project_dir = os.path.realpath(project_dir)
+    if not real_target.startswith(real_project_dir):
+        return json.dumps({"status": "error", "message": f"Path traversal blocked: {directory}"})
+
+    if not os.path.isdir(target):
+        return json.dumps({"status": "error", "message": f"Directory not found: {directory}"})
+
+    files = []
+    for root, dirs, filenames in os.walk(target):
+        # Skip node_modules and .next
+        dirs[:] = [d for d in dirs if d not in ("node_modules", ".next", ".git")]
+        for name in filenames:
+            full = os.path.join(root, name)
+            rel = os.path.relpath(full, project_dir)
+            size = os.path.getsize(full)
+            files.append({"path": rel, "size": size})
+
+    files.sort(key=lambda f: f["path"])
+    return json.dumps({"directory": directory, "files": files, "count": len(files)})
+
+
+@mcp.tool()
+async def read_code(project_name: str, file_path: str) -> str:
+    """Read a file from the project directory and return its contents.
+
+    file_path is relative to the project root (e.g. app/page.tsx, components/Hero.tsx).
+    Use this before edit_code to see the current state of a file.
+    """
+    project_dir = _project_dir(project_name)
+    filepath = os.path.join(project_dir, file_path)
+
+    real_filepath = os.path.realpath(filepath)
+    real_project_dir = os.path.realpath(project_dir)
+    if not real_filepath.startswith(real_project_dir + os.sep):
+        return json.dumps({"status": "error", "message": f"Path traversal blocked: {file_path}"})
+
+    if not os.path.isfile(filepath):
+        return json.dumps({"status": "error", "message": f"File not found: {file_path}"})
+
+    with open(filepath, "r") as f:
+        content = f.read()
+
+    return json.dumps({"path": file_path, "size": len(content), "content": content})
+
+
+@mcp.tool()
+async def edit_code(
+    project_name: str, file_path: str, old_string: str, new_string: str
+) -> str:
+    """Edit a file by replacing a specific string with new content.
+
+    Use this for targeted changes instead of rewriting entire files with write_code.
+    The old_string must appear exactly once in the file (including whitespace/indentation).
+
+    Workflow: read_code → find the section to change → edit_code with old/new strings.
+    """
+    project_dir = _project_dir(project_name)
+    filepath = os.path.join(project_dir, file_path)
+
+    real_filepath = os.path.realpath(filepath)
+    real_project_dir = os.path.realpath(project_dir)
+    if not real_filepath.startswith(real_project_dir + os.sep):
+        return json.dumps({"status": "error", "message": f"Path traversal blocked: {file_path}"})
+
+    if not os.path.isfile(filepath):
+        return json.dumps({"status": "error", "message": f"File not found: {file_path}"})
+
+    with open(filepath, "r") as f:
+        content = f.read()
+
+    count = content.count(old_string)
+    if count == 0:
+        return json.dumps({
+            "status": "error",
+            "message": "old_string not found in file. Use read_code to check the current contents.",
+        })
+    if count > 1:
+        return json.dumps({
+            "status": "error",
+            "message": f"old_string found {count} times — must be unique. Include more surrounding context.",
+        })
+
+    new_content = content.replace(old_string, new_string, 1)
+    with open(filepath, "w") as f:
+        f.write(new_content)
+
+    logger.info("code_edited", path=file_path, old_len=len(old_string), new_len=len(new_string))
+    return json.dumps({"status": "edited", "path": file_path, "size": len(new_content)})
+
+
+@mcp.tool()
 async def write_code(project_name: str, file_path: str, code: str) -> str:
     """Write a code file to the project directory.
 
