@@ -14,7 +14,11 @@ logger = structlog.get_logger()
 
 
 def _project_dir(project_name: str) -> str:
-    return os.path.join(settings.STORAGE_PATH, project_name, "site")
+    # Sanitize project_name to prevent path traversal
+    safe_name = os.path.basename(project_name.replace("..", "").strip("/"))
+    if not safe_name:
+        safe_name = "unnamed"
+    return os.path.join(settings.STORAGE_PATH, safe_name, "site")
 
 
 async def _get_project_metadata(project_name: str, key: str) -> str | None:
@@ -292,15 +296,22 @@ async def deploy(project_name: str, commit_message: str) -> str:
         commit_message=commit_message, branch="main",
     )
 
-    # Get Vercel URL
+    # Get Vercel URL — wait briefly for the new deployment to register
     vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
     try:
         await ensure_protection_disabled(vercel_name)
     except Exception:
         pass
 
-    deployment = await get_latest_deployment(vercel_name)
-    live_url = f"https://{deployment['url']}" if deployment else None
+    # Poll a few times to catch the new deployment (Vercel webhook has latency)
+    live_url = None
+    push_sha = push_result.get("commit_sha", "")
+    for _ in range(4):
+        await asyncio.sleep(5)
+        deployment = await get_latest_deployment(vercel_name)
+        if deployment:
+            live_url = f"https://{deployment['url']}"
+            break
 
     # Save deployed URL to project record
     if live_url:

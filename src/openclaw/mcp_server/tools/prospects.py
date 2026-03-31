@@ -47,17 +47,25 @@ async def store_prospect(
         kwargs["industry"] = industry
     if tech_stack is not None:
         kwargs["tech_stack"] = tech_stack
-    if raw_data is not None:
-        kwargs["raw_data"] = raw_data
+    # Build raw_data: merge site_problems into it
+    new_raw_data = raw_data or {}
     if site_problems is not None:
-        kwargs["raw_data"] = {**(raw_data or {}), "site_problems": site_problems}
+        new_raw_data = {**new_raw_data, "site_problems": site_problems}
+    if new_raw_data:
+        kwargs["raw_data"] = new_raw_data
 
     async with async_session_factory() as session:
         prospect, created = await get_or_create_prospect(session, url=url, **kwargs)
         if not created:
-            # Update existing prospect with new data
+            # Update existing prospect — merge raw_data instead of replacing
             for key, value in kwargs.items():
-                if hasattr(prospect, key):
+                if not hasattr(prospect, key):
+                    continue
+                if key == "raw_data":
+                    # Merge into existing raw_data to avoid data loss
+                    existing = prospect.raw_data or {}
+                    setattr(prospect, key, {**existing, **value})
+                else:
                     setattr(prospect, key, value)
             await session.commit()
             await session.refresh(prospect)

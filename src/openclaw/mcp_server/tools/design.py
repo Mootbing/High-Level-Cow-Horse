@@ -85,8 +85,9 @@ async def generate_image(prompt: str, project_name: str, section: str) -> str:
 
     filename = f"keyframe-{section}-{uuid.uuid4().hex[:8]}.png"
 
-    # Save locally as backup
-    project_dir = os.path.join(settings.STORAGE_PATH, project_name)
+    # Save locally as backup (sanitize project_name for filesystem)
+    safe_name = os.path.basename(project_name.replace("..", "").strip("/")) or "unnamed"
+    project_dir = os.path.join(settings.STORAGE_PATH, safe_name)
     os.makedirs(project_dir, exist_ok=True)
     with open(os.path.join(project_dir, filename), "wb") as f:
         f.write(image_data)
@@ -118,8 +119,9 @@ async def generate_video(prompt: str, project_name: str, duration: int = 8) -> s
         video_data = await download_video(video_uri)
         filename = f"hero-video-{uuid.uuid4().hex[:8]}.mp4"
 
-        # Save locally as backup
-        project_dir = os.path.join(settings.STORAGE_PATH, project_name)
+        # Save locally as backup (sanitize project_name for filesystem)
+        safe_name = os.path.basename(project_name.replace("..", "").strip("/")) or "unnamed"
+        project_dir = os.path.join(settings.STORAGE_PATH, safe_name)
         os.makedirs(project_dir, exist_ok=True)
         with open(os.path.join(project_dir, filename), "wb") as f:
             f.write(video_data)

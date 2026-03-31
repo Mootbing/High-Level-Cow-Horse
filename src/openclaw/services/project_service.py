@@ -94,7 +94,8 @@ async def create_project(
 
 
 async def get_project(session: AsyncSession, project_id: str) -> Project | None:
-    return await session.get(Project, project_id)
+    pid = uuid.UUID(project_id) if isinstance(project_id, str) else project_id
+    return await session.get(Project, pid)
 
 
 async def list_projects(session: AsyncSession, status: str | None = None) -> list[Project]:
@@ -106,7 +107,8 @@ async def list_projects(session: AsyncSession, status: str | None = None) -> lis
 
 
 async def update_project_status(session: AsyncSession, project_id: str, status: str) -> Project:
-    project = await session.get(Project, project_id)
+    pid = uuid.UUID(project_id) if isinstance(project_id, str) else project_id
+    project = await session.get(Project, pid)
     if project:
         project.status = status
         await session.commit()
