@@ -224,7 +224,7 @@ export default function Work() {
             Sites we&apos;ve <em className="font-serif" style={{ fontStyle: "italic" }}>shipped</em>
           </h2>
           <p className="text-body-lg reveal delay-1" style={{ maxWidth: "420px", margin: "clamp(0.8rem, 1.5vh, 1rem) auto 0" }}>
-            Real businesses. Real results. Click to read the full story.
+            Real businesses. Real results. Real stories.
           </p>
         </div>
 
