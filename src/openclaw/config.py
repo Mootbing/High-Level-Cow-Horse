@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     VERCEL_TEAM_ID: str = ""
     DEPLOY_DOMAIN: str = "openclaw.site"
 
+    # API
+    API_PORT: int = 8000
+    DASHBOARD_CORS_ORIGIN: str = "http://localhost:3001"
+
     # Storage
     STORAGE_PATH: str = "./data/projects"
 

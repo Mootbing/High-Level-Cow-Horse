@@ -62,7 +62,7 @@ export default function CTA() {
       <div className="container" style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <h2 className="text-display-hero reveal delay-1" style={{ color: "var(--text)" }}>
           Let&apos;s build
-          <br /><em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>yours</em>
+          <br /><em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>together</em>
         </h2>
 
         <button

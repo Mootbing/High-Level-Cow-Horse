@@ -6,7 +6,7 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import JSON, String, func
+from sqlalchemy import JSON, Float, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from .base import Base, UUIDPrimaryKeyMixin
@@ -32,6 +32,8 @@ class Prospect(UUIDPrimaryKeyMixin, Base):
     industry: Mapped[str | None] = mapped_column(String(128))
     tech_stack: Mapped[list[Any]] = mapped_column(JSON, default=list)
     raw_data: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
+    latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     scraped_at: Mapped[datetime.datetime] = mapped_column(default=func.now())
     created_at: Mapped[datetime.datetime] = mapped_column(default=func.now())
 
