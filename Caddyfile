@@ -1,3 +1,0 @@
-{$DOMAIN:openclaw.localhost} {
-    reverse_proxy api:8000
-}

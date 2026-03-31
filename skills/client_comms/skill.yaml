@@ -1,5 +1,0 @@
-name: client_comms
-description: Sends professional project updates to clients via WhatsApp
-tier: light
-timeout: 300
-max_concurrent: 2

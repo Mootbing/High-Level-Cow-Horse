@@ -1,5 +1,0 @@
-name: designer
-description: Generates keyframe images and hero videos for websites
-tier: heavy
-timeout: 1800
-max_concurrent: 5

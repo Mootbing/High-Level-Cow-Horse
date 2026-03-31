@@ -1,5 +1,0 @@
-name: inbound
-description: Scrapes prospect websites, extracts brand data, identifies site problems
-tier: light
-timeout: 600
-max_concurrent: 3

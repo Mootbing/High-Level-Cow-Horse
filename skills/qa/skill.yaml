@@ -1,5 +1,0 @@
-name: qa
-description: Tests deployed websites for quality - HTTP checks, screenshots, Lighthouse
-tier: heavy
-timeout: 1800
-max_concurrent: 3

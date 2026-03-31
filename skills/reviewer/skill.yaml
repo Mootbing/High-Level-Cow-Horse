@@ -1,5 +1,0 @@
-name: reviewer
-description: Validates every step of the pipeline before proceeding
-tier: light
-timeout: 300
-max_concurrent: 2

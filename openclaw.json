@@ -1,0 +1,66 @@
+{
+  "models": {
+    "default": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "maxTokens": 16384
+    }
+  },
+  "agents": {
+    "default": {
+      "systemPrompt": "./system-prompt.md"
+    }
+  },
+  "channels": {
+    "whatsapp": {
+      "enabled": true,
+      "dmPolicy": "pairing",
+      "groupPolicy": "mention"
+    }
+  },
+  "mcp": {
+    "clarmi-tools": {
+      "transport": "stdio",
+      "command": "python",
+      "args": ["-m", "openclaw.mcp_server"],
+      "cwd": ".",
+      "env": {
+        "DATABASE_URL": "${DATABASE_URL}",
+        "FIRECRAWL_API_KEY": "${FIRECRAWL_API_KEY}",
+        "GITHUB_PAT": "${GITHUB_PAT}",
+        "VERCEL_TOKEN": "${VERCEL_TOKEN}",
+        "VERCEL_TEAM_ID": "${VERCEL_TEAM_ID}",
+        "GOOGLE_AI_API_KEY": "${GOOGLE_AI_API_KEY}",
+        "GMAIL_CLIENT_ID": "${GMAIL_CLIENT_ID}",
+        "GMAIL_CLIENT_SECRET": "${GMAIL_CLIENT_SECRET}",
+        "GMAIL_REFRESH_TOKEN": "${GMAIL_REFRESH_TOKEN}",
+        "GMAIL_SENDER_EMAIL": "${GMAIL_SENDER_EMAIL}",
+        "STORAGE_PATH": "${STORAGE_PATH:-./data/projects}",
+        "DEPLOY_DOMAIN": "${DEPLOY_DOMAIN:-openclaw.site}"
+      }
+    }
+  },
+  "cron": [
+    {
+      "name": "design-research",
+      "schedule": "0 */6 * * *",
+      "prompt": "Run your design research routine: use search_design_trends to scrape Awwwards, Dribbble, CSS-Tricks, Smashing Magazine, and Codrops. Analyze findings and store_knowledge for each actionable insight.",
+      "session": "research"
+    },
+    {
+      "name": "daily-learning",
+      "schedule": "0 3 * * *",
+      "prompt": "Run your daily learning routine: use get_project_status to find recently completed projects, analyze_project for each, compute aggregate metrics, and log_metrics with the results.",
+      "session": "learning"
+    }
+  ],
+  "tools": {
+    "exec": {
+      "enabled": true
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "bind": "loopback"
+  }
+}
