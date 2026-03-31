@@ -4,15 +4,113 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Project } from "@/lib/projects";
 
+function AwardBadge({ award, color, index }: { award: { title: string; org: string }; color: string; index: number }) {
+  return (
+    <div
+      className={`reveal delay-${Math.min(index + 2, 7)}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "clamp(0.6rem, 1vh, 0.8rem)",
+        padding: "clamp(1.5rem, 3vw, 2rem) clamp(1rem, 2vw, 1.5rem)",
+        background: "var(--bg-card)",
+        border: "1px solid var(--border)",
+        borderRadius: "var(--radius-lg)",
+        textAlign: "center",
+        transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+      }}
+    >
+      {/* Trophy icon */}
+      <div
+        style={{
+          width: "clamp(40px, 5vw, 52px)",
+          height: "clamp(40px, 5vw, 52px)",
+          borderRadius: "50%",
+          background: `${color}12`,
+          border: `1.5px solid ${color}30`,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg
+          width="22"
+          height="22"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke={color}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      </div>
+      <div>
+        <div
+          style={{
+            fontFamily: '"Instrument Serif", Georgia, serif',
+            fontSize: "clamp(1.05rem, 1.3vw, 1.2rem)",
+            color: "var(--text)",
+            lineHeight: 1.2,
+          }}
+        >
+          {award.title}
+        </div>
+        <div
+          style={{
+            fontSize: "clamp(0.7rem, 0.8vw, 0.76rem)",
+            fontWeight: 500,
+            letterSpacing: "0.06em",
+            textTransform: "uppercase",
+            color: color,
+            marginTop: "0.3rem",
+          }}
+        >
+          {award.org}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CaseStudyClient({ project }: { project: Project }) {
   const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
-    el.querySelectorAll(".reveal").forEach((r, i) => {
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            const target = entry.target as HTMLElement;
+            target.querySelectorAll(".reveal:not(.active)").forEach((r, i) => {
+              setTimeout(() => r.classList.add("active"), i * 80);
+            });
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    el.querySelectorAll("section, nav").forEach((section) => {
+      observer.observe(section);
+    });
+
+    // Trigger first section immediately
+    el.querySelectorAll("nav .reveal, section:first-of-type .reveal").forEach((r, i) => {
       setTimeout(() => r.classList.add("active"), 100 + i * 80);
     });
+
+    return () => observer.disconnect();
   }, []);
 
   return (
@@ -146,6 +244,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
               gap: "clamp(2rem, 4vw, 3rem)",
               marginTop: "clamp(2rem, 4vh, 3rem)",
               flexWrap: "wrap",
+              alignItems: "flex-end",
             }}
           >
             <div>
@@ -176,6 +275,36 @@ export default function CaseStudyClient({ project }: { project: Project }) {
                 Delivery Time
               </div>
             </div>
+
+            {/* Visit live site */}
+            {project.url && (
+              <a
+                href={project.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "0.4rem",
+                  padding: "0.5rem 1rem",
+                  background: `${project.color}10`,
+                  border: `1px solid ${project.color}30`,
+                  borderRadius: "var(--radius-full)",
+                  fontSize: "clamp(0.78rem, 0.88vw, 0.85rem)",
+                  fontWeight: 500,
+                  color: project.color,
+                  transition: "all 0.3s ease",
+                  marginLeft: "auto",
+                }}
+              >
+                Visit Live Site
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <path d="M5 2.5H2.5v9h9V9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M8 2h4v4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M12 2L6.5 7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
+              </a>
+            )}
           </div>
 
           {/* Tech tags */}
@@ -207,6 +336,40 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           </div>
         </div>
       </section>
+
+      {/* Awards section — only if project has awards */}
+      {project.awards && project.awards.length > 0 && (
+        <>
+          <div className="section-divider"><div style={{ height: 1, background: "var(--border)" }} /></div>
+          <section className="section" style={{ paddingBottom: "clamp(3rem, 8vh, 5rem)" }}>
+            <div className="container">
+              <div style={{ textAlign: "center", marginBottom: "clamp(2rem, 4vh, 3rem)" }}>
+                <span className="text-label reveal">Recognition</span>
+                <h2
+                  className="text-display-md reveal delay-1"
+                  style={{ marginTop: "clamp(0.6rem, 1vh, 0.8rem)" }}
+                >
+                  Award <em className="font-serif" style={{ fontStyle: "italic" }}>winning</em>
+                </h2>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 160px), 1fr))`,
+                  gap: "clamp(0.75rem, 1.5vw, 1rem)",
+                  maxWidth: "800px",
+                  margin: "0 auto",
+                }}
+              >
+                {project.awards.map((award, i) => (
+                  <AwardBadge key={i} award={award} color={project.color} index={i} />
+                ))}
+              </div>
+            </div>
+          </section>
+        </>
+      )}
 
       <div className="section-divider"><div style={{ height: 1, background: "var(--border)" }} /></div>
 

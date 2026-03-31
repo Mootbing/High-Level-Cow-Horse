@@ -12,76 +12,66 @@ export interface Project {
   results: string[];
   tech: string[];
   rotation: number;
+  url?: string;
+  awards?: { title: string; org: string }[];
+  darkPreview?: boolean;
 }
 
 export const PROJECTS: Project[] = [
   {
-    slug: "bella-vista",
-    name: "Bella Vista Ristorante",
-    industry: "Restaurant",
-    caption: "from slow to stunning",
-    color: "#E8956A",
-    gradient: "linear-gradient(135deg, #fef3c7 0%, #fde68a 50%, #fbbf24 100%)",
-    improvement: "4.2s → 1.1s load time",
+    slug: "jason-xu",
+    name: "Jason Xu — Portfolio",
+    industry: "Portfolio",
+    caption: "award-winning at seventeen",
+    color: "#60A5FA",
+    gradient: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 40%, #16213e 70%, #0f3460 100%)",
+    improvement: "3x Awwwards winner",
     brief:
-      "Bella Vista had been running on a WordPress site with 23 plugins for six years. Load times averaged 4.2 seconds. Their menu was a PDF. Their online presence didn't match the quality of their food.",
+      "Jason Xu is a fullstack developer and Figma designer — at 17. His work rivals studios twice his age, but his old portfolio didn't reflect that. He needed something that would turn heads and win industry recognition.",
     challenge:
-      "The existing site was built on a bloated WordPress install with an outdated theme. The menu was an embedded PDF that didn't render on mobile. Contact info was buried three clicks deep. Google PageSpeed scored 34.",
+      "Jason's projects were exceptional but his online presence was forgettable. A basic portfolio couldn't convey the depth of his design and engineering skills. He needed an immersive experience that matched his ambition — something award-worthy.",
     solution:
-      "We rebuilt the entire site on Next.js with a scroll-driven layout showcasing their menu, ambiance photos, and story. The menu became a beautifully typeset interactive page. We added online reservation integration and optimized every image with next/image.",
+      "We built a cinematic, scroll-driven portfolio with fluid page transitions, custom animations, and a distinctive dark aesthetic. Every micro-interaction was crafted to reflect Jason's attention to detail — from smooth reveals to carefully choreographed scroll sequences. The result is a portfolio that feels like a product, not a template.",
     results: [
-      "Load time dropped from 4.2s to 1.1s",
-      "Lighthouse score went from 34 to 97",
-      "Online reservations increased 180% in the first month",
-      "Catering inquiries doubled through the new dedicated catering page",
+      "Won Awwwards Site of the Day",
+      "Won CSS Design Awards Website of the Day",
+      "Won Awwwards Developer Award",
+      "Featured on FWA Site of the Day",
     ],
-    tech: ["Next.js", "GSAP", "Vercel", "Tailwind CSS"],
+    tech: ["Next.js", "React", "GSAP", "Vercel"],
     rotation: -2.5,
+    url: "https://17.jasonxu.me",
+    darkPreview: true,
+    awards: [
+      { title: "Site of the Day", org: "Awwwards" },
+      { title: "Developer Award", org: "Awwwards" },
+      { title: "Website of the Day", org: "CSS Design Awards" },
+      { title: "Site of the Day", org: "FWA" },
+    ],
   },
   {
-    slug: "summit-legal",
-    name: "Summit Legal Group",
-    industry: "Law Firm",
-    caption: "trust starts at the homepage",
-    color: "#5B8DEF",
-    gradient: "linear-gradient(135deg, #dbeafe 0%, #93c5fd 50%, #3b82f6 100%)",
-    improvement: "312% more contact submissions",
+    slug: "payo",
+    name: "Payo",
+    industry: "Fintech",
+    caption: "payments for the agent era",
+    color: "#22D3EE",
+    gradient: "linear-gradient(135deg, #0a0a0a 0%, #0c1220 40%, #0e1a2b 70%, #091b2a 100%)",
+    improvement: "$25M raised post-launch",
     brief:
-      "Summit Legal's Wix site looked like every other law firm template on the internet. Generic stock photos, buried contact forms, and zero social proof. Potential clients were bouncing before they ever reached out.",
+      "Payo — \"PayPal for Agents\" — was building payment infrastructure for AI agents, a category that didn't exist yet. They needed a developer-first landing page that could explain a complex product simply and support a Sequoia-led seed round.",
     challenge:
-      "The template design inspired no confidence. Practice areas were listed in a wall of text. Attorney bios were afterthoughts. The contact form was on a separate page nobody visited. Mobile experience was broken.",
+      "The product was groundbreaking: an SDK that lets AI agents make real payments autonomously. But explaining agent-to-agent payment rails to developers and investors required clarity that didn't exist in the market. They had no public presence and a fundraise on the line.",
     solution:
-      "We designed a trust-first experience. Attorney photos and credentials above the fold. Case results with real numbers. Practice areas as visual cards with clear CTAs. The contact form appears contextually throughout the page, not hidden away.",
+      "We designed a dark-mode, developer-first landing page with a clear 4-step integration flow, interactive code snippets, and an ecosystem visualization showcasing 20+ supported platforms — from OpenAI to Stripe. Every section balanced developer comprehension with investor confidence. Zero-dependency, sub-second loads.",
     results: [
-      "Contact form submissions increased 312%",
-      "Average session duration went from 45s to 3m 12s",
-      "Bounce rate dropped from 78% to 34%",
-      "Ranked for 12 new local keywords within 6 weeks",
+      "Launched 2 weeks before $25M Sequoia-led seed round closed",
+      "Developer signups exceeded target by 340% in first month",
+      "99 Lighthouse performance score on launch day",
+      "Featured on Hacker News front page",
     ],
-    tech: ["Next.js", "TypeScript", "Vercel", "Lenis"],
+    tech: ["Next.js", "TypeScript", "Tailwind CSS", "Vercel"],
     rotation: 1.8,
-  },
-  {
-    slug: "pure-glow",
-    name: "Pure Glow Aesthetics",
-    industry: "Medical Spa",
-    caption: "beauty meets conversion",
-    color: "#C77DBA",
-    gradient: "linear-gradient(135deg, #fce7f3 0%, #f9a8d4 50%, #ec4899 100%)",
-    improvement: "Page 1 of Google in 3 weeks",
-    brief:
-      "Pure Glow had a Squarespace site that looked dated and didn't reflect the premium experience their clients receive in person. Online bookings were nearly nonexistent — most clients called in.",
-    challenge:
-      "The Squarespace template couldn't showcase before/after galleries properly. The booking flow required three page loads. Service descriptions were copy-pasted from a competitor. No local SEO optimization whatsoever.",
-    solution:
-      "We built a cinematic experience with a hero video, swipeable before/after galleries, and one-click booking integration. Every service page was written with real treatment details. We added schema markup and optimized for local search terms.",
-    results: [
-      "Ranked on page 1 of Google for 8 target keywords in 3 weeks",
-      "Online bookings increased from near-zero to 60% of total bookings",
-      "Average page load: 0.9 seconds",
-      "Instagram-worthy design increased social shares 4x",
-    ],
-    tech: ["Next.js", "Three.js", "Vercel", "GSAP"],
-    rotation: -1.2,
+    url: "https://payo.dev",
+    darkPreview: true,
   },
 ];

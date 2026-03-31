@@ -91,9 +91,9 @@ function PolaroidCard({
               style={{
                 width: "80%",
                 height: "65%",
-                background: "rgba(255,255,255,0.95)",
+                background: project.darkPreview ? "rgba(15,15,15,0.95)" : "rgba(255,255,255,0.95)",
                 borderRadius: "8px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+                boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
                 overflow: "hidden",
                 display: "flex",
                 flexDirection: "column",
@@ -103,8 +103,8 @@ function PolaroidCard({
               <div
                 style={{
                   height: "clamp(16px, 2vw, 22px)",
-                  background: "#f5f5f5",
-                  borderBottom: "1px solid #e5e5e5",
+                  background: project.darkPreview ? "#1a1a1a" : "#f5f5f5",
+                  borderBottom: `1px solid ${project.darkPreview ? "#2a2a2a" : "#e5e5e5"}`,
                   display: "flex",
                   alignItems: "center",
                   padding: "0 8px",
@@ -117,9 +117,9 @@ function PolaroidCard({
               </div>
               {/* Content area */}
               <div style={{ flex: 1, padding: "clamp(6px, 1vw, 12px)", display: "flex", flexDirection: "column", gap: "clamp(3px, 0.5vw, 6px)" }}>
-                <div style={{ width: "60%", height: "clamp(6px, 1vw, 10px)", borderRadius: 3, background: project.color, opacity: 0.7 }} />
-                <div style={{ width: "80%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: "#e5e5e5" }} />
-                <div style={{ width: "70%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: "#e5e5e5" }} />
+                <div style={{ width: "60%", height: "clamp(6px, 1vw, 10px)", borderRadius: 3, background: project.color, opacity: 0.8 }} />
+                <div style={{ width: "80%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: project.darkPreview ? "#2a2a2a" : "#e5e5e5" }} />
+                <div style={{ width: "70%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: project.darkPreview ? "#2a2a2a" : "#e5e5e5" }} />
                 <div style={{ flex: 1, borderRadius: 4, background: `${project.color}15`, marginTop: "clamp(2px, 0.3vw, 4px)" }} />
               </div>
             </div>
@@ -232,9 +232,9 @@ export default function Work() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 260px), 1fr))",
-            gap: "clamp(2rem, 4vw, 3.5rem)",
-            maxWidth: "960px",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
+            gap: "clamp(2.5rem, 5vw, 4rem)",
+            maxWidth: "720px",
             margin: "0 auto",
             padding: "1rem 0",
           }}
