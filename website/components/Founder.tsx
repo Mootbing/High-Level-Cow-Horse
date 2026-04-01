@@ -74,10 +74,6 @@ function PortraitCard({ className }: { className?: string }) {
           </div>
         </div>
 
-        <div style={{
-          position: "absolute", top: "clamp(0.8rem, 1.5vw, 1.2rem)", right: "clamp(0.8rem, 1.5vw, 1.2rem)",
-          width: 32, height: 32, border: "1.5px solid var(--accent)", borderRadius: 6, opacity: 0.4,
-        }} />
       </div>
     </div>
   );
@@ -140,8 +136,84 @@ export default function Founder() {
                 maxWidth: "540px",
               }}
             >
+              <p
+                style={{
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: "clamp(1.05rem, 1.3vw, 1.2rem)",
+                  lineHeight: 1.75,
+                  color: "var(--text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.6rem",
+                  flexWrap: "wrap",
+                }}
+              >
+                Hi, I&apos;m Jason!
+                <span style={{ display: "inline-flex", gap: "0.45rem", alignItems: "center" }}>
+                  {[
+                    {
+                      href: "https://www.linkedin.com/in/xj1",
+                      label: "LinkedIn",
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" />
+                          <rect x="2" y="9" width="4" height="12" />
+                          <circle cx="4" cy="4" r="2" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      href: "https://github.com/mootbing",
+                      label: "GitHub",
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      href: "https://jasonxu.me",
+                      label: "Website",
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <ellipse cx="12" cy="12" rx="4" ry="10" />
+                          <path d="M2 12h20" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      href: "https://instagram.com/x.json1",
+                      label: "Instagram",
+                      icon: (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+                          <circle cx="12" cy="12" r="5" />
+                          <circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none" />
+                        </svg>
+                      ),
+                    },
+                  ].map((social) => (
+                    <a
+                      key={social.label}
+                      href={social.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={social.label}
+                      style={{
+                        display: "inline-flex",
+                        color: "var(--text-light)",
+                        transition: "color 0.2s ease",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = "var(--accent)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.color = "var(--text-light)"; }}
+                    >
+                      {social.icon}
+                    </a>
+                  ))}
+                </span>
+              </p>
               {[
-                "Hi, I'm Jason!",
                 "I've been obsessed with building things on the internet since I was 14. By 16, something I made got acquired by the United Nations. At 17, I won international design awards. At 19, I joined a startup as the 2nd engineer and helped scale it past $12M ARR.",
                 "I'm at UPenn now, and I started Clarmi because it kept bugging me — small businesses with amazing products, stuck behind websites that don't do them justice. The design and engineering that VC-funded startups get shouldn't cost $10,000. So I built a studio where it doesn't.",
                 "If your website doesn't make you proud, send me the URL. I'll show you what it could be.",
@@ -153,7 +225,7 @@ export default function Founder() {
                     fontSize: "clamp(1.05rem, 1.3vw, 1.2rem)",
                     lineHeight: 1.75,
                     color: "var(--text-muted)",
-                    marginTop: i > 0 ? "clamp(0.8rem, 1.5vh, 1rem)" : undefined,
+                    marginTop: "clamp(0.8rem, 1.5vh, 1rem)",
                   }}
                 >
                   {text}
