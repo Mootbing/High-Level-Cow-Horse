@@ -10,26 +10,26 @@ const STEPS = [
   {
     number: "01",
     title: "Send Us Your URL",
+    desc: "Drop your link. We run a full audit — design, performance, SEO, mobile — and a detailed report lands in your inbox.",
     detail: "4 min audit",
-    desc: "Drop your link and we run a full audit — design, performance, SEO, mobile. A detailed report lands in your inbox in minutes.",
   },
   {
     number: "02",
     title: "We Research Everything",
+    desc: "We crawl your competitors, extract your brand identity, and learn your business so the new site feels like yours.",
     detail: "Competitor analysis",
-    desc: "We crawl your competitors, extract your brand identity, colors, fonts, and content. We learn your business so the new site feels like yours.",
   },
   {
     number: "03",
     title: "Audit + Website, Free",
-    detail: "No commitment",
     desc: "You get a full audit and a live preview of your redesigned site — completely free. No payment until you say \"deploy it.\"",
+    detail: "No commitment",
   },
   {
     number: "04",
     title: "Go Live",
+    desc: "Say the word and we push it live to your domain. SSL, hosting, analytics — all included. Minutes, not weeks.",
     detail: "$250 to launch",
-    desc: "Say the word and we push it live to your domain. SSL, hosting, analytics — all included. You're live in minutes, not weeks.",
   },
 ];
 
@@ -44,7 +44,6 @@ export default function Process() {
     if (!el) return;
 
     const ctx = gsap.context(() => {
-      // Scroll-driven text rows — move along rotation axis
       scrollRowsRef.current.forEach((row, i) => {
         if (!row) return;
         const direction = i % 2 === 0 ? 1 : -1;
@@ -63,29 +62,42 @@ export default function Process() {
           },
         });
       });
-
-      // Reveal animations
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              el.querySelectorAll(".reveal").forEach((r, idx) => {
-                setTimeout(() => r.classList.add("active"), idx * 120);
-              });
-              observer.disconnect();
-            }
-          });
-        },
-        { threshold: 0.08 }
-      );
-      observer.observe(el);
     }, el);
 
-    return () => ctx.revert();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            el.querySelectorAll(".reveal").forEach((r, i) => {
+              setTimeout(() => r.classList.add("active"), i * 120);
+            });
+            observer.disconnect();
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+
+    return () => {
+      ctx.revert();
+      observer.disconnect();
+    };
   }, []);
 
   return (
-    <section ref={ref} className="section" id="process" style={{ position: "relative", overflow: "hidden" }}>
+    <section
+      ref={ref}
+      className="section"
+      id="process"
+      style={{
+        position: "relative",
+        overflow: "hidden",
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+      }}
+    >
       {/* Background scroll-driven text */}
       <div style={{
         position: "absolute",
@@ -106,7 +118,7 @@ export default function Process() {
                 fontSize: "clamp(4rem, 8vw, 7rem)",
                 fontWeight: 900,
                 color: "var(--text)",
-                opacity: 0.022,
+                opacity: 0.011,
                 whiteSpace: "nowrap",
                 transform: `rotate(${direction ? -12 : 12}deg) translateX(${direction ? "-200px" : "0px"})`,
                 top: `${i * 25 - 5}%`,
@@ -123,49 +135,38 @@ export default function Process() {
       </div>
 
       <div className="container" style={{ position: "relative", zIndex: 1 }}>
-        {/* Header */}
+        {/* Header — matches Work/Pricing pattern */}
         <div style={{ textAlign: "center", marginBottom: "clamp(3rem, 6vh, 5rem)" }}>
-          <h2 className="text-display-lg reveal">
-            From <em className="font-serif" style={{ fontStyle: "italic" }}>outdated</em>
-            <br />To <em className="font-serif" style={{ fontStyle: "italic" }}>outstanding</em>
+          <h2 className="text-display-lg reveal delay-1">
+            The <em className="font-serif" style={{ fontStyle: "italic" }}>Clarmi Way</em>
           </h2>
+          <p className="text-body-lg reveal delay-1" style={{ maxWidth: "420px", margin: "clamp(0.8rem, 1.5vh, 1rem) auto 0" }}>
+            Redesigned in hours. Not months.
+          </p>
         </div>
 
-        {/* 2x2 Bento grid */}
-        <div style={{
+        {/* 4-column grid */}
+        <div className="process-grid" style={{
           display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: "clamp(0.75rem, 1.5vw, 1.25rem)",
-          maxWidth: 880,
+          gridTemplateColumns: "repeat(4, 1fr)",
+          gap: "clamp(1.5rem, 3vw, 2.5rem)",
+          maxWidth: 1200,
           margin: "0 auto",
         }}>
           {STEPS.map((step, i) => (
             <div
               key={step.number}
-              className={`reveal delay-${i + 1}`}
+              className={`reveal delay-${i + 2}`}
               style={{
-                background: "var(--bg-card)",
-                border: "1px solid var(--border)",
-                borderRadius: "var(--radius-lg)",
-                padding: "clamp(1.5rem, 3vw, 2.5rem)",
                 display: "flex",
                 flexDirection: "column",
-                gap: "clamp(0.6rem, 1.2vh, 1rem)",
-                transition: "border-color 0.3s ease, box-shadow 0.3s ease",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--accent)";
-                e.currentTarget.style.boxShadow = "0 8px 30px rgba(124,92,252,0.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--border)";
-                e.currentTarget.style.boxShadow = "none";
+                gap: "clamp(0.4rem, 0.8vh, 0.6rem)",
               }}
             >
               {/* Number */}
               <span style={{
                 fontFamily: '"Instrument Serif", Georgia, serif',
-                fontSize: "clamp(2.5rem, 4.5vw, 3.5rem)",
+                fontSize: "clamp(2.5rem, 4vw, 3.5rem)",
                 lineHeight: 1,
                 color: "var(--accent)",
                 opacity: 0.2,
@@ -176,9 +177,9 @@ export default function Process() {
               {/* Title */}
               <h3 style={{
                 fontFamily: '"Instrument Serif", Georgia, serif',
-                fontSize: "clamp(1.3rem, 2vw, 1.7rem)",
+                fontSize: "clamp(1.15rem, 1.6vw, 1.45rem)",
                 color: "var(--text)",
-                lineHeight: 1.15,
+                lineHeight: 1.2,
               }}>
                 {step.title}
               </h3>
@@ -212,10 +213,11 @@ export default function Process() {
       </div>
 
       <style>{`
-        @media (max-width: 600px) {
-          #process .container > div:last-child {
-            grid-template-columns: 1fr !important;
-          }
+        @media (max-width: 768px) {
+          .process-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (max-width: 480px) {
+          .process-grid { grid-template-columns: 1fr !important; }
         }
       `}</style>
     </section>

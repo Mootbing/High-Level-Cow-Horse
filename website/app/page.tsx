@@ -18,6 +18,7 @@ export default function Home() {
         <Marquee />
         <div className="section-divider" />
         <Process />
+        <div className="section-divider" />
         <Work />
         <div className="section-divider" />
         <Founder />
