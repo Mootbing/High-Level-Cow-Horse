@@ -912,7 +912,7 @@ async def run_lead_generation(
                 "website": place.get("website"),
                 "google_maps_url": place.get("google_maps_url"),
                 "status": "already_exists",
-                "prospect_id": existing_map[normalized],
+                "prospect_id": existing_map[dedup_key],
                 "opportunity_score": None,
             })
             continue
@@ -1607,8 +1607,8 @@ async def explore_business(
 
         # Extract other details
         phone = details.get("nationalPhoneNumber")
-        editorial = details.get("editorialSummary", {}).get("text")
-        display_name = details.get("displayName", {}).get("text", prospect.company_name)
+        editorial = (details.get("editorialSummary") or {}).get("text")
+        display_name = (details.get("displayName") or {}).get("text", prospect.company_name)
 
         # Enrich prospect raw_data
         enrichment = {

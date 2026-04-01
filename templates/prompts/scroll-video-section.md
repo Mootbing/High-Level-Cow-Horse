@@ -10,6 +10,13 @@ technique where video progress is tied to scroll position, not time.
 - **Product reveals**: 360-degree product rotation controlled by scroll
 - **Storytelling**: narrative video that unfolds as user reads/scrolls
 
+## Aspect Ratio & Fit Rules
+
+- ALL videos are generated at **16:9** aspect ratio (enforced by the Veo API `aspectRatio` parameter)
+- ALL keyframe images are generated at **16:9** (enforced by Nano Banana's `aspectRatio` parameter)
+- In CSS, ALL hero videos, poster images, and keyframe images MUST use **`object-fit: cover`** — this crops to fill the viewport at any screen size. NEVER use `contain` (causes letterboxing) or `fill` (causes stretching).
+- The `<video>` and fallback `<img>` elements should be `absolute inset-0 w-full h-full object-cover`
+
 ## Video Encoding for Scroll Scrubbing
 
 Scroll-controlled video requires dense keyframe spacing. Without it, browsers cannot seek to
