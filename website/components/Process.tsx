@@ -27,8 +27,8 @@ const STEPS = [
   },
   {
     number: "04",
-    title: "Deploy Instantly",
-    detail: "$500 to go live",
+    title: "Go Live",
+    detail: "$250 to launch",
     desc: "Say the word and we push it live to your domain. SSL, hosting, analytics — all included. You're live in minutes, not weeks.",
   },
 ];

@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 
 const NAV_LINKS = [
-  { label: "Services", href: "#services" },
   { label: "Process", href: "#process" },
   { label: "Work", href: "#work" },
   { label: "Pricing", href: "#pricing" },
+  { label: "Contact", href: "mailto:jason@clarmi.studio" },
 ];
 
 export default function Navigation() {

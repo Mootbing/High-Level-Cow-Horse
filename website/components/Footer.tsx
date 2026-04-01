@@ -1,23 +1,15 @@
 "use client";
 
 const LINKS = {
-  Services: [
-    { label: "Web Design", href: "#services" },
-    { label: "Development", href: "#services" },
-    { label: "SEO", href: "#services" },
-    { label: "Maintenance", href: "#services" },
-  ],
   Company: [
-    { label: "About", href: "#founder" },
+    { label: "From The Founder", href: "#founder" },
     { label: "Process", href: "#process" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Contact", href: "#cta" },
+    { label: "Contact", href: "mailto:jason@clarmi.studio" },
   ],
   Resources: [
     { label: "Free Audit", href: "#cta" },
     { label: "Case Studies", href: "#work" },
-    { label: "Blog", href: "#" },
-    { label: "FAQ", href: "#" },
   ],
 };
 
