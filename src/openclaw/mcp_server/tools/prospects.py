@@ -19,11 +19,14 @@ async def store_prospect(
     tech_stack: list[str] | None = None,
     site_problems: list[str] | None = None,
     raw_data: dict | None = None,
+    latitude: float | None = None,
+    longitude: float | None = None,
 ) -> str:
     """Store or update prospect data from website research.
 
     Saves company branding, contact info, identified site problems, and raw crawl data.
     Site problems should be SHORT, SPECIFIC, PUNCHY statements (e.g. "14-item menu — visitors won't know where to click").
+    Include latitude/longitude if available — required for competitor analysis.
     """
     from openclaw.db.session import async_session_factory
     from openclaw.services.prospect_service import get_or_create_prospect
@@ -47,6 +50,10 @@ async def store_prospect(
         kwargs["industry"] = industry
     if tech_stack is not None:
         kwargs["tech_stack"] = tech_stack
+    if latitude is not None:
+        kwargs["latitude"] = latitude
+    if longitude is not None:
+        kwargs["longitude"] = longitude
     # Build raw_data: merge site_problems into it
     new_raw_data = raw_data or {}
     if site_problems is not None:
@@ -111,4 +118,6 @@ async def lookup_prospect(url: str | None = None, company_name: str | None = Non
             "industry": prospect.industry,
             "tech_stack": prospect.tech_stack,
             "site_problems": (prospect.raw_data or {}).get("site_problems", []),
+            "latitude": prospect.latitude,
+            "longitude": prospect.longitude,
         }, indent=2)
