@@ -29,12 +29,17 @@
         "VERCEL_TOKEN": "${VERCEL_TOKEN}",
         "VERCEL_TEAM_ID": "${VERCEL_TEAM_ID}",
         "GOOGLE_AI_API_KEY": "${GOOGLE_AI_API_KEY}",
+        "GOOGLE_PLACES_API_KEY": "${GOOGLE_PLACES_API_KEY}",
         "GMAIL_CLIENT_ID": "${GMAIL_CLIENT_ID}",
         "GMAIL_CLIENT_SECRET": "${GMAIL_CLIENT_SECRET}",
         "GMAIL_REFRESH_TOKEN": "${GMAIL_REFRESH_TOKEN}",
         "GMAIL_SENDER_EMAIL": "${GMAIL_SENDER_EMAIL}",
         "STORAGE_PATH": "${STORAGE_PATH:-./data/projects}",
-        "DEPLOY_DOMAIN": "${DEPLOY_DOMAIN:-openclaw.site}"
+        "DEPLOY_DOMAIN": "${DEPLOY_DOMAIN:-openclaw.site}",
+        "PROSPECTING_ENABLED": "${PROSPECTING_ENABLED:-false}",
+        "PROSPECTING_INDUSTRIES": "${PROSPECTING_INDUSTRIES:-}",
+        "PROSPECTING_LOCATIONS": "${PROSPECTING_LOCATIONS:-}",
+        "PROSPECTING_DAILY_LIMIT": "${PROSPECTING_DAILY_LIMIT:-50}"
       }
     }
   },
@@ -50,6 +55,13 @@
       "schedule": "0 3 * * *",
       "prompt": "Run your daily learning routine: use get_project_status to find recently completed projects, analyze_project for each, compute aggregate metrics, and log_metrics with the results.",
       "session": "learning"
+    },
+    {
+      "name": "lead-prospecting",
+      "schedule": "0 9 * * 1-5",
+      "prompt": "Run the daily lead prospecting routine: call batch_lead_generation() with configured industries and locations. After completion, call get_lead_pipeline(min_score=4.0) to review top leads. For any lead scoring 5.0+, call promote_lead(prospect_id) and begin the pitch pipeline. Report results to the owner.",
+      "session": "prospecting",
+      "enabled": false
     }
   ],
   "tools": {

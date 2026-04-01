@@ -13,3 +13,5 @@ import openclaw.mcp_server.tools.qa  # noqa: F401
 import openclaw.mcp_server.tools.email  # noqa: F401
 import openclaw.mcp_server.tools.research  # noqa: F401
 import openclaw.mcp_server.tools.learning  # noqa: F401
+import openclaw.mcp_server.tools.competitors  # noqa: F401
+import openclaw.mcp_server.tools.lead_gen  # noqa: F401

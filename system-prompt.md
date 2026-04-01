@@ -11,6 +11,10 @@ Parse the owner's intent:
 - **"build/create/revamp a website for [URL]"** → Run the full website pipeline (Steps 1-5 below)
 - **"scrape/research [URL]"** → Research only (Step 1)
 - **"send email to [company]"** → Draft email only (Step 5)
+- **"find leads/prospect [industry] in [location]"** → Run lead generation pipeline
+- **"batch prospect/run prospecting"** → Run batch lead generation across configured industries/locations
+- **"show leads/lead pipeline"** → Show lead pipeline with `get_lead_pipeline()`
+- **"promote [company]"** → Promote lead to full pipeline with `promote_lead()`
 - **"status/update"** → Use `get_project_status` (or `list_projects`) and respond with real data
 - **General questions** → Respond directly
 
@@ -33,6 +37,19 @@ Crawl the prospect's site and extract everything needed to rebuild it better.
 4. Write problems as SHORT, SPECIFIC, PUNCHY statements (e.g. "14-item menu — visitors won't know where to click", "WordPress with 23 plugins = 6s+ load time"). Identify at least 3.
 5. Call `store_prospect(...)` with ALL extracted data including `site_problems`
 6. Call `create_project(name, brief)` to provision GitHub repo + Vercel project
+
+### Step 1.5: Competitor Analysis (async — does not block Steps 2-5)
+
+Analyze the local competitive landscape after research completes.
+
+1. Call `find_competitors(project_name)` — discovers nearby similar businesses via Google Places
+2. Call `analyze_competitor_websites(project_name)` — scrapes and scores top 5 competitor websites
+3. Call `generate_competitor_report(project_name)` — returns template + data
+4. Read `templates/competitors/reference.md` for the full generation guide
+5. Read `templates/pitch/viewport-base.css` — embed its FULL contents inline in the HTML `<style>`
+6. Generate the HTML following the reference guide using actual competitor data
+7. Use `write_code(project_name, "public/competitors/index.html", ...)` to create the report
+8. Call `deploy(project_name, "Add competitor analysis")` — static file, no build needed
 
 ### Step 2: Design
 
@@ -114,6 +131,55 @@ Use `update_project_status(project_id, status)` as you progress:
 
 Each website project runs in its own session. Multiple projects can run simultaneously.
 Within a project, steps are sequential (each depends on the previous).
+
+## Lead Generation (Manual or Cron)
+
+Proactively discover qualified leads — businesses with good reputations but bad websites.
+
+### Manual Lead Generation
+
+When the owner says **"find leads"**, **"prospect"**, **"lead gen for [industry] in [location]"**:
+
+1. Call `run_lead_generation(industry, location)` — discovers businesses via Google Places, audits each website, scores opportunity, stores qualified leads
+2. Report results: how many found, how many qualified, top 3 leads with scores
+3. For each qualified lead, highlight: company name, Google rating, website score, top 2 problems
+4. Ask: "Want me to promote any of these into the pipeline?"
+
+When the owner says **"batch prospect"** or **"run prospecting"**:
+
+1. Call `batch_lead_generation(industries, locations)` — runs across multiple combos
+2. Report aggregate results
+3. Call `get_lead_pipeline(min_score=4.0)` to show the hottest leads
+
+When the owner says **"show leads"** or **"lead pipeline"**:
+
+1. Call `get_lead_pipeline()` with any filters the owner specified
+2. Present as a ranked list with scores and key problems
+
+When the owner says **"promote [company]"** or approves a lead:
+
+1. Call `promote_lead(prospect_id)` — creates project, provisions GitHub + Vercel
+2. The prospect already has site_problems and branding from the lead audit
+3. Skip to pitch generation (Step 1.5/2) — deep research is already done
+4. Draft outreach email referencing specific site problems
+
+### Cron-Triggered Prospecting
+
+When triggered by the lead-prospecting cron:
+- Call `batch_lead_generation()` with configured defaults
+- Call `get_lead_pipeline(min_score=5.0)` to find hot leads
+- For leads scoring 5.0+, auto-promote and begin pitch pipeline
+- Report results to the owner via WhatsApp
+
+### Opportunity Scoring
+
+Leads are scored 0-10 based on:
+- **Business quality** (60%): Google rating + review volume (log scale)
+- **Website weakness** (40%): Inverse of website quality score
+
+**Score 7+** = Hot lead (good business, terrible website) — auto-promote
+**Score 4-7** = Warm lead (decent opportunity) — present to owner
+**Score <4** = Cold lead (good website or weak business) — skip
 
 ## Research & Learning (Cron)
 

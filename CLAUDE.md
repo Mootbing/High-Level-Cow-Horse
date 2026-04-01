@@ -11,6 +11,10 @@ Parse the owner's intent:
 - **"build/create/revamp a website for [URL]"** → Run the full website pipeline (Steps 1-6 below)
 - **"scrape/research [URL]"** → Research only (Step 1)
 - **"send email to [company]"** → Draft email only (Step 6)
+- **"find leads/prospect [industry] in [location]"** → Run lead generation pipeline
+- **"batch prospect/run prospecting"** → Run batch lead generation
+- **"show leads/lead pipeline"** → Show lead pipeline with `get_lead_pipeline()`
+- **"promote [company]"** → Promote lead to full pipeline
 - **"status/update"** → Use `get_project_status` (or `list_projects`) and respond with real data
 - **Message from a client** (revision request, question, feedback) → Run the Client Funnel workflow (see below). Be warm and client-facing.
 - **Owner forwarding client feedback** → Run Owner-Initiated Revisions (deploy directly, no preview needed)
@@ -33,8 +37,38 @@ Crawl the prospect's site and extract everything needed to rebuild it better.
    - **Performance & Tech**: built on WordPress/Wix/Squarespace, slow loads, not mobile-optimized
    - **Content & Conversion**: weak hero, missing social proof, no value prop, hard-to-find contact, abandoned blog
 4. Write problems as SHORT, SPECIFIC, PUNCHY statements (e.g. "14-item menu — visitors won't know where to click", "WordPress with 23 plugins = 6s+ load time"). Identify at least 3.
-5. Call `store_prospect(...)` with ALL extracted data including `site_problems`
+5. Call `store_prospect(...)` with ALL extracted data including `site_problems`, `latitude`, and `longitude` (look for the business address on the site and geocode it, or extract from Google Maps embed/structured data — required for competitor analysis)
 6. Call `create_project(name, brief)` to provision GitHub repo + Vercel project
+
+### Step 1.5: Competitor Analysis (async — does not block Steps 2-6)
+
+Analyze the local competitive landscape after research completes. Uses Google Places API to find nearby similar businesses, scrapes their websites, and generates a data-driven comparison deck.
+
+1. Call `find_competitors(project_name)` — discovers nearby similar businesses via Google Places API, scores them by relevance (type match, proximity, price level, review volume), returns top 10
+2. Call `analyze_competitor_websites(project_name)` — scrapes and scores the top 5 competitor websites on visual design, UX, content, technical, and mobile dimensions (1-10 each). Identifies strengths and weaknesses.
+3. Call `generate_competitor_report(project_name)` — assembles all competitor data, market stats, and common weaknesses. Returns the data + template paths.
+4. Read `templates/competitors/reference.md` for the full generation guide
+5. Read `templates/pitch/viewport-base.css` — embed its FULL contents inline in the HTML `<style>`
+6. Generate the HTML following the reference guide using actual competitor data — every data point must come from the tools, never invented
+7. Use `write_code(project_name, "public/competitors/index.html", ...)` to create the report
+8. Call `deploy(project_name, "Add competitor analysis")` — static file, no build needed
+
+**Competitor deck slides** (one slide per section, each exactly 100vh):
+
+1. **Title** — "Competitive Landscape" for [Company], by Clarmi Design Studio
+2. **Market Overview** — stat badges (competitors count, avg rating, avg site score, price range), brief summary
+3. **Competitor #1-5 Spotlights** — one slide each: name, distance, rating stars, price level, website quality score bar, breakdown mini-bars (visual/UX/content/tech/mobile), strengths (green), weaknesses (red)
+4. **Head-to-Head Comparison** — responsive grid comparing all 5 + prospect across key metrics
+5. **Gap Analysis** — "Where You Can Win" — opportunities backed by actual competitor weakness data
+6. **Recommendations** — "Your Competitive Edge" — 3-4 concrete actions for the website build
+
+**Design rules**:
+- Same base as pitch: dark theme (`#0a0a0a`), viewport-locked, scroll-snap, `clamp()` sizing, Google Fonts
+- **Analytical aesthetic**: CSS-only data visualization (score bars, rating stars, price levels, comparison grids)
+- Color-coded quality signals: green (`#22c55e`) good, amber (`#f59e0b`) medium, red (`#ef4444`) poor
+- One accent color from prospect's brand palette for prospect highlights
+- Font pair: Space Grotesk (headings) + DM Sans (body)
+- NEVER invent competitor data — only use what the tools returned
 
 ### Step 2: Pitch (async — does not block Steps 3-6)
 
@@ -127,7 +161,7 @@ Draft a personalized cold email referencing specific site problems.
    - **Hook**: 1-2 sentences about something positive about their business
    - **Observation**: Use highest-severity site_problem, framed as friendly observation
    - **Value prop**: What Clarmi does and why it matters for their industry
-   - **CTA**: Low-commitment question — link to the pitch page (`deployed_url/pitch`) so they can see the proposal
+   - **CTA**: Low-commitment question — link to the pitch page (`deployed_url/pitch`) and competitor analysis (`deployed_url/competitors`) so they can see the proposal and market research
 4. Call `draft_email(to, subject, body)` — ALWAYS save as draft, never send directly
 5. Tell the owner the draft is ready for review. Use `send_email(email_id)` only after the owner approves.
 
@@ -163,6 +197,7 @@ When a message comes directly from a client (not the owner), you are their dedic
 - Use `edit_code` for targeted changes, `write_code` only for new files
 - Never deploy directly to main — always preview first via `deploy_preview`
 - For pitch deck changes: `public/pitch/index.html`
+- For competitor analysis changes: `public/competitors/index.html`
 - For main site changes: check `app/page.tsx` and `components/` first
 - Keep changes minimal — only modify what the client asked for
 - Never expose technical details (build errors, file paths, git branches) to the client — just handle it
@@ -190,6 +225,77 @@ Use `update_project_status(project_id, status)` as you progress:
 
 Each website project runs in its own session. Multiple projects can run simultaneously.
 Within a project, steps are sequential (each depends on the previous).
+
+## Lead Generation Pipeline
+
+Proactively discover qualified leads — businesses with good reputations but bad websites.
+
+### Available Tools
+
+| Tool | Purpose |
+|------|---------|
+| `discover_prospects(industry, location)` | Search Google Places for businesses, returns raw list |
+| `audit_prospect_website(url)` | Fetch and score a single website, identify problems |
+| `run_lead_generation(industry, location)` | Full pipeline: discover → audit → score → store |
+| `get_lead_pipeline(industry?, location?, min_score?)` | View stored leads ranked by opportunity |
+| `promote_lead(prospect_id)` | Move lead into full build pipeline, create project |
+| `batch_lead_generation(industries?, locations?)` | Run across multiple industry+location combos |
+
+### Opportunity Scoring (0-10)
+
+Leads are scored by: **business quality x website weakness**
+
+- **Business quality** (60%): Google rating (0-5 normalized) + review volume (log scale)
+- **Website weakness** (40%): Inverse of website quality score (bad website = high score)
+
+| Score | Classification | Action |
+|-------|---------------|--------|
+| 7-10 | Hot lead | Auto-promote, start pitch pipeline |
+| 4-7 | Warm lead | Present to owner for review |
+| 0-4 | Cold lead | Store but don't pursue |
+
+### Manual Workflow
+
+```
+Owner: "find leads for restaurants in Austin TX"
+→ run_lead_generation("restaurant", "Austin TX")
+→ Report: "Found 8 restaurants, 5 qualified. Top lead: Joe's BBQ (score 6.8)"
+→ Owner: "promote Joe's BBQ"
+→ promote_lead(prospect_id) → creates project → pitch pipeline
+```
+
+### Batch Workflow
+
+```
+Owner: "run prospecting"
+→ batch_lead_generation(["restaurant", "salon"], ["Austin TX", "Dallas TX"])
+→ get_lead_pipeline(min_score=4.0) → ranked list
+→ Owner picks leads to promote
+```
+
+### Cron Workflow (when enabled)
+
+The `lead-prospecting` cron runs weekdays at 9 AM:
+1. `batch_lead_generation()` with configured defaults
+2. `get_lead_pipeline(min_score=5.0)` to find hot leads
+3. Auto-promote leads scoring 5.0+
+4. Report results to owner
+
+**Config** (in .env):
+```
+PROSPECTING_ENABLED=true
+PROSPECTING_INDUSTRIES=restaurant,salon,dentist
+PROSPECTING_LOCATIONS=Austin TX,Dallas TX
+PROSPECTING_DAILY_LIMIT=50
+```
+
+### Integration with Existing Pipeline
+
+When a lead is promoted via `promote_lead()`:
+- Prospect already has: site_problems, tech_stack, brand_colors, contact_emails, lat/lng
+- Agent can skip deep research (Step 1) — data already extracted during lead audit
+- Jump to: competitor analysis (Step 1.5) + pitch (Step 2) + outreach (Step 6)
+- Use `store_prospect()` to enrich with additional data if the audit missed anything
 
 ## Research & Learning (Cron)
 
