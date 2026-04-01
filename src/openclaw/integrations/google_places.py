@@ -108,9 +108,13 @@ async def get_place_details(place_id: str) -> dict:
         "websiteUri",
         "googleMapsUri",
         "currentOpeningHours",
+        "regularOpeningHours",
         "reviews",
         "primaryType",
         "primaryTypeDisplayName",
+        "photos",
+        "editorialSummary",
+        "nationalPhoneNumber",
     ])
     url = f"{PLACES_BASE}/places/{place_id}"
     headers = {
@@ -128,6 +132,63 @@ async def get_place_details(place_id: str) -> dict:
             )
             response.raise_for_status()
         return response.json()
+
+
+async def resolve_photo_urls(
+    photos: list[dict], max_photos: int = 10,
+) -> list[str]:
+    """Resolve photo resource references into actual image URLs.
+
+    Takes the `photos` list from a get_place_details response and resolves
+    each to a direct image URL via the Places Photos API.
+
+    Returns list of image URLs (up to max_photos).
+    """
+    if not photos:
+        return []
+
+    photo_urls: list[str] = []
+    async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
+        for photo in photos[:max_photos]:
+            name = photo.get("name")
+            if not name:
+                continue
+            url = (
+                f"{PLACES_BASE}/{name}/media"
+                f"?maxWidthPx=1200&skipHttpRedirect=true"
+                f"&key={settings.GOOGLE_PLACES_API_KEY}"
+            )
+            try:
+                resp = await client.get(url)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    photo_uri = data.get("photoUri")
+                    if photo_uri:
+                        photo_urls.append(photo_uri)
+                else:
+                    logger.warning(
+                        "photo_resolve_failed",
+                        photo_name=name[:60],
+                        status=resp.status_code,
+                    )
+            except Exception as exc:
+                logger.warning("photo_resolve_error", error=str(exc)[:100])
+
+    logger.info("photos_resolved", count=len(photo_urls))
+    return photo_urls
+
+
+async def get_place_photos(place_id: str, max_photos: int = 10) -> list[str]:
+    """Fetch and resolve photo URLs for a place.
+
+    Convenience wrapper: calls get_place_details then resolve_photo_urls.
+    If you already have the details dict, call resolve_photo_urls directly
+    to avoid a redundant API call.
+
+    Returns list of image URLs (up to max_photos).
+    """
+    details = await get_place_details(place_id)
+    return await resolve_photo_urls(details.get("photos", []), max_photos)
 
 
 def haversine_distance(

@@ -1,101 +1,16 @@
 # Hero Section Generation Reference
 
 The hero is the first thing visitors see — it must be cinematic, immersive, and instant.
-Choose one of three approaches based on the prospect's industry and brand personality.
+Every Clarmi hero uses **scroll-controlled video** generated from two Nano Banana keyframes via Veo 3.1 first+last frame mode.
 
-## Hero Types
+## Hero Video Pipeline
 
-### Option A: 3D Scene Hero
+1. **Nano Banana** generates **keyframe A** (opening visual state — what visitors see on page load)
+2. **Nano Banana** generates **keyframe B** (ending visual state — what visitors see after scrolling through)
+3. **Veo 3.1** generates a smooth transition video between A and B using first+last frame mode
+4. The video is embedded as scroll-controlled `<video>` — `video.currentTime` mapped to scroll progress
 
-Best for: tech, professional services, luxury, creative agencies, beauty/spa
-
-A full-viewport React Three Fiber canvas renders behind the headline. The 3D object
-responds to mouse movement and dissolves/transforms on scroll.
-
-```tsx
-// Hero.tsx
-'use client'
-import { useEffect, useRef, useState } from 'react'
-import dynamic from 'next/dynamic'
-import gsap from 'gsap'
-import { ScrollTrigger } from 'gsap/ScrollTrigger'
-
-gsap.registerPlugin(ScrollTrigger)
-
-const Scene3D = dynamic(() => import('@/components/Scene3D'), {
-  ssr: false,
-  loading: () => null,
-})
-
-export default function Hero() {
-  const heroRef = useRef<HTMLElement>(null)
-  const contentRef = useRef<HTMLDivElement>(null)
-  const canvasWrapRef = useRef<HTMLDivElement>(null)
-  const [isMobile, setIsMobile] = useState(true) // SSR-safe default
-
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window)
-  }, [])
-
-  // Scroll: fade out hero content + scale down 3D scene
-  useEffect(() => {
-    if (!heroRef.current || !contentRef.current || !canvasWrapRef.current) return
-
-    const tl = gsap.timeline({
-      scrollTrigger: {
-        trigger: heroRef.current,
-        start: 'top top',
-        end: 'bottom top',
-        scrub: 0.3,
-      },
-    })
-
-    tl.to(contentRef.current, { y: -100, opacity: 0 }, 0)
-    tl.to(canvasWrapRef.current, { scale: 0.9, opacity: 0 }, 0)
-
-    return () => ScrollTrigger.getAll().forEach(t => t.kill())
-  }, [])
-
-  // Staggered entrance animation for text elements
-  useEffect(() => {
-    const reveals = heroRef.current?.querySelectorAll('.hero-reveal')
-    if (!reveals) return
-    gsap.from(reveals, {
-      y: 60, opacity: 0, duration: 1, stagger: 0.15, ease: 'power3.out', delay: 0.3,
-    })
-  }, [])
-
-  return (
-    <section ref={heroRef} className="relative min-h-screen flex items-center overflow-hidden">
-      {/* 3D Canvas (desktop only) */}
-      <div ref={canvasWrapRef} className="absolute inset-0 z-0">
-        {!isMobile ? (
-          <Scene3D />
-        ) : (
-          <img src="/assets/hero-fallback.png" alt="" className="w-full h-full object-cover" />
-        )}
-      </div>
-
-      {/* Content overlay */}
-      <div ref={contentRef} className="relative z-10 max-w-3xl px-6 md:px-16">
-        <h1 className="hero-reveal text-5xl md:text-7xl font-bold leading-tight">
-          {/* Brand headline here */}
-        </h1>
-        <p className="hero-reveal mt-6 text-lg md:text-xl text-muted max-w-lg">
-          {/* Brand subtitle here */}
-        </p>
-        <div className="hero-reveal mt-8">
-          {/* CTA button */}
-        </div>
-      </div>
-    </section>
-  )
-}
-```
-
-### Option B: Scroll Video Hero
-
-Best for: restaurants, real estate, experiential brands, hospitality, retail
+## Scroll Video Hero (ALWAYS — every site)
 
 A full-screen Veo-generated video plays frame-by-frame as the user scrolls.
 The section is pinned for 3x viewport height, giving a cinematic reveal effect.
@@ -207,9 +122,10 @@ export default function Hero({ videoSrc, posterSrc, fallbackSrc }: VideoHeroProp
 }
 ```
 
-### Option C: Kinetic Typography Hero
+### Fallback: Kinetic Typography Hero
 
-Best for: agencies, bold brands, when no video/3D assets are available
+ONLY use when ALL video AND image generation has failed (quota exhausted, API down).
+This is a last resort — not a design choice.
 
 No images or 3D — pure typography in motion. Giant headline with character-by-character
 animation. Parallax depth between heading and subtext.
@@ -289,22 +205,21 @@ export default function Hero() {
 }
 ```
 
-## Hero Selection Guide
+## Fallback Chain
 
-| Signal | Best Hero Type |
-|--------|---------------|
-| Prospect has strong visual content (food, property, products) | **Scroll Video** |
-| Prospect is professional/tech/luxury with abstract brand | **3D Scene** |
-| Prospect is a creative agency or bold brand | **Kinetic Typography** |
-| Video generation failed / no assets available | **Kinetic Typography** |
-| Mobile-only audience (food truck, salon) | **Scroll Video** with strong fallback |
+| Situation | What to do |
+|-----------|-----------|
+| Video generation succeeds | Scroll-controlled video hero (default) |
+| Video fails, keyframes succeed | CSS crossfade between keyframe A + B on scroll |
+| All generation fails | Kinetic typography hero (last resort) |
 
-## Rules for All Hero Types
+## Rules for the Scroll Video Hero
 
-1. **Must fill full viewport** — `min-h-screen` or `h-screen`
-2. **Content must be readable** — use gradient overlays or backdrop-blur on video/3D heroes
+1. **Must fill full viewport** — `h-screen`
+2. **Content must be readable** — use gradient overlays on video
 3. **Staggered entrance animation** — headline first, then subtitle, then CTA (0.1-0.15s stagger)
-4. **Scroll interaction** — hero content must respond to scroll (fade, parallax, or dissolve)
-5. **Mobile fallback** — always provide a static image path for mobile/low-power devices
-6. **LCP optimization** — hero image/poster must load within 2.5s (preload in `<head>`)
+4. **Scroll interaction** — video plays frame-by-frame on scroll, content fades in during last 40%
+5. **Mobile fallback** — keyframe A as static image (iOS restricts video.currentTime)
+6. **LCP optimization** — poster (keyframe A) must load within 2.5s (preload in `<head>`)
 7. **No layout shift** — use fixed dimensions or aspect-ratio to prevent CLS
+8. **Three.js scene fades in** — as the hero video scrolls out, the persistent Three.js scene fades in behind content sections

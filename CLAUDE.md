@@ -11,10 +11,14 @@ Parse the owner's intent:
 - **"build/create/revamp a website for [URL]"** → Run the full website pipeline (Steps 1-6 below)
 - **"scrape/research [URL]"** → Research only (Step 1)
 - **"send email to [company]"** → Draft email only (Step 6)
-- **"find leads/prospect [industry] in [location]"** → Run lead generation pipeline
-- **"batch prospect/run prospecting"** → Run batch lead generation
+- **"find leads/prospect [industry] in [location]"** → Run lead generation pipeline (revamp mode — businesses with websites)
+- **"adventure/explore [industry] in [location]"** → Run lead generation in **adventure mode** — find businesses WITHOUT websites
+- **"find businesses without websites [industry] in [location]"** → Same as adventure mode
+- **"batch prospect/run prospecting"** → Run batch lead generation (default: revamp)
+- **"batch adventure [industry] in [location]"** → Run batch lead generation in adventure mode
 - **"show leads/lead pipeline"** → Show lead pipeline with `get_lead_pipeline()`
-- **"promote [company]"** → Promote lead to full pipeline
+- **"show adventure leads"** → Show adventure leads with `get_lead_pipeline(mode="adventure")`
+- **"promote [company]"** → Promote lead to full pipeline (auto-detects revamp vs adventure)
 - **"status/update"** → Use `get_project_status` (or `list_projects`) and respond with real data
 - **Message from a client** (revision request, question, feedback) → Run the Client Funnel workflow (see below). Be warm and client-facing.
 - **Owner forwarding client feedback** → Run Owner-Initiated Revisions (deploy directly, no preview needed)
@@ -39,6 +43,76 @@ Crawl the prospect's site and extract everything needed to rebuild it better.
 4. Write problems as SHORT, SPECIFIC, PUNCHY statements (e.g. "14-item menu — visitors won't know where to click", "WordPress with 23 plugins = 6s+ load time"). Identify at least 3.
 5. Call `store_prospect(...)` with ALL extracted data including `site_problems`, `latitude`, and `longitude` (look for the business address on the site and geocode it, or extract from Google Maps embed/structured data — required for competitor analysis)
 6. Call `create_project(name, brief)` to provision GitHub repo + Vercel project
+
+### Step 1A: Explore (Adventure Mode — businesses with NO website)
+
+When the prospect has NO existing website (adventure-mode lead from `run_lead_generation(mode="adventure")`), you can't scrape their site. Instead, cross-reference multiple sources to gather everything needed to build a website from scratch.
+
+#### 1A.1: Google Places Enrichment
+
+1. Call `explore_business(prospect_id)` — gathers photos, reviews, hours, phone, and editorial summary from Google Places API
+2. Review the returned data: photos (up to 10), reviews (up to 10), hours, phone number
+
+#### 1A.2: Cross-Reference External Sources
+
+Use WebSearch + WebFetch to find the business on other platforms:
+
+1. **Yelp**: `WebSearch("{company_name}" site:yelp.com {city})` → `WebFetch` the Yelp page → extract: photos, menu/services list, business description, additional reviews, price range
+2. **Instagram**: `WebSearch("{company_name}" {city} site:instagram.com)` → if public profile found, `WebFetch` to extract photo URLs and bio
+3. **Facebook**: `WebSearch("{company_name}" {city} site:facebook.com)` → `WebFetch` to extract: about info, photos, hours, address, phone
+4. **TripAdvisor** (if hospitality/restaurant): `WebSearch("{company_name}" {city} site:tripadvisor.com)` → extract reviews, photos, ranking
+5. **Google search for menus/services**: `WebSearch("{company_name}" {city} menu OR services OR prices)` → find any cached or third-party listings with detailed offerings
+
+#### 1A.3: Synthesize Brand Identity
+
+With no website to extract branding from, build it from scratch:
+
+1. **Colors**: Pick 3-5 brand colors based on:
+   - Industry norms (warm earth tones for restaurants, clean whites for medical, rich jewel tones for upscale)
+   - Photo palette analysis (what colors dominate the Google/Yelp photos?)
+   - Review tone (cozy/rustic → warm palette, modern/sleek → cool palette, fun/lively → vibrant palette)
+2. **Fonts**: Pick 2 Google Fonts (`[heading_font, body_font]`) that match the business vibe:
+   - Heritage/upscale → serif (Playfair Display, Cormorant, Lora)
+   - Modern/clean → sans-serif (DM Sans, Plus Jakarta Sans, Outfit)
+   - Bold/casual → slab/display (Slab, Barlow, Space Grotesk)
+3. **Tagline**: Write from review themes — if 50 reviews mention "best tacos in town", lean into that
+4. **Content**: Compile from all sources: menu items/services, hours, phone, address, reviews for testimonials, photos for gallery
+
+#### 1A.4: Store Enriched Data
+
+Call `store_prospect` with ALL gathered data:
+```
+store_prospect(
+    url=prospect.url,  # Google Maps URL
+    company_name="...",
+    tagline="Synthesized tagline",
+    brand_colors=["#hex1", "#hex2", "#hex3"],
+    fonts=["Heading Font", "Body Font"],
+    contact_emails=[],  # if found
+    social_links={"instagram": "...", "facebook": "...", "yelp": "..."},
+    industry="...",
+    raw_data={
+        "yelp_photos": ["url1", "url2"],
+        "yelp_description": "...",
+        "yelp_menu": [...],
+        "instagram_photos": ["url1", "url2"],
+        "facebook_about": "...",
+        "all_photos": ["url1", "url2", ...],  # merged from all sources
+        "reviews_for_testimonials": [{"text": "...", "author": "...", "rating": 5}, ...],
+        "menu_or_services": [...],
+        "hours": {"Monday": "9:00 AM - 9:00 PM", ...},
+        "phone": "+1-512-555-1234",
+    }
+)
+```
+
+If the project wasn't already created by `promote_lead`, call `create_project(name, brief)` to provision GitHub repo + Vercel project. (For promoted leads, the project already exists — skip this.)
+
+**After Step 1A**: Proceed to Step 2 (Pitch) → Step 3 (Design) → Step 4 (Build). The design and build steps work the same, except:
+- Use photos from `all_photos` instead of extracting from an existing site
+- Use the synthesized `brand_colors` and `fonts` instead of extracted ones
+- Write ALL content from gathered data (reviews → testimonials, Yelp description → about section, menu → menu section)
+- For the pitch: frame it as "You have a great business but no online presence — here's what we'll build" instead of "Your current site has these problems"
 
 ### Step 1.5: Competitor Analysis (async — does not block Steps 2-6)
 
@@ -102,55 +176,79 @@ Generate a personalized pitch as a standalone HTML slide deck at `/pitch/` in th
 
 ### Step 3: Design
 
-Generate visual assets for an immersive, Awwwards-quality website. Every Clarmi site should feel cinematic — scroll-controlled video, 3D elements, and transitions that make visitors say "wow".
+Generate visual assets for an immersive, Awwwards-quality website. Every Clarmi site has the same core formula: **scroll-controlled video hero + Three.js animated sections + ReactBits effects + smooth scrolling**.
 
 Read `templates/prompts/immersive-site.md` for the full design system reference before starting.
 
-**Design direction**: NOT one-size-fits-all. Match the industry and brand personality:
-- **Restaurant/Food**: warm organic photography, steam/texture videos, golden hour lighting
-- **Professional/Law**: glass geometric 3D scenes, architectural video, cool + authoritative
-- **Salon/Beauty**: iridescent surfaces, fluid video transitions, soft pink/lavender palette
-- **Tech/SaaS**: data visualization 3D, wireframe networks, neon accents
-- **Real Estate**: aerial video, golden hour, architectural 3D forms
-- **Retail**: product showcase video, studio lighting, clean and inviting
+**The Clarmi formula — every site follows this structure:**
+1. **Hero**: Scroll-controlled video that plays frame-by-frame as the user scrolls. Generated from two keyframes (start + end state) using Nano Banana → Veo 3.1 first+last frame mode.
+2. **Rest of site**: Three.js 3D elements + ReactBits animated components + GSAP scroll animations throughout every section. Three.js provides persistent ambient 3D (floating shapes, particle fields, etc.) behind content sections.
+
+**Design direction**: Match the industry and brand personality for the AESTHETIC, but the formula stays the same:
+- **Restaurant/Food**: warm organic photography, steam/texture keyframes, golden hour lighting, warm organic 3D particles
+- **Professional/Law**: architectural keyframes, cool + authoritative, glass geometric 3D scenes behind sections
+- **Salon/Beauty**: iridescent surface keyframes, soft pink/lavender palette, fluid iridescent 3D elements
+- **Tech/SaaS**: data visualization keyframes, neon accents, wireframe network 3D scenes
+- **Real Estate**: aerial golden hour keyframes, architectural 3D forms behind sections
+- **Retail**: product showcase keyframes, studio lighting, clean product-like 3D forms
 
 **CRITICAL**: NEVER include text, words, letters, or logos in generated images or videos. All text is added by code.
 
-#### 3a. Plan the Visual Experience
+**IMAGE SOURCING PRIORITY**: Prefer real photos from the prospect's existing site over AI-generated images. During Step 1 (Research), you extracted image URLs from the original site. Use those FIRST — they're authentic photos of the actual business, food, products, team, and space. Only use `generate_image` (Nano Banana) for:
+- Hero video keyframes (abstract/atmospheric starting and ending states for scroll video)
+- Transition keyframes (abstract visual states for A→B morphs)
+- Abstract/atmospheric section backgrounds where no suitable real photo exists
 
-Before generating any assets, plan the scroll experience by answering:
-1. **Hero treatment**: 3D scene (glass/organic/wireframe), scroll video, or kinetic typography?
+When reusing an existing site image, make sure it **contextually fits** its new placement. A photo of a dish belongs in a menu/food section, not as a CTA background. A team photo belongs in an about section, not behind stats. If the prospect's site has a great hero photo, consider using it as a parallax background or gallery item — but don't force it into a section where it doesn't make sense.
+
+#### 3a. Plan the Scroll Experience
+
+Before generating any assets, plan the visual narrative:
+1. **Hero video**: What is the OPENING visual state (what the user sees on page load) and the ENDING visual state (what they see after scrolling through the hero)? These become Nano Banana keyframes → Veo 3.1 transition video.
 2. **Transitions**: Which sections need video transitions (A→B morph)? Usually 1-2 max.
-3. **Background elements**: Which sections need generated images for atmosphere?
-4. **3D elements**: Will there be a persistent 3D element, or section-specific scenes?
+3. **Three.js scene**: What persistent 3D element runs behind the content sections? Match to industry (see `templates/prompts/three-js-scene.md` for recipes). This is NOT an alternative to the video hero — it runs ALONGSIDE it in subsequent sections.
+4. **Existing images**: Review all image URLs extracted during Research. Map each to the section where it fits contextually (food photos → menu/gallery, team photos → about, space photos → parallax backgrounds, product photos → features). Only generate images for sections with no suitable existing photo.
+5. **Generated backgrounds**: Which sections still need AI-generated images for abstract atmosphere after mapping existing photos?
 
 #### 3b. Generate Assets
 
 Use `generate_scene_assets(project_name, sections_json)` to batch-generate all assets at once. This is preferred over calling individual tools.
 
+**Hero video pipeline**: The hero ALWAYS uses the two-keyframe approach:
+1. Nano Banana generates the **opening keyframe** (what the visitor sees on page load)
+2. Nano Banana generates the **ending keyframe** (what they see after scrolling through)
+3. Veo 3.1 generates a smooth transition video between the two keyframes using first+last frame mode
+4. The video is embedded as a scroll-controlled `<video>` — `video.currentTime` mapped to scroll progress
+
 **sections_json format**:
 ```json
 [
-  {"section": "hero", "type": "hero_video", "prompt": "Slow dolly through [industry-appropriate scene]. [Brand colors]. No text. 8 seconds."},
+  {"section": "hero", "type": "hero_video",
+   "prompt": "Smooth cinematic transition from [opening scene] to [closing scene]. [Brand colors]. No text. 8 seconds.",
+   "keyframe_a_prompt": "[Opening visual state — what visitors see on load]. [Brand colors]. No text.",
+   "keyframe_b_prompt": "[Ending visual state — what visitors see after scrolling through hero]. [Brand colors]. No text."},
   {"section": "hero-to-about", "type": "transition", 
-   "prompt": "Smooth cinematic morph from [hero scene] to [about scene]",
-   "keyframe_a_prompt": "[Starting visual state matching hero]. No text.",
+   "prompt": "Smooth cinematic morph from [hero end state] to [about section aesthetic]",
+   "keyframe_a_prompt": "[Starting visual state matching hero end]. No text.",
    "keyframe_b_prompt": "[Ending visual state matching about section]. No text."},
   {"section": "features", "type": "image", "prompt": "[Abstract/atmospheric image for features background]. No text."},
   {"section": "cta", "type": "image", "prompt": "[Warm, inviting atmosphere for call-to-action]. No text."}
 ]
 ```
 
+**Minimize `"type": "image"` entries** — most sections should use real photos from the prospect's site instead of generating new ones. Only include image entries in `sections_json` for abstract/atmospheric backgrounds where no real photo fits.
+
 If `generate_scene_assets` isn't available, fall back to individual calls:
-1. Try `generate_video(prompt, project_name)` for the hero background (cinematic, 6-8s)
-   - If it fails (quota/rate limit), use `generate_image` for a hero keyframe instead. Do NOT retry.
+1. Call `generate_transition_video(prompt, project_name, "hero", keyframe_a_prompt, keyframe_b_prompt)` for the hero — ALWAYS use the two-keyframe approach
+   - If video generation fails, the tool returns keyframe A + B images — use CSS crossfade on scroll as fallback
 2. Call `generate_transition_video(...)` for 1-2 section transitions (A→B morph videos)
    - If video generation fails, the tool returns keyframe images for CSS crossfade fallback
-3. Call `generate_image(prompt, project_name, section)` for each remaining section
+3. Call `generate_image(prompt, project_name, section)` ONLY for sections with no suitable real photo from the prospect's site
 
 #### 3c. Prompt Writing Rules
 
 - Reference `brand_colors` hex values: "dominant warm cream (#F5E6D3) with burgundy (#722F37) accents"
+- For hero keyframes: describe two DISTINCT visual states that tell a story when scrolled between (e.g., wide exterior → intimate interior, overhead → eye level, dawn → golden hour)
 - Describe camera movement: "slow overhead dolly", "gentle orbital pan", "steady forward tracking"
 - Specify lighting: "warm golden hour from camera left", "cool ambient with neon rim"
 - Keep prompts under 200 words — detailed but focused
@@ -159,22 +257,32 @@ If `generate_scene_assets` isn't available, fall back to individual calls:
 
 ### Step 4: Build
 
-Build an immersive, award-winning Next.js landing page with 3D elements, scroll-controlled video, and cinematic animations. Read `templates/prompts/immersive-site.md` for the complete reference.
+Build an immersive, award-winning Next.js landing page. The formula: **scroll-controlled video hero → Three.js animated sections → ReactBits effects → buttery smooth scrolling**. Read `templates/prompts/immersive-site.md` for the complete reference.
 
 **Tech stack**: Next.js App Router, TypeScript, GSAP + ScrollTrigger, Lenis smooth scrolling, Tailwind CSS, React Three Fiber (3D), @react-three/drei + postprocessing, **ReactBits** (135+ animated React components).
 
-#### ReactBits Component Library
+#### ReactBits Component Library (MANDATORY)
 
-The `reactbits` MCP server provides access to **135+ pre-built animated React components** from [ReactBits.dev](https://reactbits.dev). Use these to add polished effects without writing custom code:
+The `reactbits` MCP server provides **135+ pre-built animated React components** from [ReactBits.dev](https://reactbits.dev). You MUST use ReactBits components instead of writing custom effects from scratch.
 
 - `list_categories` — see all categories (backgrounds, text animations, animations, etc.)
 - `search_components(query)` — find components by name/description (e.g. "aurora", "spotlight", "text reveal")
 - `get_component(name)` — get the full source code to embed in the project
 - `get_component_demo(name)` — see usage examples
 
-**When to use ReactBits**: Before writing a custom effect from scratch (magnetic button, text animation, background effect, etc.), search ReactBits first. If a matching component exists, use it — it's battle-tested and saves time. Backgrounds and text effects are the highest quality (9-10/10).
+**Required ReactBits usage per section type:**
 
-**How to use**: Copy the component source from `get_component` into the project's `components/` directory. Adapt colors/sizing to match the prospect's brand. ReactBits components are standalone — no extra dependencies beyond React.
+| Section | ReactBits to search for | Purpose |
+|---------|------------------------|---------|
+| **Text sections** | `search_components("text reveal")`, `search_components("split text")`, `search_components("blur text")` | Animated text reveals instead of raw GSAP |
+| **Backgrounds** | `search_components("aurora")`, `search_components("spotlight")`, `search_components("gradient")` | Section atmosphere behind Three.js |
+| **Buttons/CTA** | `search_components("magnetic")`, `search_components("button")`, `search_components("spotlight button")` | Interactive CTA effects |
+| **Cards/Features** | `search_components("tilt")`, `search_components("card")`, `search_components("spotlight card")` | Hover effects on feature cards |
+| **Transitions** | `search_components("fade")`, `search_components("reveal")`, `search_components("counter")` | Section entrances and number animations |
+
+**How to use**: Call `get_component(name)` to get the source code. Copy it into the project's `components/` directory. Adapt colors/sizing to match the prospect's brand. ReactBits components are standalone — no extra dependencies beyond React.
+
+**Rule**: For EVERY section you build, first check if ReactBits has a matching component. Only write custom effects when ReactBits doesn't have what you need.
 
 #### 4a. Scaffold
 
@@ -188,33 +296,34 @@ Read `templates/prompts/immersive-site.md` for the file architecture. Build file
 1. `app/globals.css` — Tailwind imports + custom CSS properties from brand_colors
 2. `app/layout.tsx` — Google Fonts (from prospect's `fonts` array), metadata, SmoothScroller
 3. `components/SmoothScroller.tsx` — Lenis + GSAP ticker sync (see `templates/prompts/effect-catalog.md`)
-4. `components/Scene3D.tsx` — React Three Fiber canvas (see `templates/prompts/three-js-scene.md`)
+4. `components/Scene3D.tsx` — React Three Fiber canvas — this is the **persistent 3D layer** that runs behind content sections (NOT the hero — the hero uses scroll video). See `templates/prompts/three-js-scene.md` for industry recipes.
    - **ALWAYS** `dynamic(() => import('./Scene3D'), { ssr: false })` — NEVER server-render Three.js
    - Pick scene style from the industry table in `three-js-scene.md`
+   - The 3D scene responds to scroll position (objects rotate, scale, morph as user scrolls through sections)
    - Include mobile fallback: show static image on `< 768px` width
-5. `components/ScrollVideo.tsx` — Scroll-controlled video player (see `templates/prompts/scroll-video-section.md`)
+5. `components/ScrollVideo.tsx` — Scroll-controlled video player for the **hero section** (see `templates/prompts/scroll-video-section.md`)
    - Pin section + scrub `video.currentTime` via GSAP ScrollTrigger
-   - Include poster image for instant visual before video loads
+   - Include poster image (keyframe A) for instant visual before video loads
    - Mobile fallback: static keyframe image instead of video
 6. `components/TransitionSection.tsx` — If transition videos were generated
-   - Video morph between two states, or CSS crossfade fallback
-7. `components/TextReveal.tsx` — Word-by-word scroll reveal for key statements
-8. `app/page.tsx` — Compose all sections in order
-9. Remaining section components as needed
+   - Video morph between two states, or CSS crossfade fallback using keyframe A + B images
+7. `components/TextReveal.tsx` — Word-by-word scroll reveal for key statements (check ReactBits for text animation components first)
+8. `app/page.tsx` — Compose all sections in order: ScrollVideo hero → Three.js + ReactBits content sections
+9. Remaining section components as needed — each should layer ReactBits effects + Three.js 3D elements
 
 #### 4c. Section Composition (pick 5-8 from this menu)
 
-| Section | Effect | When to Use |
-|---------|--------|-------------|
-| **Hero** | 3D scene background OR scroll video + text overlay | Always first |
-| **Scroll Transition** | Pinned video morph between hero → content | After hero, before main content |
-| **Text Reveal** | Word-by-word opacity on scroll | Mission statement, value prop |
-| **Parallax Gallery** | Multi-speed depth layers with images | Portfolio, menu items, services |
-| **Feature Cards** | Staggered entrance with 3D tilt hover | Service/feature showcase |
-| **Horizontal Scroll** | Pinned vertical→horizontal scroll | Timeline, process, portfolio |
-| **Stats/Numbers** | Animated counters + scroll trigger | Social proof, metrics |
-| **CTA** | Magnetic button + particle/gradient background | Always near end |
-| **Footer** | Stagger-in animation | Always last |
+| Section | Effect | Three.js / ReactBits Role |
+|---------|--------|--------------------------|
+| **Hero** | Scroll-controlled video (ALWAYS — keyframe A→B via Veo 3.1) + text overlay | Video is primary. Three.js scene fades in as hero scrolls out. |
+| **Scroll Transition** | Pinned video morph between hero → content | Transition video or CSS crossfade between keyframes |
+| **Text Reveal** | Word-by-word opacity on scroll | Use ReactBits text animation component. Three.js particles/shapes float behind. |
+| **Parallax Gallery** | Multi-speed depth layers with images | Three.js floating elements at different depth layers alongside images |
+| **Feature Cards** | Staggered entrance with 3D tilt hover | ReactBits tilt/spotlight card components. Three.js ambient shapes behind grid. |
+| **Horizontal Scroll** | Pinned vertical→horizontal scroll | ReactBits reveal animations per card. Three.js scene shifts with scroll. |
+| **Stats/Numbers** | Animated counters + scroll trigger | ReactBits counter component. Three.js particles burst on number reveal. |
+| **CTA** | Magnetic button + particle/gradient background | ReactBits magnetic button + aurora/spotlight background. Three.js accent elements. |
+| **Footer** | Stagger-in animation | ReactBits fade-in. Subtle Three.js ambient at low opacity. |
 
 #### 4d. Write Code
 
@@ -223,6 +332,7 @@ Call `write_code(project_name, file_path, code)` for each file:
 - Use `'use client'` directive on components with hooks, refs, or browser APIs
 - **EMBED all designer assets**: hero video as scroll-controlled `<video>`, transition videos in TransitionSection, keyframe images as backgrounds. NEVER skip provided assets.
 - **REUSE old site content**: use their image URLs directly, reuse copy/blurbs, keep navigation structure, contact info, hours, addresses, menu items, pricing
+- **PREFER REAL PHOTOS over AI-generated images**: Use image URLs extracted during Research for section content (galleries, feature cards, parallax layers, backgrounds). Only use Nano Banana-generated images for abstract atmosphere where no real photo fits. Always ensure the image contextually matches the section — don't put a food photo behind a contact section or a team photo in a menu grid.
 
 #### 4e. Animation Guidelines
 
@@ -268,9 +378,9 @@ Read `templates/prompts/effect-catalog.md` for the complete pattern library. Key
 
 | Problem | Fallback |
 |---------|----------|
-| Hero video generation fails | Use `generate_image` for a static hero keyframe + CSS Ken Burns animation |
+| Hero video generation fails | Tool returns keyframe A + B images — use CSS crossfade on scroll (still scroll-controlled, just images instead of video) |
 | Transition video fails | Tool returns keyframe A + B images — use CSS crossfade on scroll instead |
-| All video generation fails (quota) | Go pure kinetic typography hero + shader backgrounds for atmosphere |
+| All video generation fails (quota) | Use `generate_image` for hero start + end keyframes, CSS crossfade on scroll + Three.js 3D scene for atmosphere |
 | Three.js build errors | Remove 3D scene, use shader background (lighter, no R3F dependency) |
 | Lighthouse < 85 due to Three.js | Lazy-load canvas with Intersection Observer, reduce post-processing, shrink textures |
 | Build keeps failing on R3F types | Remove Three.js entirely, use GSAP-only animations — still impressive |
@@ -288,7 +398,7 @@ Read `templates/prompts/effect-catalog.md` for the complete pattern library. Key
 | Scroll video | `templates/prompts/scroll-video-section.md` | ScrollVideo + TransitionSection + CanvasFrameScrubber components |
 | Effect catalog | `templates/prompts/effect-catalog.md` | Micro-interactions, GSAP patterns, magnetic buttons, cursors |
 | Scroll animations | `templates/prompts/scroll-animation.md` | All GSAP ScrollTrigger patterns + CSS scroll animations |
-| Hero section | `templates/prompts/hero-section.md` | Three hero approaches (3D, video, typography) with full code |
+| Hero section | `templates/prompts/hero-section.md` | Scroll video hero (primary) + Three.js persistent scene patterns |
 | Shader backgrounds | `templates/prompts/shader-backgrounds.md` | Lightweight WebGL shaders for section atmospheres |
 | Video prompt library | `templates/prompts/video-prompt-library.md` | Pre-written Veo/Nano Banana prompts by industry |
 | Responsive patterns | `templates/prompts/responsive-patterns.md` | Breakpoints, mobile fallbacks, touch interactions, fluid typography |
@@ -387,40 +497,63 @@ Within a project, steps are sequential (each depends on the previous).
 
 ## Lead Generation Pipeline
 
-Proactively discover qualified leads — businesses with good reputations but bad websites.
+Proactively discover qualified leads. Two modes:
+
+- **Revamp mode** (default): Find businesses with good reputations but **bad websites** → redesign their site
+- **Adventure mode**: Find businesses with good reputations but **no website at all** → build them a site from scratch
 
 ### Available Tools
 
 | Tool | Purpose |
 |------|---------|
-| `discover_prospects(industry, location)` | Search Google Places for businesses, returns raw list |
-| `audit_prospect_website(url)` | Fetch and score a single website, identify problems |
-| `run_lead_generation(industry, location)` | Full pipeline: discover → audit → score → store |
-| `get_lead_pipeline(industry?, location?, min_score?)` | View stored leads ranked by opportunity |
-| `promote_lead(prospect_id)` | Move lead into full build pipeline, create project |
-| `batch_lead_generation(industries?, locations?)` | Run across multiple industry+location combos |
+| `discover_prospects(industry, location, mode)` | Search Google Places. `mode="revamp"` (with websites) or `"adventure"` (without) |
+| `audit_prospect_website(url)` | Fetch and score a single website (revamp only) |
+| `run_lead_generation(industry, location, mode)` | Full pipeline: discover → audit/score → store |
+| `get_lead_pipeline(industry?, location?, min_score?, mode?)` | View stored leads. `mode="adventure"` to filter |
+| `promote_lead(prospect_id)` | Move lead into build pipeline (auto-detects mode) |
+| `batch_lead_generation(industries?, locations?, mode?)` | Run across multiple combos |
+| `explore_business(prospect_id)` | **Adventure only**: Gather photos, reviews, hours from Google Places. Run after promoting. |
 
 ### Opportunity Scoring (0-10)
 
-Leads are scored by: **business quality x website weakness**
+**Revamp mode**: `business_quality x website_weakness`
+- Business quality (60%): Google rating + review volume (log scale)
+- Website weakness (40%): Inverse of website quality score (bad website = high score)
 
-- **Business quality** (60%): Google rating (0-5 normalized) + review volume (log scale)
-- **Website weakness** (40%): Inverse of website quality score (bad website = high score)
+**Adventure mode**: `business_quality` only (no website to evaluate)
+- Rating signal (50%): Google rating / 5.0
+- Volume signal (50%): log10(review_count) / 3.0
+- A 4.8-star restaurant with 500 reviews and no website = ~9.3/10
 
 | Score | Classification | Action |
 |-------|---------------|--------|
-| 7-10 | Hot lead | Auto-promote, start pitch pipeline |
+| 7-10 | Hot lead | Auto-promote, start pipeline |
 | 4-7 | Warm lead | Present to owner for review |
 | 0-4 | Cold lead | Store but don't pursue |
 
-### Manual Workflow
+### Manual Workflow — Revamp
 
 ```
 Owner: "find leads for restaurants in Austin TX"
 → run_lead_generation("restaurant", "Austin TX")
 → Report: "Found 8 restaurants, 5 qualified. Top lead: Joe's BBQ (score 6.8)"
 → Owner: "promote Joe's BBQ"
-→ promote_lead(prospect_id) → creates project → pitch pipeline
+→ promote_lead(prospect_id) → creates project → pitch pipeline (skip research, data already gathered)
+```
+
+### Manual Workflow — Adventure
+
+```
+Owner: "adventure restaurants in Austin TX"
+→ run_lead_generation("restaurant", "Austin TX", mode="adventure")
+→ Report: "Found 6 restaurants with no website. Top: Maria's Kitchen (4.8 stars, 342 reviews, score 8.1)"
+→ Owner: "promote Maria's Kitchen"
+→ promote_lead(prospect_id) → creates project
+→ explore_business(prospect_id) → gathers Google photos, reviews, hours
+→ Agent uses WebSearch + WebFetch to find Yelp/Instagram/Facebook data
+→ Agent synthesizes brand identity (colors, fonts, tagline) from gathered data
+→ store_prospect(...) with all enriched data
+→ Proceed to pitch → design → build (using Step 1A for research)
 ```
 
 ### Batch Workflow
@@ -428,7 +561,11 @@ Owner: "find leads for restaurants in Austin TX"
 ```
 Owner: "run prospecting"
 → batch_lead_generation(["restaurant", "salon"], ["Austin TX", "Dallas TX"])
-→ get_lead_pipeline(min_score=4.0) → ranked list
+
+Owner: "batch adventure restaurants in Austin TX and Dallas TX"
+→ batch_lead_generation(["restaurant"], ["Austin TX", "Dallas TX"], mode="adventure")
+
+→ get_lead_pipeline(min_score=4.0) → ranked list (or mode="adventure" to filter)
 → Owner picks leads to promote
 ```
 
@@ -450,11 +587,19 @@ PROSPECTING_DAILY_LIMIT=50
 
 ### Integration with Existing Pipeline
 
-When a lead is promoted via `promote_lead()`:
+**Revamp leads** (promoted via `promote_lead()`):
 - Prospect already has: site_problems, tech_stack, brand_colors, contact_emails, lat/lng
 - Agent can skip deep research (Step 1) — data already extracted during lead audit
 - Jump to: competitor analysis (Step 1.5) + pitch (Step 2) + outreach (Step 6)
 - Use `store_prospect()` to enrich with additional data if the audit missed anything
+
+**Adventure leads** (promoted via `promote_lead()`):
+- Prospect has: Google rating, review count, address, lat/lng, place_id — but NO branding, content, or site data
+- Run Step 1A (Explore) to gather photos, reviews, hours, and details from Google/Yelp/social media
+- Synthesize brand identity from gathered data (see Step 1A.3)
+- Then proceed to: pitch (Step 2) → design (Step 3) → build (Step 4)
+- For the pitch: frame as "no online presence" opportunity, not "bad website" problem
+- For outreach: reference their great reviews and the gap of having no website
 
 ## Research & Learning (Cron)
 
