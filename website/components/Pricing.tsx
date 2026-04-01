@@ -161,12 +161,13 @@ export default function Pricing() {
             <span className="text-label" style={{ color: "var(--accent)", letterSpacing: "0.15em" }}>Clarmi</span>
             <span style={{
               padding: "0.2rem 0.6rem",
-              background: "var(--gradient)",
-              color: "white",
+              background: "var(--accent-soft)",
+              color: "var(--accent)",
               borderRadius: "var(--radius-full)",
               fontSize: "0.68rem",
               fontWeight: 600,
               letterSpacing: "0.03em",
+              border: "1px solid rgba(124, 92, 252, 0.15)",
             }}>
               Best Value
             </span>
@@ -205,9 +206,6 @@ export default function Pricing() {
             ))}
           </ul>
 
-          <a href="#cta" className="btn-gradient" style={{ textAlign: "center", marginTop: "clamp(1.5rem, 3vh, 2rem)", width: "100%", display: "flex" }}>
-            Get Started
-          </a>
         </div>
       </div>
 

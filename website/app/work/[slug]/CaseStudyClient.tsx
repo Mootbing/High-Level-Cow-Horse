@@ -192,19 +192,6 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           overflow: "hidden",
         }}
       >
-        {/* Gradient background */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: "60%",
-            background: project.gradient,
-            opacity: 0.15,
-            pointerEvents: "none",
-          }}
-        />
 
         <div className="container" style={{ position: "relative", zIndex: 2 }}>
           <div className="reveal" style={{ display: "flex", alignItems: "center", gap: "0.6rem", marginBottom: "clamp(1rem, 2vh, 1.5rem)" }}>
@@ -261,20 +248,22 @@ export default function CaseStudyClient({ project }: { project: Project }) {
                 Key Result
               </div>
             </div>
-            <div>
-              <div
-                style={{
-                  fontFamily: '"Instrument Serif", Georgia, serif',
-                  fontSize: "clamp(1.3rem, 2vw, 1.6rem)",
-                  color: "var(--text)",
-                }}
-              >
-                48hrs
+            {project.slug !== "jason-xu" && (
+              <div>
+                <div
+                  style={{
+                    fontFamily: '"Instrument Serif", Georgia, serif',
+                    fontSize: "clamp(1.3rem, 2vw, 1.6rem)",
+                    color: "var(--text)",
+                  }}
+                >
+                  48hrs
+                </div>
+                <div style={{ fontSize: "clamp(0.72rem, 0.82vw, 0.78rem)", color: "var(--text-light)", marginTop: "0.15rem" }}>
+                  Delivery Time
+                </div>
               </div>
-              <div style={{ fontSize: "clamp(0.72rem, 0.82vw, 0.78rem)", color: "var(--text-light)", marginTop: "0.15rem" }}>
-                Delivery Time
-              </div>
-            </div>
+            )}
 
             {/* Visit live site */}
             {project.url && (

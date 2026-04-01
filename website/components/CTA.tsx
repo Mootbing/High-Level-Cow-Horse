@@ -68,7 +68,7 @@ export default function CTA() {
         <button
           onClick={handleClick}
           className="btn-primary reveal delay-2"
-          style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)" }}
+          style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", background: "var(--accent)" }}
         >
           Get Started
         </button>

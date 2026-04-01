@@ -165,17 +165,15 @@ export default function Hero() {
 
       {/* Text content with frosted glass backdrop on mobile */}
       <div
-        className="hero-content"
+        className="container hero-content"
         style={{
           position: "relative",
           zIndex: 2,
           paddingTop: "clamp(7rem, 15vh, 12rem)",
           paddingBottom: "clamp(5rem, 10vh, 8rem)",
-          maxWidth: "700px",
-          marginLeft: "clamp(1.5rem, 4vw, 4rem)",
-          marginRight: "auto",
         }}
       >
+        <div style={{ maxWidth: "700px" }}>
 
         {/* Headline with rotating word */}
         <h1 className="text-display-hero reveal delay-1">
@@ -260,6 +258,7 @@ export default function Hero() {
               </div>
             </div>
           ))}
+        </div>
         </div>
       </div>
     </section>

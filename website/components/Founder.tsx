@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 
-function PortraitCard() {
+function PortraitCard({ className }: { className?: string }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const [hovered, setHovered] = useState(false);
@@ -19,7 +19,7 @@ function PortraitCard() {
   return (
     <div
       ref={cardRef}
-      className="reveal delay-3 hide-mobile"
+      className={`reveal delay-3 ${className || ""}`}
       onMouseEnter={() => setHovered(true)}
       onMouseMove={handleMouseMove}
       onMouseLeave={() => { setHovered(false); setTilt({ x: 0, y: 0 }); }}
@@ -70,7 +70,7 @@ function PortraitCard() {
             Jason Xu
           </div>
           <div style={{ fontSize: "clamp(0.72rem, 0.82vw, 0.78rem)", color: "var(--text-muted)", marginTop: "0.15rem" }}>
-            Founder &amp; CTO (Eng &amp; Design)
+            Founder &amp; CTO (Engineering &amp; Design)
           </div>
         </div>
 
@@ -110,9 +110,9 @@ export default function Founder() {
     <section ref={ref} className="section" id="founder">
       <div className="container">
         <div
+          className="founder-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "1fr clamp(260px, 35vw, 420px)",
             gap: "clamp(3rem, 6vw, 6rem)",
             alignItems: "center",
           }}
@@ -126,6 +126,11 @@ export default function Founder() {
               A letter from{" "}
               <em className="font-serif" style={{ fontStyle: "italic" }}>the founder</em>
             </h2>
+
+            {/* Mobile portrait — shown after title on small screens */}
+            <div className="hide-desktop" style={{ marginTop: "clamp(1.5rem, 3vh, 2rem)", maxWidth: 280 }}>
+              <PortraitCard />
+            </div>
 
             {/* Letter-style body */}
             <div
@@ -179,6 +184,14 @@ export default function Founder() {
                 }}
               >
                 Founder, Clarmi Design Studio
+              </div>
+                            <div
+                style={{
+                  fontSize: "clamp(0.72rem, 0.82vw, 0.78rem)",
+                  color: "var(--text-light)",
+                }}
+              >
+                jason@clarmi.studio
               </div>
             </div>
 
@@ -239,10 +252,21 @@ export default function Founder() {
             </div>
           </div>
 
-          {/* Right: Portrait with 3D tilt */}
-          <PortraitCard />
+          {/* Right: Portrait with 3D tilt — desktop only */}
+          <PortraitCard className="hide-mobile" />
         </div>
       </div>
+
+      <style>{`
+        .founder-grid {
+          grid-template-columns: 1fr clamp(260px, 35vw, 420px);
+        }
+        @media (max-width: 768px) {
+          .founder-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

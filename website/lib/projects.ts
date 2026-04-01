@@ -19,6 +19,56 @@ export interface Project {
 
 export const PROJECTS: Project[] = [
   {
+    slug: "original-china-garden",
+    name: "Original China Garden",
+    industry: "Restaurant",
+    caption: "55 years of Houston tradition",
+    color: "#C41E3A",
+    gradient: "linear-gradient(135deg, #0a0a0a 0%, #1a0e0e 40%, #2a1212 70%, #0a0a0a 100%)",
+    improvement: "4.5★ TripAdvisor, est. 1969",
+    brief:
+      "Original China Garden is a Houston institution — a family-owned Chinese restaurant that started as an import store in 1968 and has been serving downtown Houston for over 55 years. Their reputation was built on tableside sizzling rice soup and Texas-Chinese fusion, but their website didn't reflect five decades of legacy.",
+    challenge:
+      "A restaurant with 55 years of history and a prime downtown location near the George R. Brown Convention Center had an outdated web presence. Convention visitors, hotel guests, and loyal regulars couldn't find menus, hours, or the story behind Houston's longest-running Chinese restaurant.",
+    solution:
+      "We built an elegant, dark-themed site with warm cream typography that honors the restaurant's heritage. Playfair Display headlines evoke tradition, while the layout spotlights their signature dishes — Sizzling Fried Rice Soup, Jalapeño Shrimp — with rich imagery. Prominent location info and hours serve the downtown foot traffic they depend on.",
+    results: [
+      "Full menu with signature dishes highlighted",
+      "Heritage storytelling — 55-year history front and center",
+      "Downtown location and hours prominently featured",
+      "Shipped and deployed in under 24 hours",
+    ],
+    tech: ["Next.js", "TypeScript", "Vercel", "Tailwind CSS"],
+    rotation: 2.2,
+    url: "https://original-china-garden-fd8e55.vercel.app",
+    darkPreview: true,
+  },
+  {
+    slug: "ros-niyom",
+    name: "Ros Niyom Thai",
+    industry: "Restaurant",
+    caption: "from street food to spotlight",
+    color: "#D4A853",
+    gradient: "linear-gradient(135deg, #1a1207 0%, #2a1f0e 40%, #3d2b10 70%, #1a1207 100%)",
+    improvement: "4.9 stars, 1,000+ reviews",
+    brief:
+      "Ros Niyom Thai serves authentic Northern Thai street food in Long Island City, Queens. They had earned a loyal following — 4.9 stars and 1,000+ reviews — but their online presence didn't match the quality of their food.",
+    challenge:
+      "The restaurant had no real website — just a basic listing page. Customers couldn't browse the full menu, find hours easily, or order online without hunting through third-party apps. For a spot with 250+ Yelp photos and a cult following, the digital experience was invisible.",
+    solution:
+      "We built a dark, gold-accented landing page that feels as rich as their Khao Soi. A visual menu with prices and descriptions, prominent hours and location info, one-tap ordering and call buttons, and social proof pulled from their real reviews. Cormorant Garamond headlines give it an elevated feel without losing the street food soul.",
+    results: [
+      "Full interactive menu with 50+ items live on day one",
+      "One-tap call, directions, and delivery ordering",
+      "Mobile-first design — 70% of their traffic is phone",
+      "Shipped and deployed in under 24 hours",
+    ],
+    tech: ["Next.js", "TypeScript", "Vercel", "Tailwind CSS"],
+    rotation: -2.5,
+    url: "https://ros-niyom-thai-4993e7.vercel.app",
+    darkPreview: true,
+  },
+  {
     slug: "payo",
     name: "Payo",
     industry: "Fintech",
@@ -45,18 +95,18 @@ export const PROJECTS: Project[] = [
   },
   {
     slug: "jason-xu",
-    name: "Jason Xu — Personal Portfolio",
+    name: "Jason Xu — Founder Portfolio",
     industry: "Portfolio",
-    caption: "award-winning at seventeen",
+    caption: "the face behind Clarmi",
     color: "#60A5FA",
     gradient: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 40%, #16213e 70%, #0f3460 100%)",
     improvement: "3x Awwwards winner",
     brief:
-      "Jason Xu is a fullstack developer and Figma designer — at 17. His work rivals studios twice his age, but his old portfolio didn't reflect that. He needed something that would turn heads and win industry recognition.",
+      "Jason Xu is the founder of Clarmi Design Studio — a fullstack engineer and designer who started winning international design awards at 17. This portfolio captures the craft and vision behind the studio itself.",
     challenge:
-      "Jason's projects were exceptional but his online presence was forgettable. A basic portfolio couldn't convey the depth of his design and engineering skills. He needed an immersive experience that matched his ambition — something award-worthy.",
+      "As the founder of a design studio, Jason's personal brand is the studio's brand. His previous portfolio didn't reflect the caliber of work Clarmi delivers. He needed an immersive, award-worthy experience that would establish credibility for both himself and the studio.",
     solution:
-      "We built a cinematic, scroll-driven portfolio with fluid page transitions, custom animations, and a distinctive dark aesthetic. Every micro-interaction was crafted to reflect Jason's attention to detail — from smooth reveals to carefully choreographed scroll sequences. The result is a portfolio that feels like a product, not a template.",
+      "We built a cinematic, scroll-driven portfolio with fluid page transitions, custom animations, and a distinctive dark aesthetic. Every micro-interaction was crafted to reflect the attention to detail that defines Clarmi's work — from smooth reveals to carefully choreographed scroll sequences. The result is a portfolio that feels like a product, not a template.",
     results: [
       "Won Awwwards Site of the Day",
       "Won CSS Design Awards Website of the Day",
