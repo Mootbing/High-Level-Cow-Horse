@@ -1,4 +1,4 @@
-"""Google GenAI client — Nano Banana (Gemini 2.5 Flash Image) + Veo 3."""
+"""Google GenAI client — Nano Banana (Gemini 2.5 Flash Image) + Veo 3.1."""
 
 from __future__ import annotations
 
@@ -17,23 +17,26 @@ GENAI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 # Model names per the official quickstart:
 # https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart
 NANO_BANANA_MODEL = "gemini-2.5-flash-image"  # Nano Banana image generation
-VEO_MODEL = "veo-3.0-generate-001"  # Veo 3 video generation (fallback)
-VEO_3_1_MODEL = "veo-3.1-fast-generate-preview"  # Veo 3.1 Fast — supports first+last frame mode
+VEO_MODEL = "veo-3.1-generate-001"  # Veo 3.1 — all video generation
 
 
 async def generate_image(
-    prompt: str, model: str = NANO_BANANA_MODEL
+    prompt: str,
+    model: str = NANO_BANANA_MODEL,
+    aspect_ratio: str = "16:9",
 ) -> bytes:
     """Generate an image using Nano Banana (Gemini 2.5 Flash Image Preview).
 
     Uses the generateContent endpoint with image output.
-    Returns raw image bytes (PNG).
+    Returns raw image bytes (PNG). Default aspect ratio is 16:9 to match
+    video output and ensure consistent full-viewport coverage.
     """
     url = f"{GENAI_BASE}/models/{model}:generateContent"
     payload = {
         "contents": [{"parts": [{"text": prompt}]}],
         "generationConfig": {
             "responseModalities": ["IMAGE", "TEXT"],
+            "aspectRatio": aspect_ratio,
         },
     }
     async with httpx.AsyncClient(timeout=120) as client:
@@ -60,23 +63,20 @@ async def generate_video(
     prompt: str,
     reference_image: bytes | None = None,
     last_frame_image: bytes | None = None,
-    duration_seconds: int = 8,
+    duration_seconds: int = 3,
     resolution: str = "1080p",
     aspect_ratio: str = "16:9",
     model: str | None = None,
 ) -> str:
-    """Generate a video using Veo. Returns the operation name for polling.
+    """Generate a video using Veo 3.1. Returns the video URI.
 
-    Supports Veo 3.1's first+last frame mode: pass reference_image as the first frame
-    and last_frame_image as the last frame to generate a smooth transition between them.
-    This is ideal for scroll-controlled section transitions.
+    Supports first+last frame mode: pass reference_image as the first frame
+    and last_frame_image as the last frame to generate a smooth transition.
 
-    If both reference_image and last_frame_image are provided, Veo 3.1 Fast is used
-    automatically (Veo 3.0 does not support last_frame).
+    Duration defaults to 3 seconds to minimize cost. Audio is always disabled.
     """
-    # Use Veo 3.1 when last_frame is needed, otherwise try 3.1 with 3.0 fallback
     if model is None:
-        model = VEO_3_1_MODEL if last_frame_image else VEO_MODEL
+        model = VEO_MODEL
 
     url = f"{GENAI_BASE}/models/{model}:predictLongRunning"
 
@@ -88,6 +88,7 @@ async def generate_video(
             "durationSeconds": duration_seconds,
             "aspectRatio": aspect_ratio,
             "resolution": resolution,
+            "includeAudio": False,
         },
     }
 
@@ -104,15 +105,35 @@ async def generate_video(
         }
 
     async with httpx.AsyncClient(timeout=600) as client:
-        # Start generation
-        response = await client.post(
-            url,
-            json=request_body,
-            params={"key": settings.GOOGLE_AI_API_KEY},
-        )
-        if response.status_code != 200:
-            logger.error("veo3_start_error", status=response.status_code, body=response.text[:500])
-            response.raise_for_status()
+        # Start generation — retry up to 3 times for transient errors (429, 400, 503)
+        response = None
+        for attempt in range(3):
+            response = await client.post(
+                url,
+                json=request_body,
+                params={"key": settings.GOOGLE_AI_API_KEY},
+            )
+            if response.status_code == 200:
+                break
+            if response.status_code in (429, 503) or (response.status_code == 400 and attempt < 2):
+                wait = (attempt + 1) * 15  # 15s, 30s, 45s
+                logger.warning(
+                    "veo3_retry",
+                    status=response.status_code,
+                    attempt=attempt + 1,
+                    wait=wait,
+                    body=response.text[:300],
+                )
+                await asyncio.sleep(wait)
+            else:
+                break
+
+        if response is None or response.status_code != 200:
+            body = response.text[:500] if response else "no response"
+            logger.error("veo3_start_error", status=getattr(response, "status_code", None), body=body)
+            if response is not None:
+                response.raise_for_status()
+            raise RuntimeError("Veo 3 video generation failed — no response after retries")
 
         operation = response.json()
         operation_name = operation.get("name", "")
@@ -163,8 +184,19 @@ async def generate_video(
 
 
 async def download_video(uri: str) -> bytes:
-    """Download a generated video from its URI."""
-    async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.get(uri)
+    """Download a generated video from its URI.
+
+    Google's file API returns a 302 redirect to the actual download URL.
+    We need follow_redirects=True and must pass the API key on every request.
+    """
+    # Ensure the API key is in the URI (some URIs already have it, some don't)
+    separator = "&" if "?" in uri else "?"
+    authenticated_uri = f"{uri}{separator}key={settings.GOOGLE_AI_API_KEY}" if "key=" not in uri else uri
+
+    async with httpx.AsyncClient(timeout=180, follow_redirects=True) as client:
+        response = await client.get(authenticated_uri)
+        if response.status_code != 200:
+            logger.error("video_download_error", status=response.status_code, url=uri[:100])
         response.raise_for_status()
+        logger.info("video_downloaded", size_bytes=len(response.content))
         return response.content

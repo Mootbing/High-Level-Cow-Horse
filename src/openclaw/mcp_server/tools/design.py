@@ -1,4 +1,4 @@
-"""Design tools — generate images (Nano Banana) and videos (Veo 3), upload to GitHub repo."""
+"""Design tools — generate images (Nano Banana) and videos (Veo 3.1), upload to GitHub repo."""
 
 import json
 import os
@@ -109,7 +109,7 @@ async def generate_transition_video(
     section: str,
     keyframe_a_prompt: str,
     keyframe_b_prompt: str,
-    duration: int = 6,
+    duration: int = 3,
 ) -> str:
     """Generate a scroll-controlled transition video: keyframe A (image) → Veo transition → keyframe B (image).
 
@@ -263,7 +263,7 @@ async def generate_scene_assets(
                     section=section_name,
                     keyframe_a_prompt=kf_a_prompt,
                     keyframe_b_prompt=kf_b_prompt,
-                    duration=item.get("duration", 8),
+                    duration=item.get("duration", 3),
                 )
                 result = json.loads(result_str)
                 result["asset_type"] = "hero_video"
@@ -283,7 +283,7 @@ async def generate_scene_assets(
                 section=section_name,
                 keyframe_a_prompt=item.get("keyframe_a_prompt", prompt),
                 keyframe_b_prompt=item.get("keyframe_b_prompt", prompt),
-                duration=item.get("duration", 6),
+                duration=item.get("duration", 3),
             )
             result = json.loads(result_str)
             result["asset_type"] = "transition"
@@ -309,8 +309,8 @@ async def generate_scene_assets(
 
 
 @mcp.tool()
-async def generate_video(prompt: str, project_name: str, duration: int = 8) -> str:
-    """Generate a hero video using Veo 3 (Google AI) and upload to the project's GitHub repo.
+async def generate_video(prompt: str, project_name: str, duration: int = 3) -> str:
+    """Generate a hero video using Veo 3.1 (Google AI) and upload to the project's GitHub repo.
 
     The video is uploaded to /public/assets/ so Vercel serves it at the site root.
     Returns the public URL path (e.g. /assets/hero-video-abc123.mp4).

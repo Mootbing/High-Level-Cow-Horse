@@ -194,6 +194,8 @@ Read `templates/prompts/immersive-site.md` for the full design system reference 
 
 **CRITICAL**: NEVER include text, words, letters, or logos in generated images or videos. All text is added by code.
 
+**ASPECT RATIO RULE**: ALL generated images and videos MUST be 16:9. Nano Banana images default to 16:9 via the `aspectRatio` parameter. Veo videos are always 16:9. In the built site, ALL hero videos, keyframe images, and background images MUST use `object-fit: cover` (CSS) to crop-to-fill the viewport — never letterbox, never stretch. This ensures full-bleed visuals at any screen size.
+
 **IMAGE SOURCING PRIORITY**: Prefer real photos from the prospect's existing site over AI-generated images. During Step 1 (Research), you extracted image URLs from the original site. Use those FIRST — they're authentic photos of the actual business, food, products, team, and space. Only use `generate_image` (Nano Banana) for:
 - Hero video keyframes (abstract/atmospheric starting and ending states for scroll video)
 - Transition keyframes (abstract visual states for A→B morphs)
