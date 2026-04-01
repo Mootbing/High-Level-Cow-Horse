@@ -13,31 +13,24 @@ logger = structlog.get_logger()
 
 
 async def _get_project_repo(project_name: str) -> str:
-    """Look up the GitHub repo full name from project metadata."""
+    """Look up the GitHub repo full name from project metadata.
+
+    Raises RuntimeError if no repo is found — never guesses.
+    """
     from openclaw.db.session import async_session_factory
-    from openclaw.models.project import Project
-    from slugify import slugify
-    from sqlalchemy import select
+    from openclaw.services.project_service import find_project_by_name
 
     async with async_session_factory() as session:
-        slug_prefix = slugify(project_name)
-        stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-        result = await session.execute(stmt)
-        project = result.scalars().first()
-
-        if not project:
-            stmt = select(Project).where(Project.name.ilike(f"%{project_name}%")).limit(1)
-            result = await session.execute(stmt)
-            project = result.scalars().first()
-
+        project = await find_project_by_name(session, project_name)
         if project and project.metadata_:
             repo = project.metadata_.get("github_repo")
             if repo:
                 return repo
 
-    from openclaw.integrations.github_client import get_authenticated_user
-    user = await get_authenticated_user()
-    return f"{user}/{project_name}"
+    raise RuntimeError(
+        f"No GitHub repo found for project '{project_name}'. "
+        "Run create_project first — GitHub repo must be provisioned before uploading assets."
+    )
 
 
 async def _upload_asset(project_name: str, filename: str, content: bytes) -> str:

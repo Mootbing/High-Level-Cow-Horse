@@ -926,16 +926,12 @@ async def store_site_structure(
     try:
         from openclaw.db.session import async_session_factory
         from openclaw.models.prospect import Prospect
+        from openclaw.services.project_service import find_project_by_name
         from sqlalchemy import select
-        from slugify import slugify
 
         async with async_session_factory() as session:
             # Find prospect via project
-            from openclaw.models.project import Project
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
+            project = await find_project_by_name(session, project_name)
 
             if project and project.prospect_id:
                 stmt = select(Prospect).where(Prospect.id == project.prospect_id)
