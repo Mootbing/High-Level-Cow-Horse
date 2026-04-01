@@ -74,71 +74,83 @@ function PolaroidCard({
             position: "relative",
           }}
         >
-          {/* Project preview mockup */}
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "clamp(0.5rem, 1vw, 0.8rem)",
-            }}
-          >
-            {/* Browser mockup */}
+          {project.screenshot ? (
+            /* Actual screenshot */
+            <img
+              src={project.screenshot}
+              alt={project.name}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: "top center",
+              }}
+            />
+          ) : (
+            /* Fallback: CSS browser mockup */
             <div
               style={{
-                width: "80%",
-                height: "65%",
-                background: project.darkPreview ? "rgba(15,15,15,0.95)" : "rgba(255,255,255,0.95)",
-                borderRadius: "8px",
-                boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
-                overflow: "hidden",
+                position: "absolute",
+                inset: 0,
                 display: "flex",
                 flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "clamp(0.5rem, 1vw, 0.8rem)",
               }}
             >
-              {/* Browser bar */}
               <div
                 style={{
-                  height: "clamp(16px, 2vw, 22px)",
-                  background: project.darkPreview ? "#1a1a1a" : "#f5f5f5",
-                  borderBottom: `1px solid ${project.darkPreview ? "#2a2a2a" : "#e5e5e5"}`,
+                  width: "80%",
+                  height: "65%",
+                  background: project.darkPreview ? "rgba(15,15,15,0.95)" : "rgba(255,255,255,0.95)",
+                  borderRadius: "8px",
+                  boxShadow: "0 8px 32px rgba(0,0,0,0.18)",
+                  overflow: "hidden",
                   display: "flex",
-                  alignItems: "center",
-                  padding: "0 8px",
-                  gap: "4px",
+                  flexDirection: "column",
                 }}
               >
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5f57" }} />
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ffbd2e" }} />
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#28c840" }} />
+                <div
+                  style={{
+                    height: "clamp(16px, 2vw, 22px)",
+                    background: project.darkPreview ? "#1a1a1a" : "#f5f5f5",
+                    borderBottom: `1px solid ${project.darkPreview ? "#2a2a2a" : "#e5e5e5"}`,
+                    display: "flex",
+                    alignItems: "center",
+                    padding: "0 8px",
+                    gap: "4px",
+                  }}
+                >
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ff5f57" }} />
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#ffbd2e" }} />
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#28c840" }} />
+                </div>
+                <div style={{ flex: 1, padding: "clamp(6px, 1vw, 12px)", display: "flex", flexDirection: "column", gap: "clamp(3px, 0.5vw, 6px)" }}>
+                  <div style={{ width: "60%", height: "clamp(6px, 1vw, 10px)", borderRadius: 3, background: project.color, opacity: 0.8 }} />
+                  <div style={{ width: "80%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: project.darkPreview ? "#2a2a2a" : "#e5e5e5" }} />
+                  <div style={{ width: "70%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: project.darkPreview ? "#2a2a2a" : "#e5e5e5" }} />
+                  <div style={{ flex: 1, borderRadius: 4, background: `${project.color}15`, marginTop: "clamp(2px, 0.3vw, 4px)" }} />
+                </div>
               </div>
-              {/* Content area */}
-              <div style={{ flex: 1, padding: "clamp(6px, 1vw, 12px)", display: "flex", flexDirection: "column", gap: "clamp(3px, 0.5vw, 6px)" }}>
-                <div style={{ width: "60%", height: "clamp(6px, 1vw, 10px)", borderRadius: 3, background: project.color, opacity: 0.8 }} />
-                <div style={{ width: "80%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: project.darkPreview ? "#2a2a2a" : "#e5e5e5" }} />
-                <div style={{ width: "70%", height: "clamp(4px, 0.6vw, 6px)", borderRadius: 2, background: project.darkPreview ? "#2a2a2a" : "#e5e5e5" }} />
-                <div style={{ flex: 1, borderRadius: 4, background: `${project.color}15`, marginTop: "clamp(2px, 0.3vw, 4px)" }} />
+              <div
+                style={{
+                  padding: "3px 10px",
+                  background: "rgba(255,255,255,0.85)",
+                  borderRadius: "100px",
+                  fontSize: "clamp(0.6rem, 0.75vw, 0.7rem)",
+                  fontWeight: 600,
+                  color: project.color,
+                  letterSpacing: "0.05em",
+                  backdropFilter: "blur(4px)",
+                }}
+              >
+                {project.industry}
               </div>
             </div>
-            {/* Industry badge */}
-            <div
-              style={{
-                padding: "3px 10px",
-                background: "rgba(255,255,255,0.85)",
-                borderRadius: "100px",
-                fontSize: "clamp(0.6rem, 0.75vw, 0.7rem)",
-                fontWeight: 600,
-                color: project.color,
-                letterSpacing: "0.05em",
-                backdropFilter: "blur(4px)",
-              }}
-            >
-              {project.industry}
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Caption (handwritten) */}
