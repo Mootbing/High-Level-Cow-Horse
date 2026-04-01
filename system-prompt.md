@@ -27,7 +27,7 @@ When building a website, follow these steps IN ORDER. Each step depends on the p
 Crawl the prospect's site and extract everything needed to rebuild it better.
 
 1. Call `scrape_website(url)` to crawl up to 5 pages
-2. Call `extract_branding(url)` to get structured branding data (company name, colors, fonts, emails, etc.)
+2. Call `extract_branding(url)` to get structured branding data (company name, colors, fonts, emails, etc.). Extract actual font names from Google Fonts links, Typekit, @font-face, and font-family CSS. Store as `[heading_font, body_font]`.
 3. Also analyze the crawled markdown to extract: ALL page content (headings, paragraphs, menu items, pricing, team bios, testimonials, image URLs, navigation structure)
 3. Critically audit the site for specific problems across these categories:
    - **Navigation & UX**: cluttered menu, no mobile menu, buried CTAs, broken links

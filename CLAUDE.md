@@ -29,7 +29,7 @@ When building a website, follow these steps IN ORDER. Each step depends on the p
 Crawl the prospect's site and extract everything needed to rebuild it better.
 
 1. Use WebFetch to fetch the prospect's homepage and up to 4 key subpages (about, services, contact, etc.)
-2. Analyze the fetched content to extract structured branding data (company name, tagline, colors, fonts, emails, social links, tech stack, etc.)
+2. Analyze the fetched content to extract structured branding data (company name, tagline, colors, fonts, emails, social links, tech stack, etc.). **For fonts**: look for Google Fonts `<link>` tags, Typekit/Adobe Fonts references, `font-family` declarations in CSS, and `@font-face` rules. Store the actual font names (e.g. `["Playfair Display", "Source Sans 3"]`), not just "Typekit" or "Google Fonts". If the original fonts are generic system fonts or unidentifiable, pick Google Fonts that match the business vibe (serif for heritage/upscale, sans-serif for modern/clean, slab for bold/casual).
 3. Also extract: ALL page content (headings, paragraphs, menu items, pricing, team bios, testimonials, image URLs, navigation structure)
 3. Critically audit the site for specific problems across these categories:
    - **Navigation & UX**: cluttered menu, no mobile menu, buried CTAs, broken links
@@ -138,6 +138,7 @@ Build a fully responsive Next.js landing page with scroll-driven animations.
 - A deployed site with 5 good sections beats an undeployed site with 15 sections
 - **NEVER default to dark theme + gold accent for every site.** Each site's color palette MUST come from the prospect's actual brand colors stored in `brand_colors`. A bagel deli should look warm and inviting (cream, brown, red). A Thai restaurant should reflect Thai culture (white, red, gold). A law firm should look professional (navy, white, silver). Match the industry and the brand — not a generic "luxury" aesthetic.
 - Before writing any CSS/styles, explicitly reference the `brand_colors` array from the prospect data and build the palette from those values. If the extracted colors all look wrong or generic, go back and re-extract from the actual site.
+- **NEVER hardcode the same fonts for every site.** Use the prospect's `fonts` array to set the typography. Load them via Google Fonts `<link>` in `layout.tsx`. If the prospect's original fonts are available on Google Fonts, use them. If not, pick Google Fonts that match the same style/vibe. A 1961 bagel shop gets different fonts than a modern Thai restaurant. Store fonts as `[heading_font, body_font]` in the prospect record.
 
 ### Step 5: QA
 
