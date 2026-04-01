@@ -157,7 +157,7 @@ export default function Hero() {
           right: 0,
           height: "100%",
           zIndex: 1,
-          pointerEvents: "none",
+          pointerEvents: "auto",
         }}
       >
         <PrismScene />

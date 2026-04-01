@@ -172,16 +172,36 @@ export default function Pricing() {
 
           {/* Price */}
           <div>
-            <span style={{
-              fontFamily: '"Instrument Serif", Georgia, serif',
-              fontSize: "clamp(3rem, 6vw, 4.5rem)",
-              lineHeight: 1,
-              color: "var(--accent)",
-            }}>
-              $250
-            </span>
-            <div style={{ marginTop: "0.25rem" }}>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem" }}>
+              <span style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: "clamp(3rem, 6vw, 4.5rem)",
+                lineHeight: 1,
+                color: "var(--accent)",
+              }}>
+                $250
+              </span>
+              <span style={{
+                fontFamily: '"Instrument Serif", Georgia, serif',
+                fontSize: "clamp(1.4rem, 2.5vw, 1.8rem)",
+                lineHeight: 1,
+                color: "var(--text-light)",
+                textDecoration: "line-through",
+                opacity: 0.4,
+              }}>
+                $500
+              </span>
+            </div>
+            <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem", marginTop: "0.25rem" }}>
               <span className="price-period">+ $50/mo for a limited time</span>
+              <span style={{
+                fontSize: "clamp(0.75rem, 0.85vw, 0.82rem)",
+                color: "var(--text-light)",
+                textDecoration: "line-through",
+                opacity: 0.4,
+              }}>
+                $100/mo
+              </span>
             </div>
           </div>
 
