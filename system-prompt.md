@@ -55,7 +55,7 @@ Analyze the local competitive landscape after research completes.
 
 Generate visual assets for the website using Google AI.
 
-**Design direction**: Modern minimal, AI-infrastructure aesthetic. Black/white, neon accents (cyan, magenta, electric blue). Large typography, heavy whitespace, cinematic feel. Inspired by Apple/Anthropic/Vercel.
+**Design direction**: Adapt to the prospect's brand and industry. Use the prospect's `brand_colors` to set the palette — a bagel shop should feel warm and inviting (cream, brown, red), a Thai restaurant should reflect Thai culture (white, red, gold), a law firm should look professional (navy, white). NEVER default to dark theme + gold for every site. Large typography, heavy whitespace, cinematic feel.
 
 **CRITICAL**: NEVER include text, words, letters, or logos in generated images. All text is added by code.
 
