@@ -136,6 +136,8 @@ Build a fully responsive Next.js landing page with scroll-driven animations.
 - If no brand data provided, return error: "ERROR: No brand data provided"
 - GPU-accelerated animations only (transform, opacity). Mobile-first responsive.
 - A deployed site with 5 good sections beats an undeployed site with 15 sections
+- **NEVER default to dark theme + gold accent for every site.** Each site's color palette MUST come from the prospect's actual brand colors stored in `brand_colors`. A bagel deli should look warm and inviting (cream, brown, red). A Thai restaurant should reflect Thai culture (white, red, gold). A law firm should look professional (navy, white, silver). Match the industry and the brand — not a generic "luxury" aesthetic.
+- Before writing any CSS/styles, explicitly reference the `brand_colors` array from the prospect data and build the palette from those values. If the extracted colors all look wrong or generic, go back and re-extract from the actual site.
 
 ### Step 5: QA
 
