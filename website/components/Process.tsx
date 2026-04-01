@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const STEPS = [
   {
@@ -33,30 +37,56 @@ const BG_WORDS = ["DESIGN", "BUILD", "LAUNCH", "SHIP"];
 
 export default function Process() {
   const ref = useRef<HTMLElement>(null);
+  const scrollRowsRef = useRef<(HTMLDivElement | null)[]>([]);
 
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            el.querySelectorAll(".reveal").forEach((r, i) => {
-              setTimeout(() => r.classList.add("active"), i * 120);
-            });
-            observer.disconnect();
-          }
+
+    const ctx = gsap.context(() => {
+      // Scroll-driven text rows — move along rotation axis
+      scrollRowsRef.current.forEach((row, i) => {
+        if (!row) return;
+        const direction = i % 2 === 0 ? 1 : -1;
+        const angleDeg = direction === 1 ? -12 : 12;
+        const angleRad = (angleDeg * Math.PI) / 180;
+        const dist = 400;
+        gsap.to(row, {
+          x: () => direction * Math.cos(angleRad) * dist,
+          y: () => direction * Math.sin(angleRad) * dist,
+          ease: "none",
+          scrollTrigger: {
+            trigger: el,
+            start: "top bottom",
+            end: "bottom top",
+            scrub: 0.5,
+          },
         });
-      },
-      { threshold: 0.08 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
+      });
+
+      // Reveal animations
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              el.querySelectorAll(".reveal").forEach((r, idx) => {
+                setTimeout(() => r.classList.add("active"), idx * 120);
+              });
+              observer.disconnect();
+            }
+          });
+        },
+        { threshold: 0.08 }
+      );
+      observer.observe(el);
+    }, el);
+
+    return () => ctx.revert();
   }, []);
 
   return (
     <section ref={ref} className="section" id="process" style={{ position: "relative", overflow: "hidden" }}>
-      {/* Background angled bold text */}
+      {/* Background scroll-driven text */}
       <div style={{
         position: "absolute",
         inset: 0,
@@ -64,28 +94,32 @@ export default function Process() {
         pointerEvents: "none",
         zIndex: 0,
       }}>
-        {BG_WORDS.map((word, i) => (
-          <div
-            key={word}
-            style={{
-              position: "absolute",
-              fontFamily: '"Inter", system-ui, sans-serif',
-              fontSize: "clamp(4rem, 8vw, 7rem)",
-              fontWeight: 900,
-              color: "var(--text)",
-              opacity: 0.022,
-              whiteSpace: "nowrap",
-              transform: "rotate(-12deg)",
-              top: `${i * 25 - 5}%`,
-              left: "-5%",
-              letterSpacing: "0.05em",
-              userSelect: "none",
-              textTransform: "uppercase",
-            }}
-          >
-            {word} &middot; {word} &middot; {word} &middot; {word}
-          </div>
-        ))}
+        {BG_WORDS.map((word, i) => {
+          const direction = i % 2 === 0;
+          return (
+            <div
+              key={word}
+              ref={(el) => { scrollRowsRef.current[i] = el; }}
+              style={{
+                position: "absolute",
+                fontFamily: '"Inter", system-ui, sans-serif',
+                fontSize: "clamp(4rem, 8vw, 7rem)",
+                fontWeight: 900,
+                color: "var(--text)",
+                opacity: 0.022,
+                whiteSpace: "nowrap",
+                transform: `rotate(${direction ? -12 : 12}deg) translateX(${direction ? "-200px" : "0px"})`,
+                top: `${i * 25 - 5}%`,
+                left: "-20%",
+                letterSpacing: "0.05em",
+                userSelect: "none",
+                textTransform: "uppercase",
+              }}
+            >
+              {`${word} · `.repeat(10)}
+            </div>
+          );
+        })}
       </div>
 
       <div className="container" style={{ position: "relative", zIndex: 1 }}>

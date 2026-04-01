@@ -13,6 +13,7 @@ export interface Project {
   tech: string[];
   rotation: number;
   url?: string;
+  screenshot?: string;
   awards?: { title: string; org: string }[];
   darkPreview?: boolean;
 }
@@ -66,6 +67,7 @@ export const PROJECTS: Project[] = [
     tech: ["Next.js", "TypeScript", "Vercel", "Tailwind CSS"],
     rotation: -2.5,
     url: "https://ros-niyom-thai-4993e7.vercel.app",
+    screenshot: "/assets/ros-niyom-site.png",
     darkPreview: true,
   },
   {
@@ -91,6 +93,7 @@ export const PROJECTS: Project[] = [
     tech: ["Next.js", "TypeScript", "Tailwind CSS", "Vercel"],
     rotation: 1.8,
     url: "https://payo.dev",
+    screenshot: "/assets/payo-site.png",
     darkPreview: true,
   },
   {
@@ -116,6 +119,7 @@ export const PROJECTS: Project[] = [
     tech: ["Next.js", "React", "GSAP", "Vercel"],
     rotation: -1.2,
     url: "https://17.jasonxu.me",
+    screenshot: "/assets/jason-xu-site.png",
     darkPreview: true,
     awards: [
       { title: "Site of the Day", org: "Awwwards" },

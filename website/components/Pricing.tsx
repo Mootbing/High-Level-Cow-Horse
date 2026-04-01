@@ -18,9 +18,6 @@ const TIERS = [
 ];
 
 const CLARMI = {
-  price: "$500",
-  monthly: "+ $50/mo",
-  monthlyLabel: "everything included",
   description: "Custom design. 48-hour delivery. Don't pay until you're happy.",
   features: [
     "Custom design from scratch — no templates",
@@ -169,21 +166,23 @@ export default function Pricing() {
               letterSpacing: "0.03em",
               border: "1px solid rgba(124, 92, 252, 0.15)",
             }}>
-              Best Value
+              Inauguration Discount
             </span>
           </div>
 
-          <div style={{ display: "flex", alignItems: "baseline", gap: "0.5rem", flexWrap: "wrap" }}>
+          {/* Price */}
+          <div>
             <span style={{
               fontFamily: '"Instrument Serif", Georgia, serif',
               fontSize: "clamp(3rem, 6vw, 4.5rem)",
               lineHeight: 1,
               color: "var(--accent)",
             }}>
-              {CLARMI.price}
+              $250
             </span>
-            <span className="price-period">{CLARMI.monthly}</span>
-            <span className="price-period" style={{ opacity: 0.7 }}>{CLARMI.monthlyLabel}</span>
+            <div style={{ marginTop: "0.25rem" }}>
+              <span className="price-period">+ $50/mo for a limited time</span>
+            </div>
           </div>
 
           <p className="text-body" style={{ marginTop: "clamp(0.6rem, 1vh, 0.8rem)" }}>
