@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import AuditForm from "@/components/AuditForm";
 
 export default function CTA() {
   const ref = useRef<HTMLElement>(null);
@@ -24,14 +25,6 @@ export default function CTA() {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
-
-  const handleClick = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    setTimeout(() => {
-      const input = document.querySelector<HTMLInputElement>(".url-input-wrapper input");
-      input?.focus();
-    }, 600);
-  };
 
   return (
     <section
@@ -65,13 +58,9 @@ export default function CTA() {
           <br /><em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>together</em>
         </h2>
 
-        <button
-          onClick={handleClick}
-          className="btn-primary reveal delay-2"
-          style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", background: "var(--accent)" }}
-        >
-          Get Started
-        </button>
+        <div className="reveal delay-2" style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", width: "100%", maxWidth: 520 }}>
+          <AuditForm />
+        </div>
       </div>
     </section>
   );

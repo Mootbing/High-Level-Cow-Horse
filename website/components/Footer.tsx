@@ -5,11 +5,11 @@ const LINKS = {
     { label: "From The Founder", href: "#founder" },
     { label: "Process", href: "#process" },
     { label: "Pricing", href: "#pricing" },
-    { label: "Contact", href: "mailto:jason@clarmi.studio" },
   ],
   Resources: [
     { label: "Free Audit", href: "#cta" },
     { label: "Case Studies", href: "#work" },
+    { label: "Email Us", href: "mailto:jason@clarmi.studio" },
   ],
 };
 
