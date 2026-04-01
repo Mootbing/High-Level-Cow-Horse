@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import html as _html
 from email.mime.text import MIMEText
 
 import httpx
@@ -33,6 +34,9 @@ async def send_email(to: str, subject: str, body: str) -> dict:
     """Send an email via Gmail API."""
     access_token = await _get_access_token()
 
+    # If the body isn't already HTML, convert plain text to HTML-safe format
+    if "<html" not in body.lower() and "<body" not in body.lower():
+        body = _html.escape(body).replace("\n", "<br>\n")
     message = MIMEText(body, "html")
     message["to"] = to
     message["from"] = settings.GMAIL_SENDER_EMAIL
