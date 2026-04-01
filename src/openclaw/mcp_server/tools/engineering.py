@@ -385,6 +385,9 @@ async def verify_build(project_name: str) -> str:
         return json.dumps({"status": "timeout", "step": "npm install", "message": "npm install timed out after 180s."})
     except FileNotFoundError:
         return json.dumps({"status": "skip", "message": "npm not available — skip and deploy."})
+    except Exception as e:
+        logger.error("verify_build_install_crash", project=project_name, error=str(e)[:300])
+        return json.dumps({"status": "error", "step": "npm install", "message": f"Unexpected error: {str(e)[:200]}"})
 
     # ── Step 3: TypeScript check (non-blocking — warnings only) ──
     tsc_warnings = None
@@ -397,7 +400,7 @@ async def verify_build(project_name: str) -> str:
         if tsc_result.returncode != 0:
             tsc_warnings = (tsc_result.stderr + tsc_result.stdout)[-2000:]
             logger.warning("verify_build_tsc_errors", project=project_name, errors=tsc_warnings[:500])
-    except (subprocess.TimeoutExpired, FileNotFoundError):
+    except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
         pass  # tsc is advisory — next build catches type errors too
 
     # ── Step 4: npm run build ──
@@ -420,6 +423,9 @@ async def verify_build(project_name: str) -> str:
             return json.dumps(result)
     except subprocess.TimeoutExpired:
         return json.dumps({"status": "timeout", "step": "npm run build", "message": "Build timed out after 180s."})
+    except Exception as e:
+        logger.error("verify_build_build_crash", project=project_name, error=str(e)[:300])
+        return json.dumps({"status": "error", "step": "npm run build", "message": f"Unexpected error: {str(e)[:200]}"})
 
     # ── All passed ──
     result = {"status": "pass", "message": "Build succeeded (clean install). Safe to deploy."}
