@@ -8,14 +8,17 @@ have rhythm — fast/slow, active/passive, dense/spacious — like music.
 A page that's ALL cinematic feels exhausting. A page that's ALL static feels boring.
 Alternate between **active** (scroll-driven, interactive) and **passive** (static, readable) sections.
 
+The Three.js persistent scene runs behind ALL content sections, providing ambient visual depth.
+ReactBits components add polish to every section. The hero is ALWAYS scroll-controlled video.
+
 ```
-ACTIVE  → Hero (3D/video, scroll-pinned)
-PASSIVE → Text reveal (simple, breathing room)
+ACTIVE  → Hero (scroll video, pinned — keyframe A→B via Veo 3.1)
+PASSIVE → Text reveal (ReactBits text animation, Three.js floats behind)
 ACTIVE  → Scroll transition (video morph, pinned)
-PASSIVE → Feature cards (stagger entrance, then static)
+PASSIVE → Feature cards (ReactBits tilt cards, Three.js ambient behind)
 ACTIVE  → Parallax gallery or horizontal scroll
-PASSIVE → Stats/testimonials (simple animations)
-ACTIVE  → CTA (magnetic button, gradient/particles)
+PASSIVE → Stats/testimonials (ReactBits counters, Three.js particle accents)
+ACTIVE  → CTA (ReactBits magnetic button + aurora bg, Three.js accent elements)
 PASSIVE → Footer (stagger-in, then static)
 ```
 
@@ -39,49 +42,49 @@ PASSIVE → Footer (stagger-in, then static)
 
 ### Template A: "The Showcase" (most common — restaurants, salons, retail)
 ```
-1. Scroll Video Hero (3x pin) — brand video plays through
-2. Text Reveal — mission statement or tagline
-3. Feature Cards — services/menu highlights (stagger entrance)
-4. Parallax Gallery — photos of work/products at different depths
-5. Stats — "500+ happy customers", "4.9 Google rating"
-6. CTA — "Book Now" / "Visit Us" with magnetic button
+1. Scroll Video Hero (3x pin) — keyframe A→B video plays frame-by-frame on scroll
+2. Text Reveal — mission statement or tagline (ReactBits blur text, Three.js particles behind)
+3. Feature Cards — services/menu highlights (ReactBits tilt cards, Three.js warm organic shapes)
+4. Parallax Gallery — photos of work/products at different depths (Three.js floating elements)
+5. Stats — "500+ happy customers", "4.9 Google rating" (ReactBits counters)
+6. CTA — "Book Now" / "Visit Us" (ReactBits magnetic button + aurora background)
 7. Footer
 ```
 Total scroll: ~12x viewport heights. Duration: ~45-60 seconds of engaged scrolling.
 
 ### Template B: "The Experience" (tech, agencies, luxury)
 ```
-1. 3D Scene Hero (2x pin) — glass/wireframe object, scroll dissolves it
-2. Scroll Transition — Veo morph from abstract to concrete
-3. Text Reveal — bold value proposition, word by word
-4. Horizontal Scroll — services/portfolio as horizontal cards
-5. Feature Grid — key differentiators (stagger + 3D tilt)
-6. CTA — gradient shader background + magnetic button
+1. Scroll Video Hero (3x pin) — keyframe A→B video, abstract opening to concrete reveal
+2. Scroll Transition — Veo morph from hero end state to content aesthetic
+3. Text Reveal — bold value proposition (ReactBits split text, Three.js wireframe network behind)
+4. Horizontal Scroll — services/portfolio as horizontal cards (ReactBits spotlight cards)
+5. Feature Grid — key differentiators (ReactBits tilt cards, Three.js geometric accents)
+6. CTA — ReactBits magnetic button + aurora bg, Three.js glass elements
 7. Footer
 ```
 Total scroll: ~14x viewport heights. Duration: ~60-90 seconds.
 
 ### Template C: "The Story" (real estate, hospitality, education)
 ```
-1. Scroll Video Hero (3x pin) — aerial/establishing shot
-2. Text Reveal — "Where [quality] meets [quality]"
-3. Parallax Gallery — property/campus photos at different speeds
+1. Scroll Video Hero (3x pin) — keyframe A: wide exterior → keyframe B: intimate interior
+2. Text Reveal — "Where [quality] meets [quality]" (ReactBits blur text)
+3. Parallax Gallery — property/campus photos (Three.js golden architecture forms behind)
 4. Scroll Transition — morph from exterior to interior
-5. Feature Cards — amenities/programs (stagger entrance)
-6. Stats — key numbers (animated counters)
-7. CTA — "Schedule a Visit" / "Apply Now"
+5. Feature Cards — amenities/programs (ReactBits spotlight cards)
+6. Stats — key numbers (ReactBits animated counters, Three.js particle burst)
+7. CTA — "Schedule a Visit" / "Apply Now" (ReactBits magnetic button)
 8. Footer
 ```
 Total scroll: ~15x viewport heights. Duration: ~75-90 seconds.
 
-### Template D: "Quick & Bold" (when minimal content is available)
+### Template D: "Quick & Bold" (minimal content available)
 ```
-1. Kinetic Typography Hero — giant animated headline
-2. Feature Cards — 3 key points (stagger entrance)
-3. CTA — simple, clean, effective
+1. Scroll Video Hero (2x pin) — keyframe A→B, shorter scroll duration
+2. Feature Cards — 3 key points (ReactBits tilt cards, Three.js ambient shapes)
+3. CTA — ReactBits magnetic button + gradient background
 4. Footer
 ```
-Total scroll: ~5x viewport heights. Duration: ~20 seconds.
+Total scroll: ~7x viewport heights. Duration: ~25 seconds.
 
 ## Transition Rules Between Sections
 
@@ -106,14 +109,16 @@ Total scroll: ~5x viewport heights. Duration: ~20 seconds.
 
 ## Visual Weight Distribution
 
+Three.js persistent scene runs behind ALL sections below the hero, adding ambient depth throughout.
+
 ```
-Section 1 (Hero):        █████████████████████ (heavy — 3D/video, maximum visual impact)
-Section 2 (Text):        ████ (light — breathing room, typography-only)
+Section 1 (Hero):        █████████████████████ (heavy — scroll video, maximum visual impact)
+Section 2 (Text):        █████ (light — ReactBits text anim + Three.js floats behind)
 Section 3 (Transition):  ████████████ (medium-heavy — video morph, but brief)
-Section 4 (Features):    ████████ (medium — cards with animation, informational)
-Section 5 (Gallery):     ████████████████ (heavy — parallax images, rich visual)
-Section 6 (Stats):       ██ (very light — just numbers, fast)
-Section 7 (CTA):         ██████ (medium — button interaction, gradient bg)
+Section 4 (Features):    █████████ (medium — ReactBits cards + Three.js ambient shapes)
+Section 5 (Gallery):     ████████████████ (heavy — parallax images + Three.js depth layers)
+Section 6 (Stats):       ███ (light — ReactBits counters + Three.js particle accents)
+Section 7 (CTA):         ███████ (medium — ReactBits magnetic btn + aurora + Three.js)
 Section 8 (Footer):      █ (minimal — just info)
 ```
 

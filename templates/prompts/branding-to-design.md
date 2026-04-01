@@ -26,34 +26,43 @@ Output as JSON:
     "heading": "Google Font Name — from prospect fonts or industry-matched",
     "body": "Google Font Name — from prospect fonts or industry-matched"
   },
-  "hero_treatment": "3d_scene | scroll_video | kinetic_typography",
-  "scene_style": "glass_geometric | warm_organic | iridescent_fluid | wireframe_data | golden_architecture | product_studio | molecular_soft | abstract_bold",
-  "scene_materials": "Description of Three.js materials to use",
-  "scene_lighting": "Description of lighting setup",
-  "post_processing": ["Bloom", "ChromaticAberration", "Vignette", "Noise"],
-  "video_prompts": {
-    "hero": "Detailed Veo prompt for hero video — industry-appropriate, brand colors, no text",
-    "transition": "Prompt for A→B transition video — what morph to create"
+  "hero_video": {
+    "keyframe_a_prompt": "Opening visual state — what visitors see on page load. [Brand colors]. No text.",
+    "keyframe_b_prompt": "Ending visual state — what visitors see after scrolling through hero. [Brand colors]. No text.",
+    "transition_prompt": "Smooth cinematic morph between opening and ending states. No text."
   },
-  "sections": ["hero-3d", "scroll-transition", "text-reveal", "parallax-gallery", "features", "stats", "cta"],
+  "persistent_3d_scene": {
+    "style": "glass_geometric | warm_organic | iridescent_fluid | wireframe_data | golden_architecture | product_studio | molecular_soft | abstract_bold",
+    "materials": "Description of Three.js materials to use",
+    "lighting": "Description of lighting setup",
+    "post_processing": ["Bloom", "ChromaticAberration", "Vignette", "Noise"],
+    "scroll_behavior": "How 3D elements react to scroll (rotate, morph, scale, color shift)"
+  },
+  "transition_prompts": {
+    "hero_to_content": "Prompt for A→B transition video between hero end and first content section"
+  },
+  "sections": ["hero-scroll-video", "scroll-transition", "text-reveal", "parallax-gallery", "features", "stats", "cta"],
   "animation_personality": "premium | warm | bold | clean | playful | tech",
+  "reactbits_components": ["aurora_background", "magnetic_button", "blur_text", "tilt_card", "spotlight_card", "counter"],
   "micro_interactions": ["magnetic_buttons", "3d_card_tilt", "text_scramble", "counter", "cursor_follower"],
-  "mobile_fallback": "Description of static image to use on mobile instead of 3D/video",
+  "mobile_fallback": "Description of static image to use on mobile instead of 3D/video (keyframe A from hero)",
   "style": "One-line description of overall aesthetic"
 }
 ```
 
 ## Industry-to-Style Mapping
 
-| Industry | hero_treatment | scene_style | animation_personality | Background |
-|----------|---------------|-------------|----------------------|------------|
-| Restaurant/Food | scroll_video | warm_organic | warm | Light (cream/warm white) |
-| Law/Finance | 3d_scene | glass_geometric | premium | Dark (navy/charcoal) |
-| Salon/Beauty | 3d_scene | iridescent_fluid | premium | Light (soft pink/lavender) |
-| Tech/SaaS | 3d_scene | wireframe_data | tech | Dark (near black) |
-| Real Estate | scroll_video | golden_architecture | premium | Light (warm white) |
-| Retail/E-commerce | scroll_video | product_studio | clean | Light (white) |
-| Healthcare | 3d_scene | molecular_soft | clean | Light (clean white) |
-| Creative/Agency | 3d_scene | abstract_bold | bold | Dark (black) |
-| Construction | scroll_video | golden_architecture | bold | Light (concrete gray) |
-| Education | kinetic_typography | — | warm | Light (soft blue/green) |
+Hero is ALWAYS scroll video (keyframe A→B via Veo 3.1). The `persistent_3d_scene` style determines the Three.js 3D elements that run behind content sections.
+
+| Industry | Hero Keyframe Style | Persistent 3D Scene | animation_personality | Background |
+|----------|-------------------|--------------------|-----------------------|------------|
+| Restaurant/Food | Warm organic textures, steam, golden hour | warm_organic (floating particles) | warm | Light (cream/warm white) |
+| Law/Finance | Architectural glass, twilight cityscape | glass_geometric | premium | Dark (navy/charcoal) |
+| Salon/Beauty | Iridescent fluids, soft macro textures | iridescent_fluid | premium | Light (soft pink/lavender) |
+| Tech/SaaS | Data streams, neon wireframes | wireframe_data | tech | Dark (near black) |
+| Real Estate | Aerial golden hour, architecture | golden_architecture | premium | Light (warm white) |
+| Retail/E-commerce | Product showcase, studio lighting | product_studio | clean | Light (white) |
+| Healthcare | Clean modern spaces, molecular | molecular_soft | clean | Light (clean white) |
+| Creative/Agency | Bold abstract, dramatic angles | abstract_bold | bold | Dark (black) |
+| Construction | Site aerials, materials close-up | golden_architecture | bold | Light (concrete gray) |
+| Education | Campus atmosphere, warm interiors | warm_organic | warm | Light (soft blue/green) |

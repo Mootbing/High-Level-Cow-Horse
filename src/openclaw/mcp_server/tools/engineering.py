@@ -3,6 +3,7 @@
 import asyncio
 import json
 import os
+import shutil
 import subprocess
 
 import structlog
@@ -107,7 +108,7 @@ async def scaffold_nextjs(project_name: str, description: str | None = None) -> 
         "scripts": {"dev": "next dev", "build": "next build", "start": "next start", "lint": "next lint"},
         "dependencies": {
             "next": "latest", "react": "^19.0.0", "react-dom": "^19.0.0",
-            "gsap": "^3.12.0", "@studio-freight/lenis": "^1.0.0", "framer-motion": "^11.0.0",
+            "gsap": "^3.12.0", "lenis": "^1.1.0", "framer-motion": "^11.0.0",
             "three": "^0.172.0", "@react-three/fiber": "^9.0.0",
             "@react-three/drei": "^9.0.0", "@react-three/postprocessing": "^3.0.0",
             "postprocessing": "^6.36.0",
@@ -144,6 +145,10 @@ async def scaffold_nextjs(project_name: str, description: str | None = None) -> 
         f.write("const config = { plugins: { '@tailwindcss/postcss': {} } };\nexport default config;\n")
     with open(os.path.join(project_dir, "next-env.d.ts"), "w") as f:
         f.write('/// <reference types="next" />\n/// <reference types="next/image-types/global" />\n')
+
+    # .npmrc for peer dependency resolution (R3F ecosystem has conflicts)
+    with open(os.path.join(project_dir, ".npmrc"), "w") as f:
+        f.write("legacy-peer-deps=true\n")
 
     # App directory
     os.makedirs(os.path.join(project_dir, "app"), exist_ok=True)
@@ -345,38 +350,83 @@ async def write_code(project_name: str, file_path: str, code: str) -> str:
 
 @mcp.tool()
 async def verify_build(project_name: str) -> str:
-    """Run npm install + npm run build locally to catch errors before deploying.
+    """Run a clean build that mirrors Vercel: delete node_modules → npm install → tsc → npm run build.
 
     Always call this before deploy(). If it fails, fix the code with write_code and try again.
     """
     project_dir = _project_dir(project_name)
 
+    if not os.path.isdir(project_dir):
+        return json.dumps({"status": "error", "message": f"Project directory not found: {project_dir}"})
+
+    # ── Step 1: Clean slate (simulate fresh Vercel environment) ──
+    for dirname in ("node_modules", ".next"):
+        target = os.path.join(project_dir, dirname)
+        if os.path.exists(target):
+            shutil.rmtree(target, ignore_errors=True)
+    logger.info("verify_build_clean", project=project_name)
+
+    # ── Step 2: npm install ──
     try:
-        await asyncio.to_thread(
+        install_result = await asyncio.to_thread(
             subprocess.run,
             ["npm", "install", "--legacy-peer-deps"],
-            cwd=project_dir, capture_output=True, text=True, timeout=120,
+            cwd=project_dir, capture_output=True, text=True, timeout=180,
         )
+        if install_result.returncode != 0:
+            error_output = (install_result.stderr + install_result.stdout)[-2000:]
+            return json.dumps({
+                "status": "fail",
+                "step": "npm install",
+                "error": error_output,
+                "message": "npm install failed. Check package.json for dependency conflicts.",
+            })
+    except subprocess.TimeoutExpired:
+        return json.dumps({"status": "timeout", "step": "npm install", "message": "npm install timed out after 180s."})
+    except FileNotFoundError:
+        return json.dumps({"status": "skip", "message": "npm not available — skip and deploy."})
+
+    # ── Step 3: TypeScript check (non-blocking — warnings only) ──
+    tsc_warnings = None
+    try:
+        tsc_result = await asyncio.to_thread(
+            subprocess.run,
+            ["npx", "tsc", "--noEmit"],
+            cwd=project_dir, capture_output=True, text=True, timeout=60,
+        )
+        if tsc_result.returncode != 0:
+            tsc_warnings = (tsc_result.stderr + tsc_result.stdout)[-2000:]
+            logger.warning("verify_build_tsc_errors", project=project_name, errors=tsc_warnings[:500])
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass  # tsc is advisory — next build catches type errors too
+
+    # ── Step 4: npm run build ──
+    try:
         build_result = await asyncio.to_thread(
             subprocess.run,
             ["npm", "run", "build"],
-            cwd=project_dir, capture_output=True, text=True, timeout=120,
+            cwd=project_dir, capture_output=True, text=True, timeout=180,
         )
-
-        if build_result.returncode == 0:
-            return json.dumps({"status": "pass", "message": "Build succeeded. Safe to deploy."})
-        else:
-            error_output = build_result.stderr + build_result.stdout
-            error_tail = error_output[-2000:] if len(error_output) > 2000 else error_output
-            return json.dumps({
+        if build_result.returncode != 0:
+            error_output = (build_result.stderr + build_result.stdout)[-2000:]
+            result = {
                 "status": "fail",
-                "error": error_tail,
+                "step": "npm run build",
+                "error": error_output,
                 "message": "Build failed. Fix errors with write_code, then verify_build again.",
-            })
+            }
+            if tsc_warnings:
+                result["tsc_warnings"] = tsc_warnings
+            return json.dumps(result)
     except subprocess.TimeoutExpired:
-        return json.dumps({"status": "timeout", "message": "Build timed out after 120s."})
-    except FileNotFoundError:
-        return json.dumps({"status": "skip", "message": "npm not available — skip and deploy."})
+        return json.dumps({"status": "timeout", "step": "npm run build", "message": "Build timed out after 180s."})
+
+    # ── All passed ──
+    result = {"status": "pass", "message": "Build succeeded (clean install). Safe to deploy."}
+    if tsc_warnings:
+        result["tsc_warnings"] = tsc_warnings
+    logger.info("verify_build_pass", project=project_name)
+    return json.dumps(result)
 
 
 @mcp.tool()

@@ -18,7 +18,7 @@ GENAI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 # https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart
 NANO_BANANA_MODEL = "gemini-2.5-flash-image"  # Nano Banana image generation
 VEO_MODEL = "veo-3.0-generate-001"  # Veo 3 video generation (fallback)
-VEO_3_1_MODEL = "veo-3.1-fast-preview"  # Veo 3.1 Fast — supports first+last frame mode
+VEO_3_1_MODEL = "veo-3.1-fast-generate-preview"  # Veo 3.1 Fast — supports first+last frame mode
 
 
 async def generate_image(

@@ -406,6 +406,31 @@ def _compute_opportunity_score(
     return round(min(opportunity, 10.0), 2)
 
 
+def _compute_adventure_score(
+    business_rating: float | None,
+    review_count: int,
+) -> float:
+    """Score adventure-mode leads (businesses with no website).
+
+    Purely business quality — no website weakness factor.
+    High rating + many reviews + no website = goldmine.
+
+    Returns 0.0-10.0 scale.
+    """
+    rating = max(0.0, min(business_rating or 3.0, 5.0))
+    review_count = max(0, review_count)
+
+    rating_signal = rating / 5.0
+
+    if review_count <= 0:
+        volume_signal = 0.1
+    else:
+        volume_signal = min(math.log10(review_count + 1) / 3.0, 1.0)
+
+    adventure_score = (rating_signal * 0.5 + volume_signal * 0.5) * 10.0
+    return round(min(adventure_score, 10.0), 2)
+
+
 def _extract_brand_colors(html: str) -> list[str]:
     """Extract hex colors from HTML/CSS."""
     hex_pattern = re.compile(r"#([0-9a-fA-F]{3,8})\b")
@@ -461,20 +486,30 @@ async def discover_prospects(
     location: str,
     max_results: int = 10,
     radius_m: float = 10000.0,
+    mode: str = "revamp",
 ) -> str:
     """Discover businesses in a target industry and location using Google Places API.
 
-    Searches for businesses, filters to those with websites, and returns a ranked
-    list with basic info. Does NOT store anything — use run_lead_generation for the
-    full pipeline, or audit_prospect_website to evaluate individual results.
+    Two modes:
+    - "revamp" (default): Finds businesses WITH websites to redesign.
+    - "adventure": Finds businesses WITHOUT websites — ranked by reviews/rating.
+      These are successful offline businesses with no online presence.
+
+    Does NOT store anything — use run_lead_generation for the full pipeline,
+    or audit_prospect_website to evaluate individual results.
 
     Args:
         industry: Business type (e.g. "restaurant", "salon", "dental office", "plumber")
         location: City/area (e.g. "Austin TX", "Brooklyn NY", "downtown Dallas")
         max_results: Maximum businesses to return (default 10, max 20)
         radius_m: Search radius in meters (default 10km)
+        mode: "revamp" (businesses with websites) or "adventure" (businesses without websites)
     """
     from openclaw.integrations.google_places import search_nearby_competitors
+
+    mode = mode.lower()
+    if mode not in ("revamp", "adventure"):
+        return json.dumps({"status": "error", "message": f"Invalid mode: {mode}. Use 'revamp' or 'adventure'."})
 
     max_results = min(max_results, 20)
 
@@ -499,9 +534,21 @@ async def discover_prospects(
             "message": f"Google Places search failed: {str(exc)[:200]}",
         })
 
-    # Filter to businesses with websites
+    # Split by website presence
     with_websites = [p for p in places if p.get("website")]
-    without_websites = len(places) - len(with_websites)
+    without_websites_list = [p for p in places if not p.get("website")]
+
+    # Select target list based on mode
+    if mode == "adventure":
+        # Sort by rating * log(review_count) descending — best businesses first
+        def _adventure_sort_key(p: dict) -> float:
+            rc = p.get("review_count", 0)
+            return (p.get("rating") or 0) * (math.log10(rc + 1) if rc > 0 else 0)
+
+        without_websites_list.sort(key=_adventure_sort_key, reverse=True)
+        target_places = without_websites_list
+    else:
+        target_places = with_websites
 
     # Check for duplicates already in our database (batch query)
     from openclaw.db.session import async_session_factory
@@ -509,34 +556,50 @@ async def discover_prospects(
     from sqlalchemy import select, or_
 
     existing_urls: set[str] = set()
-    normalized_map: dict[str, str] = {}
-    for p in with_websites:
-        normalized = _normalize_url(p["website"])
-        normalized_map[normalized] = p["website"]
+    if target_places:
+        if mode == "adventure":
+            # Adventure mode: Google Maps URLs share the same domain, so use exact match
+            maps_urls = [p.get("google_maps_url") for p in target_places if p.get("google_maps_url")]
+            if maps_urls:
+                async with async_session_factory() as session:
+                    stmt = select(Prospect.url).where(Prospect.url.in_(maps_urls))
+                    result = await session.execute(stmt)
+                    existing_urls = {row[0] for row in result.all()}
+        else:
+            # Revamp mode: use normalized domain matching (each business has unique domain)
+            normalized_map: dict[str, str] = {}
+            for p in target_places:
+                url = p.get("website")
+                if url:
+                    normalized_map[_normalize_url(url)] = url
 
-    if normalized_map:
-        async with async_session_factory() as session:
-            # Build batch ILIKE query
-            conditions = [
-                Prospect.url.ilike(f"%{n}%") for n in normalized_map
-            ]
-            stmt = select(Prospect.url).where(or_(*conditions))
-            result = await session.execute(stmt)
-            existing_prospect_urls = [row[0] for row in result.all()]
+            if normalized_map:
+                async with async_session_factory() as session:
+                    conditions = [
+                        Prospect.url.ilike(f"%{n}%") for n in normalized_map
+                    ]
+                    stmt = select(Prospect.url).where(or_(*conditions))
+                    result = await session.execute(stmt)
+                    existing_prospect_urls = [row[0] for row in result.all()]
 
-            for existing_url in existing_prospect_urls:
-                for normalized in normalized_map:
-                    if normalized in existing_url.lower():
-                        existing_urls.add(normalized)
-                        break
+                    for existing_url in existing_prospect_urls:
+                        for normalized in normalized_map:
+                            if normalized in existing_url.lower():
+                                existing_urls.add(normalized)
+                                break
 
-    # Mark duplicates
+    # Build response list
     prospects_list = []
-    for p in with_websites:
-        normalized = _normalize_url(p["website"])
-        prospects_list.append({
+    for p in target_places:
+        if mode == "adventure":
+            lookup_url = p.get("google_maps_url")
+            is_existing = lookup_url in existing_urls if lookup_url else False
+        else:
+            lookup_url = p.get("website")
+            normalized = _normalize_url(lookup_url) if lookup_url else ""
+            is_existing = normalized in existing_urls
+        entry = {
             "name": p.get("name"),
-            "website": p.get("website"),
             "address": p.get("address"),
             "rating": p.get("rating"),
             "review_count": p.get("review_count", 0),
@@ -547,8 +610,15 @@ async def discover_prospects(
             "latitude": p.get("latitude"),
             "longitude": p.get("longitude"),
             "google_maps_url": p.get("google_maps_url"),
-            "already_in_db": normalized in existing_urls,
-        })
+            "already_in_db": is_existing,
+        }
+        if mode == "revamp":
+            entry["website"] = p.get("website")
+        else:
+            entry["adventure_score"] = _compute_adventure_score(
+                p.get("rating"), p.get("review_count", 0),
+            )
+        prospects_list.append(entry)
 
     new_prospects = [p for p in prospects_list if not p["already_in_db"]]
 
@@ -556,18 +626,21 @@ async def discover_prospects(
         "prospects_discovered",
         industry=industry,
         location=location,
+        mode=mode,
         total_places=len(places),
-        with_websites=len(with_websites),
+        target_count=len(target_places),
         new_prospects=len(new_prospects),
     )
 
     return json.dumps({
         "status": "discovered",
+        "mode": mode,
         "search_query": query,
         "search_center": {"latitude": lat, "longitude": lng},
         "total_places_found": len(places),
         "with_websites": len(with_websites),
-        "without_websites": without_websites,
+        "without_websites": len(without_websites_list),
+        "target_count": len(target_places),
         "already_in_database": len(existing_urls),
         "new_prospects": len(new_prospects),
         "prospects": prospects_list,
@@ -714,15 +787,15 @@ async def run_lead_generation(
     max_results: int = 10,
     radius_m: float = 10000.0,
     min_opportunity_score: float = 2.5,
+    mode: str = "revamp",
 ) -> str:
-    """Full lead generation pipeline: discover businesses, audit websites, score, and store qualified leads.
+    """Full lead generation pipeline: discover businesses, score, and store qualified leads.
 
-    This is the main workhorse tool. It:
-    1. Searches Google Places for businesses in the target industry/location
-    2. Fetches and audits each website for quality problems
-    3. Computes opportunity score (good business + bad website = high score)
-    4. Stores qualified leads (above min_opportunity_score) as prospects in the database
-    5. Returns ranked list of all discovered leads
+    Two modes:
+    - "revamp" (default): Finds businesses WITH websites, audits them, scores by
+      business quality x website weakness. Good business + bad website = high score.
+    - "adventure": Finds businesses WITHOUT websites, scores purely on business quality
+      (rating + reviews). Successful offline businesses with no online presence = goldmine.
 
     Args:
         industry: Business type (e.g. "restaurant", "hair salon", "dentist")
@@ -730,12 +803,17 @@ async def run_lead_generation(
         max_results: Max businesses to discover (default 10, max 20)
         radius_m: Search radius in meters (default 10km)
         min_opportunity_score: Minimum score to qualify as a lead (default 2.5, scale 0-10)
+        mode: "revamp" (businesses with websites) or "adventure" (businesses without websites)
     """
     from openclaw.db.session import async_session_factory
     from openclaw.integrations.google_places import search_nearby_competitors
     from openclaw.models.prospect import Prospect
     from openclaw.services.prospect_service import get_or_create_prospect
     from sqlalchemy import or_, select
+
+    mode = mode.lower()
+    if mode not in ("revamp", "adventure"):
+        return json.dumps({"status": "error", "message": f"Invalid mode: {mode}. Use 'revamp' or 'adventure'."})
 
     max_results = min(max_results, 20)
     batch_id = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -760,152 +838,234 @@ async def run_lead_generation(
             "message": f"Google Places search failed: {str(exc)[:200]}",
         })
 
-    # Filter to those with websites
+    # Split by website presence and select target list
     with_websites = [p for p in places if p.get("website")]
+    without_websites = [p for p in places if not p.get("website")]
 
-    if not with_websites:
+    if mode == "adventure":
+        target_places = without_websites
+        no_results_msg = f"Found {len(places)} businesses but all have websites already."
+    else:
+        target_places = with_websites
+        no_results_msg = f"Found {len(places)} businesses but none have websites."
+
+    if not target_places:
         return json.dumps({
             "status": "no_results",
-            "message": f"Found {len(places)} businesses but none have websites.",
+            "mode": mode,
+            "message": no_results_msg,
             "search_query": query,
         })
 
     # Step 3: Pre-check for existing prospects (batch query to avoid N+1)
-    normalized_to_website: dict[str, str] = {}
-    for p in with_websites:
-        normalized_to_website[_normalize_url(p["website"])] = p["website"]
+    existing_map: dict[str, str] = {}  # lookup_key -> prospect_id
 
-    existing_map: dict[str, str] = {}  # normalized_url -> prospect_id
-    if normalized_to_website:
-        async with async_session_factory() as session:
-            conditions = [
-                Prospect.url.ilike(f"%{n}%") for n in normalized_to_website
-            ]
-            stmt = select(Prospect).where(or_(*conditions))
-            result = await session.execute(stmt)
-            for prospect in result.scalars().all():
-                p_url = prospect.url.lower()
-                for normalized in normalized_to_website:
-                    if normalized in p_url:
-                        existing_map[normalized] = str(prospect.id)
-                        break
+    if mode == "adventure":
+        # Adventure mode: exact URL match (Google Maps URLs share the same domain)
+        maps_urls = [p.get("google_maps_url") for p in target_places if p.get("google_maps_url")]
+        if maps_urls:
+            async with async_session_factory() as session:
+                stmt = select(Prospect).where(Prospect.url.in_(maps_urls))
+                result = await session.execute(stmt)
+                for prospect in result.scalars().all():
+                    existing_map[prospect.url] = str(prospect.id)
+    else:
+        # Revamp mode: normalized domain matching
+        normalized_to_url: dict[str, str] = {}
+        for p in target_places:
+            url = p.get("website")
+            if url:
+                normalized_to_url[_normalize_url(url)] = url
 
-    # Audit each website and score
+        if normalized_to_url:
+            async with async_session_factory() as session:
+                conditions = [
+                    Prospect.url.ilike(f"%{n}%") for n in normalized_to_url
+                ]
+                stmt = select(Prospect).where(or_(*conditions))
+                result = await session.execute(stmt)
+                for prospect in result.scalars().all():
+                    p_url = prospect.url.lower()
+                    for normalized in normalized_to_url:
+                        if normalized in p_url:
+                            existing_map[normalized] = str(prospect.id)
+                            break
+
+    # Process each place
     leads: list[dict] = []
     errors: list[dict] = []
     skipped_existing = 0
 
-    for place in with_websites:
-        website = place["website"]
-        normalized = _normalize_url(website)
+    for place in target_places:
+        # Determine dedup key based on mode
+        if mode == "adventure":
+            dedup_key = place.get("google_maps_url") or ""
+        else:
+            lookup_url = place.get("website")
+            dedup_key = _normalize_url(lookup_url) if lookup_url else ""
 
         # Check if already in database
-        if normalized in existing_map:
+        if dedup_key in existing_map:
             skipped_existing += 1
             leads.append({
                 "name": place.get("name"),
-                "website": website,
+                "website": place.get("website"),
+                "google_maps_url": place.get("google_maps_url"),
                 "status": "already_exists",
                 "prospect_id": existing_map[normalized],
                 "opportunity_score": None,
             })
             continue
 
-        # Fetch and audit website (with bot-detection bypass)
-        try:
-            html, final_url, is_https, status_code = await _fetch_page(website)
-        except Exception as exc:
-            errors.append({
+        if mode == "adventure":
+            # Adventure mode: no website to audit — score purely on business quality
+            opportunity = _compute_adventure_score(
+                business_rating=place.get("rating"),
+                review_count=place.get("review_count", 0),
+            )
+
+            lead_data = {
+                "name": place.get("name"),
+                "address": place.get("address"),
+                "rating": place.get("rating"),
+                "review_count": place.get("review_count", 0),
+                "price_level": place.get("price_level"),
+                "primary_type": (
+                    place.get("primary_type_display") or place.get("primary_type")
+                ),
+                "google_maps_url": place.get("google_maps_url"),
+                "has_website": False,
+                "opportunity_score": opportunity,
+                "status": "qualified" if opportunity >= min_opportunity_score else "below_threshold",
+            }
+
+            # Store qualified adventure leads
+            if opportunity >= min_opportunity_score:
+                store_url = place.get("google_maps_url") or f"no-website://{place.get('name', 'unknown')}"
+                async with async_session_factory() as session:
+                    prospect, created = await get_or_create_prospect(
+                        session,
+                        url=store_url,
+                        company_name=place.get("name"),
+                        industry=industry,
+                        latitude=place.get("latitude"),
+                        longitude=place.get("longitude"),
+                        raw_data={
+                            "lead_source": "auto_discovery",
+                            "lead_mode": "adventure",
+                            "lead_batch": batch_id,
+                            "lead_score": opportunity,
+                            "lead_industry": industry,
+                            "lead_location": location,
+                            "has_website": False,
+                            "place_id": place.get("place_id"),
+                            "google_rating": place.get("rating"),
+                            "google_review_count": place.get("review_count", 0),
+                            "google_price_level": place.get("price_level"),
+                            "google_maps_url": place.get("google_maps_url"),
+                            "google_address": place.get("address"),
+                            "place_types": place.get("types", []),
+                            "discovered_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+                    lead_data["prospect_id"] = str(prospect.id)
+                    lead_data["stored"] = True
+
+        else:
+            # Revamp mode: audit the website
+            website = place["website"]
+
+            try:
+                html, final_url, is_https, status_code = await _fetch_page(website)
+            except Exception as exc:
+                errors.append({
+                    "name": place.get("name"),
+                    "website": website,
+                    "error": f"Fetch failed: {str(exc)[:100]}",
+                })
+                continue
+
+            if status_code != 200:
+                errors.append({
+                    "name": place.get("name"),
+                    "website": website,
+                    "error": f"HTTP {status_code}",
+                })
+                continue
+
+            quality = _score_website_quality(html, is_https)
+            tech_stack = _detect_tech_stack(html)
+            site_problems = _extract_site_problems(html, tech_stack, is_https)
+            brand_colors = _extract_brand_colors(html)
+            contact_emails = _extract_contact_emails(html)
+
+            title_match = re.search(
+                r"<title[^>]*>(.*?)</title>", html,
+                re.IGNORECASE | re.DOTALL,
+            )
+            page_title = title_match.group(1).strip() if title_match else None
+
+            opportunity = _compute_opportunity_score(
+                business_rating=place.get("rating"),
+                review_count=place.get("review_count", 0),
+                website_overall=quality["overall"],
+            )
+
+            lead_data = {
                 "name": place.get("name"),
                 "website": website,
-                "error": f"Fetch failed: {str(exc)[:100]}",
-            })
-            continue
+                "address": place.get("address"),
+                "rating": place.get("rating"),
+                "review_count": place.get("review_count", 0),
+                "price_level": place.get("price_level"),
+                "primary_type": (
+                    place.get("primary_type_display") or place.get("primary_type")
+                ),
+                "page_title": page_title,
+                "website_scores": quality["scores"],
+                "website_overall": quality["overall"],
+                "site_problems": site_problems,
+                "problem_count": len(site_problems),
+                "tech_stack": tech_stack,
+                "contact_emails": contact_emails,
+                "opportunity_score": opportunity,
+                "status": "qualified" if opportunity >= min_opportunity_score else "below_threshold",
+            }
 
-        if status_code != 200:
-            errors.append({
-                "name": place.get("name"),
-                "website": website,
-                "error": f"HTTP {status_code}",
-            })
-            continue
-
-        # Score website
-        quality = _score_website_quality(html, is_https)
-        tech_stack = _detect_tech_stack(html)
-        site_problems = _extract_site_problems(html, tech_stack, is_https)
-        brand_colors = _extract_brand_colors(html)
-        contact_emails = _extract_contact_emails(html)
-
-        # Extract title
-        title_match = re.search(
-            r"<title[^>]*>(.*?)</title>", html,
-            re.IGNORECASE | re.DOTALL,
-        )
-        page_title = title_match.group(1).strip() if title_match else None
-
-        # Compute opportunity score
-        opportunity = _compute_opportunity_score(
-            business_rating=place.get("rating"),
-            review_count=place.get("review_count", 0),
-            website_overall=quality["overall"],
-        )
-
-        lead_data = {
-            "name": place.get("name"),
-            "website": website,
-            "address": place.get("address"),
-            "rating": place.get("rating"),
-            "review_count": place.get("review_count", 0),
-            "price_level": place.get("price_level"),
-            "primary_type": (
-                place.get("primary_type_display") or place.get("primary_type")
-            ),
-            "page_title": page_title,
-            "website_scores": quality["scores"],
-            "website_overall": quality["overall"],
-            "site_problems": site_problems,
-            "problem_count": len(site_problems),
-            "tech_stack": tech_stack,
-            "contact_emails": contact_emails,
-            "opportunity_score": opportunity,
-            "status": "qualified" if opportunity >= min_opportunity_score else "below_threshold",
-        }
-
-        # Step 4: Store qualified leads as prospects
-        if opportunity >= min_opportunity_score:
-            async with async_session_factory() as session:
-                prospect, created = await get_or_create_prospect(
-                    session,
-                    url=website,
-                    company_name=place.get("name"),
-                    industry=industry,
-                    contact_emails=contact_emails,
-                    brand_colors=brand_colors,
-                    tech_stack=tech_stack,
-                    latitude=place.get("latitude"),
-                    longitude=place.get("longitude"),
-                    raw_data={
-                        "site_problems": site_problems,
-                        "lead_source": "auto_discovery",
-                        "lead_batch": batch_id,
-                        "lead_score": opportunity,
-                        "lead_industry": industry,
-                        "lead_location": location,
-                        "website_scores": quality["scores"],
-                        "website_overall": quality["overall"],
-                        "google_rating": place.get("rating"),
-                        "google_review_count": place.get("review_count", 0),
-                        "google_price_level": place.get("price_level"),
-                        "google_maps_url": place.get("google_maps_url"),
-                        "google_address": place.get("address"),
-                        "place_types": place.get("types", []),
-                        "price_level": place.get("price_level"),
-                        "discovered_at": datetime.now(timezone.utc).isoformat(),
-                    },
-                )
-                lead_data["prospect_id"] = str(prospect.id)
-                lead_data["stored"] = True
+            if opportunity >= min_opportunity_score:
+                async with async_session_factory() as session:
+                    prospect, created = await get_or_create_prospect(
+                        session,
+                        url=website,
+                        company_name=place.get("name"),
+                        industry=industry,
+                        contact_emails=contact_emails,
+                        brand_colors=brand_colors,
+                        tech_stack=tech_stack,
+                        latitude=place.get("latitude"),
+                        longitude=place.get("longitude"),
+                        raw_data={
+                            "site_problems": site_problems,
+                            "lead_source": "auto_discovery",
+                            "lead_mode": "revamp",
+                            "lead_batch": batch_id,
+                            "lead_score": opportunity,
+                            "lead_industry": industry,
+                            "lead_location": location,
+                            "website_scores": quality["scores"],
+                            "website_overall": quality["overall"],
+                            "google_rating": place.get("rating"),
+                            "google_review_count": place.get("review_count", 0),
+                            "google_price_level": place.get("price_level"),
+                            "google_maps_url": place.get("google_maps_url"),
+                            "google_address": place.get("address"),
+                            "place_types": place.get("types", []),
+                            "price_level": place.get("price_level"),
+                            "discovered_at": datetime.now(timezone.utc).isoformat(),
+                        },
+                    )
+                    lead_data["prospect_id"] = str(prospect.id)
+                    lead_data["stored"] = True
 
         leads.append(lead_data)
 
@@ -922,9 +1082,10 @@ async def run_lead_generation(
         "lead_generation_complete",
         industry=industry,
         location=location,
+        mode=mode,
         batch_id=batch_id,
         total_places=len(places),
-        with_websites=len(with_websites),
+        target_count=len(target_places),
         qualified=len(qualified),
         below_threshold=len(below),
         errors=len(errors),
@@ -933,13 +1094,15 @@ async def run_lead_generation(
 
     return json.dumps({
         "status": "completed",
+        "mode": mode,
         "batch_id": batch_id,
         "search_query": query,
         "search_center": {"latitude": lat, "longitude": lng},
         "summary": {
             "total_places_found": len(places),
             "with_websites": len(with_websites),
-            "websites_audited": len(with_websites) - skipped_existing,
+            "without_websites": len(without_websites),
+            "target_count": len(target_places),
             "qualified_leads": len(qualified),
             "below_threshold": len(below),
             "already_in_database": skipped_existing,
@@ -963,13 +1126,20 @@ async def get_lead_pipeline(
     min_score: float | None = None,
     limit: int = 20,
     include_promoted: bool = False,
+    mode: str | None = None,
 ) -> str:
     """View the lead pipeline — all auto-discovered prospects ranked by opportunity.
 
-    Filter by industry, location, or minimum opportunity score. Shows leads that
-    haven't been promoted to projects yet (unless include_promoted=True).
+    Filter by industry, location, minimum opportunity score, or mode.
+    Shows leads that haven't been promoted to projects yet (unless include_promoted=True).
 
-    Returns leads sorted by opportunity score (highest first).
+    Args:
+        industry: Filter by industry
+        location: Filter by location
+        min_score: Minimum opportunity score
+        limit: Max leads to return (default 20)
+        include_promoted: Include leads already promoted to projects
+        mode: Filter by mode — "revamp" (have websites), "adventure" (no websites), or None (all)
     """
     from openclaw.db.session import async_session_factory
     from openclaw.models.project import Project
@@ -1001,6 +1171,7 @@ async def get_lead_pipeline(
         lead_industry = raw.get("lead_industry", "")
         lead_location = raw.get("lead_location", "")
         lead_score = raw.get("lead_score", 0)
+        lead_mode = raw.get("lead_mode", "revamp")
 
         # Apply filters
         if industry and industry.lower() not in lead_industry.lower():
@@ -1009,22 +1180,25 @@ async def get_lead_pipeline(
             continue
         if min_score and lead_score < min_score:
             continue
+        if mode:
+            if mode.lower() == "adventure" and lead_mode != "adventure":
+                continue
+            if mode.lower() == "revamp" and lead_mode == "adventure":
+                continue
 
         has_project = len(p.projects) > 0
         if not include_promoted and has_project:
             continue
 
-        leads.append({
+        lead_entry: dict = {
             "prospect_id": str(p.id),
             "company_name": p.company_name,
             "url": p.url,
             "industry": p.industry,
+            "lead_mode": lead_mode,
             "opportunity_score": lead_score,
-            "website_overall": raw.get("website_overall"),
             "google_rating": raw.get("google_rating"),
             "google_review_count": raw.get("google_review_count"),
-            "site_problems": raw.get("site_problems", [])[:3],
-            "contact_emails": p.contact_emails,
             "lead_location": lead_location,
             "lead_batch": raw.get("lead_batch"),
             "discovered_at": raw.get("discovered_at"),
@@ -1032,7 +1206,18 @@ async def get_lead_pipeline(
             "project_status": (
                 p.projects[0].status if has_project else None
             ),
-        })
+        }
+
+        if lead_mode == "adventure":
+            lead_entry["has_website"] = False
+            lead_entry["google_address"] = raw.get("google_address")
+            lead_entry["place_id"] = raw.get("place_id")
+        else:
+            lead_entry["website_overall"] = raw.get("website_overall")
+            lead_entry["site_problems"] = raw.get("site_problems", [])[:3]
+            lead_entry["contact_emails"] = p.contact_emails
+
+        leads.append(lead_entry)
 
     # Sort by opportunity score
     leads.sort(key=lambda x: x.get("opportunity_score", 0), reverse=True)
@@ -1047,6 +1232,7 @@ async def get_lead_pipeline(
             "industry": industry,
             "location": location,
             "min_score": min_score,
+            "mode": mode,
             "include_promoted": include_promoted,
         },
         "leads": leads,
@@ -1065,11 +1251,10 @@ async def promote_lead(
     """Promote an auto-discovered lead into the full website build pipeline.
 
     Looks up the prospect, creates a project linked to it (if auto_create_project=True),
-    and returns the project details ready for the standard pipeline (research → pitch →
-    design → build → QA → outreach).
+    and returns the project details ready for the pipeline.
 
-    The prospect already has branding data, site problems, and contact info from the
-    lead generation audit, so the agent can skip parts of the research step.
+    For revamp leads: prospect has branding, site problems, contact info — skip deep research.
+    For adventure leads: prospect has no website — run explore_business first to gather data.
     """
     import uuid as _uuid
 
@@ -1114,28 +1299,49 @@ async def promote_lead(
                 "project_status": existing_project.status,
             })
 
-        project_data = {
+        lead_mode = raw.get("lead_mode", "revamp")
+        is_adventure = lead_mode == "adventure"
+
+        project_data: dict = {
             "prospect_id": prospect_id,
             "company_name": prospect.company_name,
             "url": prospect.url,
             "industry": prospect.industry,
-            "contact_emails": prospect.contact_emails,
-            "site_problems": raw.get("site_problems", []),
+            "lead_mode": lead_mode,
             "opportunity_score": raw.get("lead_score"),
-            "website_overall": raw.get("website_overall"),
             "google_rating": raw.get("google_rating"),
             "google_review_count": raw.get("google_review_count"),
         }
 
+        if is_adventure:
+            project_data["google_address"] = raw.get("google_address")
+            project_data["place_id"] = raw.get("place_id")
+            project_data["has_website"] = False
+        else:
+            project_data["contact_emails"] = prospect.contact_emails
+            project_data["site_problems"] = raw.get("site_problems", [])
+            project_data["website_overall"] = raw.get("website_overall")
+
         if auto_create_project:
             name = prospect.company_name or urlparse(prospect.url).netloc
-            brief = (
-                f"Website redesign for {name}. "
-                f"Current site scores {raw.get('website_overall', '?')}/10. "
-                f"Key problems: {'; '.join(raw.get('site_problems', [])[:3])}. "
-                f"Google rating: {raw.get('google_rating', 'N/A')} "
-                f"({raw.get('google_review_count', 0)} reviews)."
-            )
+
+            if is_adventure:
+                brief = (
+                    f"New website build for {name} (no existing website). "
+                    f"Google rating: {raw.get('google_rating', 'N/A')} "
+                    f"({raw.get('google_review_count', 0)} reviews). "
+                    f"Address: {raw.get('google_address', 'N/A')}. "
+                    f"Needs explore_business to gather photos, reviews, and details first."
+                )
+            else:
+                brief = (
+                    f"Website redesign for {name}. "
+                    f"Current site scores {raw.get('website_overall', '?')}/10. "
+                    f"Key problems: {'; '.join(raw.get('site_problems', [])[:3])}. "
+                    f"Google rating: {raw.get('google_rating', 'N/A')} "
+                    f"({raw.get('google_review_count', 0)} reviews)."
+                )
+
             project = await _create(
                 session=session,
                 name=name,
@@ -1160,15 +1366,26 @@ async def promote_lead(
         prospect.raw_data = {**raw}
         await session.commit()
 
-        return json.dumps({
-            "status": "promoted",
-            **project_data,
-            "next_steps": [
+        if is_adventure:
+            next_steps = [
+                f"This business has NO existing website — run explore_business('{prospect_id}') first.",
+                "explore_business will gather Google Places photos, reviews, hours, and phone number.",
+                "Then use WebSearch + WebFetch to find the business on Yelp, Instagram, and Facebook for more photos and details.",
+                "Synthesize brand identity (colors, fonts, tagline) from gathered data and industry.",
+                "Call store_prospect to save enriched data, then proceed to pitch → design → build.",
+            ]
+        else:
+            next_steps = [
                 "The prospect already has site_problems and branding data from the lead audit.",
                 "Run the pitch generation pipeline (Step 2) — skip deep research.",
                 "Use store_prospect to enrich with additional data if needed.",
                 "Draft outreach email with draft_email referencing the specific site problems.",
-            ],
+            ]
+
+        return json.dumps({
+            "status": "promoted",
+            **project_data,
+            "next_steps": next_steps,
         }, indent=2)
 
 
@@ -1182,6 +1399,7 @@ async def batch_lead_generation(
     locations: list[str] | None = None,
     max_per_search: int = 5,
     min_opportunity_score: float = 2.5,
+    mode: str = "revamp",
 ) -> str:
     """Run lead generation across multiple industries and locations in one call.
 
@@ -1195,8 +1413,13 @@ async def batch_lead_generation(
         locations: List of locations (e.g. ["Austin TX", "Dallas TX"])
         max_per_search: Max results per industry+location combo (default 5)
         min_opportunity_score: Minimum score to qualify (default 2.5)
+        mode: "revamp" (businesses with websites) or "adventure" (businesses without websites)
     """
     from openclaw.config import settings
+
+    mode = mode.lower()
+    if mode not in ("revamp", "adventure"):
+        return json.dumps({"status": "error", "message": f"Invalid mode: {mode}. Use 'revamp' or 'adventure'."})
 
     # Use defaults from config if not provided
     if not industries:
@@ -1239,11 +1462,11 @@ async def batch_lead_generation(
 
     batch_results: list[dict] = []
     total_qualified = 0
-    total_audited = 0
+    total_processed = 0
 
     for loc in locations:
         for ind in industries:
-            logger.info("batch_run", industry=ind, location=loc)
+            logger.info("batch_run", industry=ind, location=loc, mode=mode)
 
             # Call run_lead_generation for each combo
             result_json = await run_lead_generation(
@@ -1251,19 +1474,21 @@ async def batch_lead_generation(
                 location=loc,
                 max_results=max_per_search,
                 min_opportunity_score=min_opportunity_score,
+                mode=mode,
             )
             result = json.loads(result_json)
 
             summary = result.get("summary", {})
             qualified_count = summary.get("qualified_leads", 0)
-            audited_count = summary.get("websites_audited", 0)
+            processed_count = summary.get("target_count", 0)
 
             batch_results.append({
                 "industry": ind,
                 "location": loc,
+                "mode": mode,
                 "status": result.get("status"),
                 "qualified_leads": qualified_count,
-                "websites_audited": audited_count,
+                "businesses_processed": processed_count,
                 "top_lead": (
                     result.get("qualified_leads", [{}])[0].get("name")
                     if result.get("qualified_leads") else None
@@ -1274,17 +1499,161 @@ async def batch_lead_generation(
                 ),
             })
             total_qualified += qualified_count
-            total_audited += audited_count
+            total_processed += processed_count
 
-    return json.dumps({
-        "status": "batch_completed",
-        "total_combinations": total_combos,
-        "total_websites_audited": total_audited,
-        "total_qualified_leads": total_qualified,
-        "results_by_search": batch_results,
-        "next_steps": [
+    if mode == "adventure":
+        next_steps = [
+            "Use get_lead_pipeline(mode='adventure') to view discovered businesses without websites.",
+            "Use promote_lead(prospect_id) to move top leads into the build pipeline.",
+            "After promoting, run explore_business(prospect_id) to gather photos, reviews, and details.",
+        ]
+    else:
+        next_steps = [
             "Use get_lead_pipeline() to view all qualified leads ranked by score.",
             "Use promote_lead(prospect_id) to move top leads into the build pipeline.",
             "Use lookup_prospect(url) to get full details on any lead.",
-        ],
+        ]
+
+    return json.dumps({
+        "status": "batch_completed",
+        "mode": mode,
+        "total_combinations": total_combos,
+        "total_businesses_processed": total_processed,
+        "total_qualified_leads": total_qualified,
+        "results_by_search": batch_results,
+        "next_steps": next_steps,
     }, indent=2)
+
+
+# ---------------------------------------------------------------------------
+# Tool 7: explore_business
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+async def explore_business(
+    prospect_id: str,
+) -> str:
+    """Explore a business with no website — gather photos, reviews, hours, and details
+    from Google Places to build a website from scratch.
+
+    Call this after promoting an adventure-mode lead. It enriches the prospect record
+    with Google Places photos, reviews, opening hours, phone number, and editorial
+    summary. After this tool returns, use WebSearch + WebFetch to find the business
+    on Yelp, Instagram, and Facebook for additional photos and details.
+
+    Args:
+        prospect_id: The prospect UUID from promote_lead
+    """
+    import uuid as _uuid
+
+    from openclaw.db.session import async_session_factory
+    from openclaw.integrations.google_places import get_place_details, resolve_photo_urls
+    from openclaw.models.prospect import Prospect
+
+    try:
+        pid = _uuid.UUID(prospect_id)
+    except ValueError:
+        return json.dumps({"error": f"Invalid prospect_id: {prospect_id}"})
+
+    async with async_session_factory() as session:
+        prospect = await session.get(Prospect, pid)
+        if not prospect:
+            return json.dumps({"error": f"Prospect {prospect_id} not found"})
+
+        raw = prospect.raw_data or {}
+        place_id = raw.get("place_id")
+        if not place_id:
+            return json.dumps({
+                "status": "error",
+                "message": "No place_id found on this prospect. explore_business requires an adventure-mode lead with Google Places data.",
+            })
+
+        # Fetch detailed place data from Google Places API (single call)
+        try:
+            details = await get_place_details(place_id)
+        except Exception as exc:
+            return json.dumps({
+                "status": "error",
+                "message": f"Google Places details fetch failed: {str(exc)[:200]}",
+            })
+
+        # Resolve photos from the details response (no extra API call)
+        try:
+            photo_urls = await resolve_photo_urls(details.get("photos", []), max_photos=10)
+        except Exception as exc:
+            logger.warning("explore_photos_failed", error=str(exc)[:100])
+            photo_urls = []
+
+        # Extract reviews
+        reviews_raw = details.get("reviews", [])
+        reviews = []
+        for r in reviews_raw[:10]:
+            reviews.append({
+                "author": r.get("authorAttribution", {}).get("displayName", ""),
+                "rating": r.get("rating"),
+                "text": (r.get("text", {}).get("text", "") or "")[:500],
+                "time": r.get("relativePublishTimeDescription", ""),
+            })
+
+        # Extract opening hours
+        hours = {}
+        regular_hours = details.get("regularOpeningHours") or details.get("currentOpeningHours")
+        if regular_hours:
+            for desc in regular_hours.get("weekdayDescriptions", []):
+                # Format: "Monday: 9:00 AM – 9:00 PM"
+                parts = desc.split(": ", 1)
+                if len(parts) == 2:
+                    hours[parts[0].strip()] = parts[1].strip()
+
+        # Extract other details
+        phone = details.get("nationalPhoneNumber")
+        editorial = details.get("editorialSummary", {}).get("text")
+        display_name = details.get("displayName", {}).get("text", prospect.company_name)
+
+        # Enrich prospect raw_data
+        enrichment = {
+            "explored_at": datetime.now(timezone.utc).isoformat(),
+            "google_photos": photo_urls,
+            "google_reviews": reviews,
+            "google_hours": hours,
+            "google_phone": phone,
+            "google_editorial_summary": editorial,
+        }
+        prospect.raw_data = {**raw, **enrichment}
+
+        # Update top-level fields if we got new info
+        if display_name and not prospect.company_name:
+            prospect.company_name = display_name
+
+        await session.commit()
+
+        company = prospect.company_name or "the business"
+        location = raw.get("google_address", raw.get("lead_location", ""))
+
+        return json.dumps({
+            "status": "explored",
+            "prospect_id": prospect_id,
+            "company_name": prospect.company_name,
+            "google_photos_count": len(photo_urls),
+            "google_photos": photo_urls[:5],
+            "google_reviews_count": len(reviews),
+            "google_reviews_preview": reviews[:3],
+            "google_hours": hours,
+            "google_phone": phone,
+            "google_editorial_summary": editorial,
+            "next_steps": [
+                f"Google data gathered: {len(photo_urls)} photos, {len(reviews)} reviews, {'hours found' if hours else 'no hours'}.",
+                f"Now use WebSearch to find more data. Search queries to try:",
+                f'  1. WebSearch: "{company}" site:yelp.com {location}',
+                f'  2. WebSearch: "{company}" {location} site:instagram.com',
+                f'  3. WebSearch: "{company}" {location} site:facebook.com',
+                f'  4. WebSearch: "{company}" {location} menu OR services OR prices',
+                "For each result found, use WebFetch to extract: photos, menu/services, description, additional reviews.",
+                "Then synthesize a brand identity:",
+                "  - Pick 3-5 brand_colors based on industry + photo palette + review tone",
+                "  - Pick Google Fonts that match the business vibe (serif=heritage, sans=modern, slab=casual)",
+                "  - Write a tagline from review themes (what do customers rave about?)",
+                f"Finally call store_prospect(url='{prospect.url}', brand_colors=[...], fonts=[...], "
+                "social_links={...}, raw_data={yelp_photos: [...], yelp_description: '...', ...}) to save everything.",
+            ],
+        }, indent=2)

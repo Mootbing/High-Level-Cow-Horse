@@ -214,17 +214,24 @@ async def generate_scene_assets(
     - section: name (e.g. "hero", "about", "services", "cta")
     - type: "video" | "transition" | "image" | "hero_video"
     - prompt: the generation prompt
-    - keyframe_a_prompt: (for transitions only) starting state prompt
-    - keyframe_b_prompt: (for transitions only) ending state prompt
+    - keyframe_a_prompt: (for hero_video and transitions) starting visual state prompt
+    - keyframe_b_prompt: (for hero_video and transitions) ending visual state prompt
 
     This is a batch orchestrator — it calls generate_image, generate_video, or
     generate_transition_video for each section and returns all asset paths.
 
     Use this instead of calling individual generation tools one by one.
 
+    For hero_video: ALWAYS provide keyframe_a_prompt (scroll start state) and
+    keyframe_b_prompt (scroll end state). These are generated as images with Nano Banana,
+    then Veo 3.1 creates a smooth transition video between them using first+last frame mode.
+    The resulting video is designed for scroll-controlled frame-by-frame playback.
+
     Example sections JSON:
     [
-      {"section": "hero", "type": "hero_video", "prompt": "Aerial view of..."},
+      {"section": "hero", "type": "hero_video", "prompt": "Smooth cinematic morph from opening to closing state",
+       "keyframe_a_prompt": "Opening visual state matching brand. No text.",
+       "keyframe_b_prompt": "Ending visual state after scroll. No text."},
       {"section": "hero-to-about", "type": "transition", "prompt": "Morph from aerial to...",
        "keyframe_a_prompt": "Aerial city view...", "keyframe_b_prompt": "Close-up workspace..."},
       {"section": "features", "type": "image", "prompt": "Abstract geometric..."},
@@ -243,11 +250,31 @@ async def generate_scene_assets(
         prompt = item.get("prompt", "")
 
         if asset_type == "hero_video":
-            result_str = await generate_video(prompt, project_name)
-            result = json.loads(result_str)
-            result["section"] = section_name
-            result["asset_type"] = "hero_video"
-            all_results.append(result)
+            # Hero videos use the keyframe pipeline: generate start + end frames
+            # with Nano Banana, then Veo 3.1 first+last frame for scroll-controlled video
+            kf_a_prompt = item.get("keyframe_a_prompt", "")
+            kf_b_prompt = item.get("keyframe_b_prompt", "")
+
+            if kf_a_prompt and kf_b_prompt:
+                # Preferred: two-keyframe approach via Veo 3.1 first+last frame
+                result_str = await generate_transition_video(
+                    prompt=prompt,
+                    project_name=project_name,
+                    section=section_name,
+                    keyframe_a_prompt=kf_a_prompt,
+                    keyframe_b_prompt=kf_b_prompt,
+                    duration=item.get("duration", 8),
+                )
+                result = json.loads(result_str)
+                result["asset_type"] = "hero_video"
+                all_results.append(result)
+            else:
+                # Fallback: raw prompt-only video (no keyframe control)
+                result_str = await generate_video(prompt, project_name)
+                result = json.loads(result_str)
+                result["section"] = section_name
+                result["asset_type"] = "hero_video"
+                all_results.append(result)
 
         elif asset_type == "transition":
             result_str = await generate_transition_video(

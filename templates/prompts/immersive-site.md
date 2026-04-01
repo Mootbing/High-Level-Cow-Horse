@@ -4,20 +4,23 @@ This is the master prompt for building award-winning, immersive client websites.
 Every site built by Clarmi should feel like an Awwwards finalist — cinematic scroll experiences,
 3D elements, scroll-controlled video, and micro-interactions that make visitors say "wow".
 
-## Quick Decision Matrix
+## The Clarmi Formula
 
-**Start here — answer these 3 questions before reading further:**
+**Every Clarmi site follows this structure — no exceptions:**
 
-| Question | Answer → Action |
-|----------|----------------|
-| **Does the business have strong visual content?** (food, properties, products) | Yes → **Scroll Video Hero** (generate with Veo) |
-| | No → **3D Scene Hero** (glass/wireframe/organic) or **Kinetic Typography** |
-| **How much scroll depth should the site have?** | Standard (5-6 sections) → Hero + TextReveal + Features + CTA + Footer |
-| | Cinematic (7-8 sections) → Add ScrollTransition + Parallax + HorizontalScroll |
-| **What's the brand personality?** | Premium → Glass 3D + ChromaticAberration + Magnetic buttons |
-| | Warm → Scroll video + Warm bloom + Gentle parallax |
-| | Bold → Kinetic typography + Horizontal scroll + Text scramble |
-| | Tech → Wireframe 3D + Neon bloom + Grid shader background |
+1. **Hero** = Scroll-controlled video (Nano Banana keyframes → Veo 3.1 first+last frame). Plays frame-by-frame as user scrolls.
+2. **Rest of site** = Three.js persistent 3D scene + ReactBits animated components + GSAP smooth scroll animations in every section.
+
+**The only decision is the AESTHETIC, not the architecture:**
+
+| Brand Personality | Hero Keyframes | Three.js Scene Style | ReactBits Focus |
+|-------------------|---------------|---------------------|-----------------|
+| **Premium/Luxury** | Glass surfaces, architectural | Glass geometric, ChromaticAberration | Spotlight cards, magnetic buttons |
+| **Warm/Inviting** | Organic textures, golden hour | Warm floating particles, soft bloom | Blur text reveals, aurora backgrounds |
+| **Bold/Creative** | High contrast, dramatic angles | Abstract geometry, heavy bloom | Text scramble, tilt cards |
+| **Tech/Modern** | Data streams, neon wireframes | Wireframe networks, neon bloom | Counter animations, grid reveals |
+
+**Scroll depth**: Standard (5-6 sections) → Hero + TextReveal + Features + CTA + Footer. Cinematic (7-8) → Add ScrollTransition + Parallax + HorizontalScroll.
 
 ## The Scroll Story
 
@@ -49,72 +52,43 @@ Every section serves one of these story beats. If a section doesn't serve the na
 ```
 app/
   layout.tsx          ← Google Fonts, metadata, SmoothScroller wrapper
-  page.tsx            ← Section composition + GSAP ScrollTrigger master timeline
+  page.tsx            ← Section composition: ScrollVideo hero → Scene3D + content sections
   globals.css         ← Tailwind imports + custom properties + scroll utilities
 components/
   SmoothScroller.tsx  ← Lenis initialization + GSAP ticker sync
-  Hero.tsx            ← Hero with 3D scene OR scroll video background
-  Scene3D.tsx         ← React Three Fiber canvas (dynamically imported, SSR: false)
-  ScrollVideo.tsx     ← Scroll-controlled video player component
-  TextReveal.tsx      ← Word-by-word or char-by-char text reveal on scroll
+  Hero.tsx            ← Scroll-controlled video hero (keyframe A→B via Veo 3.1)
+  Scene3D.tsx         ← Persistent Three.js canvas behind content sections (dynamic import, SSR: false)
+  ScrollVideo.tsx     ← Scroll-controlled video player (pin + scrub video.currentTime)
+  TransitionSection.tsx ← Pinned section with video/CSS-crossfade transition between states
+  TextReveal.tsx      ← Word-by-word scroll reveal (check ReactBits first)
   ParallaxSection.tsx ← Multi-layer parallax depth section
-  Features.tsx        ← Staggered card entrance with hover interactions
-  TransitionSection.tsx ← Pinned section with video/3D transition between states
-  CTA.tsx             ← Call-to-action with particle burst on interaction
+  Features.tsx        ← Staggered card entrance (ReactBits tilt/spotlight cards)
+  CTA.tsx             ← ReactBits magnetic button + aurora/gradient background
   Footer.tsx          ← Footer with stagger-in animation
-  MagneticButton.tsx  ← Magnetic hover effect for CTAs
-  CustomCursor.tsx    ← Custom cursor with blend mode (desktop only)
+  [ReactBits]/        ← Components copied from ReactBits (text anims, backgrounds, buttons)
 ```
 
 ## Section Playbook
 
 Every site is composed of 5-8 sections. Pick from this playbook based on the business type and content available.
 
-### 1. Hero Section (REQUIRED — always first)
+### 1. Hero Section (REQUIRED — always first — ALWAYS scroll video)
 
-**Option A: 3D Scene Hero** (best for: tech, professional services, luxury brands)
-- Full-viewport React Three Fiber canvas as background
-- 3D object(s) that respond to mouse movement (parallax) and scroll (transform/dissolve)
-- Text overlay with staggered character animation on load
-- On scroll: 3D scene scales down / fades while revealing next section
-- Use `dynamic(() => import('./Scene3D'), { ssr: false })` for the canvas
+Every Clarmi hero uses scroll-controlled video generated from two Nano Banana keyframes via Veo 3.1 first+last frame mode. The video plays frame-by-frame as the user scrolls — not autoplay.
 
-```tsx
-// Scene3D pattern — dynamically loaded, never SSR'd
-'use client'
-import { Canvas } from '@react-three/fiber'
-import { Float, Environment, MeshTransmissionMaterial } from '@react-three/drei'
-import { EffectComposer, Bloom, ChromaticAberration } from '@react-three/postprocessing'
+**How the hero video is created:**
+1. Nano Banana generates **keyframe A** (opening visual state — what visitors see on page load)
+2. Nano Banana generates **keyframe B** (ending visual state — what they see after scrolling through)
+3. Veo 3.1 generates a smooth transition video between A and B using first+last frame mode
+4. The video is embedded as scroll-controlled `<video>` — `video.currentTime` mapped to scroll progress
 
-function HeroScene() {
-  return (
-    <Canvas camera={{ position: [0, 0, 5], fov: 45 }} gl={{ antialias: true, alpha: true }}>
-      <Environment preset="city" />
-      <Float speed={1.5} rotationIntensity={0.4} floatIntensity={0.6}>
-        {/* Brand-appropriate 3D object */}
-        <mesh>
-          <icosahedronGeometry args={[1.5, 4]} />
-          <MeshTransmissionMaterial
-            backside thickness={0.5} chromaticAberration={0.3}
-            anisotropy={0.3} distortion={0.5} temporalDistortion={0.1}
-            color={brand_colors.primary}
-          />
-        </mesh>
-      </Float>
-      <EffectComposer>
-        <Bloom luminanceThreshold={0.8} intensity={0.5} />
-        <ChromaticAberration offset={[0.0005, 0.0005]} />
-      </EffectComposer>
-    </Canvas>
-  )
-}
-```
-
-**Option B: Scroll Video Hero** (best for: restaurants, real estate, experiential brands)
+**Hero structure:**
 - Full-viewport video that plays on scroll (not autoplay)
 - `video.currentTime` mapped to scroll progress via GSAP ScrollTrigger scrub
 - Pinned for 2-3x viewport height so the video plays through as user scrolls
 - Text overlays appear/disappear at specific scroll progress points
+- Poster image = keyframe A (instant visual before video loads)
+- Mobile fallback = keyframe A as static image (iOS restricts video.currentTime)
 
 ```tsx
 // ScrollVideo pattern — pin section, scrub video.currentTime
@@ -124,7 +98,7 @@ import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 gsap.registerPlugin(ScrollTrigger)
 
-export default function ScrollVideo({ src }: { src: string }) {
+export default function ScrollVideo({ src, poster }: { src: string; poster?: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const sectionRef = useRef<HTMLDivElement>(null)
 
@@ -161,6 +135,7 @@ export default function ScrollVideo({ src }: { src: string }) {
       <video
         ref={videoRef}
         src={src}
+        poster={poster}
         muted playsInline preload="auto"
         className="absolute inset-0 w-full h-full object-cover"
       />
@@ -169,11 +144,15 @@ export default function ScrollVideo({ src }: { src: string }) {
 }
 ```
 
-**Option C: Kinetic Typography Hero** (best for: agencies, creatives, bold brands)
-- No images or 3D — pure typography in motion
-- Giant headline with character-by-character blur-in animation
-- Parallax speed differences between headline and subtext
-- Subtle gradient background animation (CSS hue-rotate or GSAP)
+**Fallback (when video generation fails):** The tool returns keyframe A + B images. Use CSS crossfade on scroll instead — still scroll-controlled, just images crossfading instead of video frames:
+
+```tsx
+// CSS crossfade fallback when no video available
+<div ref={sectionRef} className="relative h-screen w-full overflow-hidden">
+  <img src={keyframeA} className="absolute inset-0 w-full h-full object-cover" style={{ opacity: 1 - progress }} />
+  <img src={keyframeB} className="absolute inset-0 w-full h-full object-cover" style={{ opacity: progress }} />
+</div>
+```
 
 ### 2. Scroll Transition Section (between hero and content)
 
@@ -261,19 +240,27 @@ gsap.to(scrollContainer, {
 
 Best for: portfolios, service showcases, timelines.
 
-### 7. 3D Product/Object Showcase
+### 7. Persistent Three.js Scene (REQUIRED — runs behind content sections)
 
-A pinned section with a 3D object that rotates and transforms as user scrolls.
+A single React Three Fiber canvas that renders behind ALL content sections (not the hero — the hero uses scroll video). The 3D scene provides ambient visual depth throughout the page.
 
-- Object starts small and centered
-- On scroll: rotates 360deg, scales up, materials change
-- Camera orbits the object
-- Labels/annotations appear at specific angles
+- **ALWAYS** `dynamic(() => import('./Scene3D'), { ssr: false })` — NEVER server-render
+- Single Canvas positioned `fixed` or `absolute` behind content sections
+- 3D elements respond to scroll position: objects rotate, scale, morph, change material as user scrolls through different sections
+- Pick scene style from the industry table in `templates/prompts/three-js-scene.md`
+- Scene fades in as the hero video scrolls out (opacity transition)
+- Mobile: show static fallback image on `< 768px`
+
+**How to integrate with sections:**
+- Canvas sits behind content with `z-index: 0`
+- Content sections have semi-transparent or transparent backgrounds so 3D shows through
+- Use GSAP ScrollTrigger to animate 3D properties (rotation, scale, color) as user scrolls past each section
+- Particles/floating shapes provide ambient motion even when content is static
 
 ### 8. CTA Section
 
-- Background: gradient animation or subtle particle effect
-- Magnetic button: follows cursor slightly on hover
+- Background: ReactBits aurora/spotlight/gradient component + Three.js accent elements showing through
+- Magnetic button: use ReactBits magnetic button component (search "magnetic")
 - On click: particle burst animation (confetti or sparkles)
 
 ## Animation Rules
@@ -305,11 +292,13 @@ ONLY animate these properties — everything else triggers layout/paint:
 - Reduce particle counts by 75% on mobile
 - Test with Chrome DevTools throttled to 4x CPU slowdown
 
-## Three.js Scene Selection by Industry
+## Three.js Persistent Scene by Industry
 
-| Industry | Scene Style | Materials | Lighting | Post-Processing |
-|----------|------------|-----------|----------|-----------------|
-| Restaurant/Food | Organic shapes, warm particles | Standard, warm colors | Warm point lights, soft shadows | Bloom (warm), subtle grain |
+The Three.js scene runs behind ALL content sections (not the hero — the hero uses scroll video). Pick the scene style based on industry. The 3D elements provide ambient visual depth and respond to scroll position.
+
+| Industry | Persistent Scene Style | Materials | Lighting | Post-Processing |
+|----------|----------------------|-----------|----------|-----------------|
+| Restaurant/Food | Floating warm particles, organic spheres | Standard, warm colors | Warm point lights, soft shadows | Bloom (warm), subtle grain |
 | Law/Finance | Glass geometric forms, monolithic | MeshPhysicalMaterial (glass, transmission) | Cool directional, rim light | ChromaticAberration, Vignette |
 | Salon/Beauty | Fluid shapes, iridescent | MeshTransmissionMaterial, iridescence | Soft pink/purple point lights | Bloom, soft ChromaticAberration |
 | Tech/SaaS | Wireframe, data nodes, grids | MeshBasicMaterial (wireframe) | Neon point lights | Bloom (high), scanline grain |
@@ -320,11 +309,12 @@ ONLY animate these properties — everything else triggers layout/paint:
 
 ## Scroll-Controlled Video Pipeline
 
-When using `generate_transition_video()` or `generate_video()`:
+Every Clarmi site uses scroll-controlled video. The pipeline is always:
+**Nano Banana (keyframe A) + Nano Banana (keyframe B) → Veo 3.1 first+last frame → scroll scrub**
 
-1. **Hero video**: Full-screen background, pinned, scrub through on scroll
-2. **Section transitions**: Pin between two sections, scrub as visual morph
-3. **Product reveals**: Pin while video reveals product from multiple angles
+1. **Hero video** (ALWAYS): keyframe A (page load state) + keyframe B (scroll end state) → Veo 3.1 transition → full-screen, pinned, scrub through on scroll
+2. **Section transitions**: Pin between two sections, A→B morph scrub via same keyframe pipeline
+3. **Fallback**: If video generation fails, crossfade between keyframe A and B images on scroll
 
 ### Video Encoding Requirements
 - **Format**: MP4 with H.264 codec (widest browser support for seeking)
@@ -485,6 +475,27 @@ useEffect(() => {
 | Hydration mismatch error | Three.js running on server | MUST use `dynamic(() => import(...), { ssr: false })` |
 | `overflow: hidden` breaks scroll | CSS overflow on body | Never set overflow hidden on html/body |
 | Parallax elements jump | ScrollTrigger not synced | Must call `lenis.on('scroll', ScrollTrigger.update)` |
+
+## Image Sourcing Priority
+
+**Real photos from the prospect's site FIRST, AI-generated images LAST.**
+
+During research, image URLs are extracted from the prospect's existing site. These are authentic photos of the actual business — food, products, team, space. Use them wherever they contextually fit:
+
+| Image Type | Best Placement |
+|-----------|---------------|
+| Food/dish photos | Menu section, parallax gallery, feature cards |
+| Team/staff photos | About section, testimonials |
+| Interior/space photos | Parallax backgrounds, gallery |
+| Product photos | Feature cards, horizontal scroll |
+| Exterior/storefront | Parallax background, about section |
+
+**Only use `generate_image` (Nano Banana) for:**
+- Hero video keyframes (abstract opening + ending visual states)
+- Transition keyframes (abstract A→B morph states)
+- Abstract atmospheric backgrounds where no real photo fits
+
+**Never force a real photo into a section where it doesn't contextually belong** — a food photo shouldn't be a CTA background, a team photo shouldn't be in a menu grid.
 
 ## DO NOT
 
