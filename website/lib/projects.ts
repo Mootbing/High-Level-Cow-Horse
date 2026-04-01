@@ -97,7 +97,7 @@ export const PROJECTS: Project[] = [
     slug: "jason-xu",
     name: "Jason Xu — Founder Portfolio",
     industry: "Portfolio",
-    caption: "the face behind Clarmi",
+    caption: "the founder's story",
     color: "#60A5FA",
     gradient: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 40%, #16213e 70%, #0f3460 100%)",
     improvement: "3x Awwwards winner",
