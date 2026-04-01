@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "clarmi-tools": {
+      "command": "python3",
+      "args": ["-m", "openclaw.mcp_server"],
+      "env": {
+        "PYTHONPATH": "src"
+      }
+    },
+    "reactbits": {
+      "command": "npx",
+      "args": ["reactbits-dev-mcp-server"]
+    }
+  }
+}

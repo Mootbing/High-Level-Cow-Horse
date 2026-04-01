@@ -224,17 +224,17 @@ export default function Work() {
             Sites we&apos;ve <em className="font-serif" style={{ fontStyle: "italic" }}>shipped</em>
           </h2>
           <p className="text-body-lg reveal delay-1" style={{ maxWidth: "420px", margin: "clamp(0.8rem, 1.5vh, 1rem) auto 0" }}>
-            Real businesses. Real results. Real stories.
+            Real businesses. Real success. Real stories.
           </p>
         </div>
 
         {/* Polaroid grid */}
         <div
+          className="work-grid"
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
-            gap: "clamp(2.5rem, 5vw, 4rem)",
-            maxWidth: "720px",
+            gap: "clamp(1.5rem, 3vw, 2.5rem)",
+            maxWidth: "1200px",
             margin: "0 auto",
             padding: "1rem 0",
           }}
@@ -244,6 +244,12 @@ export default function Work() {
           ))}
         </div>
       </div>
+
+      <style>{`
+        .work-grid { grid-template-columns: repeat(4, 1fr); }
+        @media (max-width: 1024px) { .work-grid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 540px) { .work-grid { grid-template-columns: 1fr; max-width: 300px; margin: 0 auto; } }
+      `}</style>
     </section>
   );
 }

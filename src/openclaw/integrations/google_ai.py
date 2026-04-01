@@ -17,7 +17,8 @@ GENAI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 # Model names per the official quickstart:
 # https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart
 NANO_BANANA_MODEL = "gemini-2.5-flash-image"  # Nano Banana image generation
-VEO_MODEL = "veo-3.0-generate-001"  # Veo 3 video generation
+VEO_MODEL = "veo-3.0-generate-001"  # Veo 3 video generation (fallback)
+VEO_3_1_MODEL = "veo-3.1-fast-preview"  # Veo 3.1 Fast — supports first+last frame mode
 
 
 async def generate_image(
@@ -58,23 +59,47 @@ async def generate_image(
 async def generate_video(
     prompt: str,
     reference_image: bytes | None = None,
+    last_frame_image: bytes | None = None,
     duration_seconds: int = 8,
-    model: str = VEO_MODEL,
+    resolution: str = "1080p",
+    aspect_ratio: str = "16:9",
+    model: str | None = None,
 ) -> str:
-    """Generate a video using Veo 3. Returns the operation name for polling."""
+    """Generate a video using Veo. Returns the operation name for polling.
+
+    Supports Veo 3.1's first+last frame mode: pass reference_image as the first frame
+    and last_frame_image as the last frame to generate a smooth transition between them.
+    This is ideal for scroll-controlled section transitions.
+
+    If both reference_image and last_frame_image are provided, Veo 3.1 Fast is used
+    automatically (Veo 3.0 does not support last_frame).
+    """
+    # Use Veo 3.1 when last_frame is needed, otherwise try 3.1 with 3.0 fallback
+    if model is None:
+        model = VEO_3_1_MODEL if last_frame_image else VEO_MODEL
+
     url = f"{GENAI_BASE}/models/{model}:predictLongRunning"
 
-    # Build request per Veo 3 API (uses instances/parameters format)
+    # Build request per Veo API (uses instances/parameters format)
     request_body: dict = {
         "instances": [{"prompt": prompt}],
         "parameters": {
             "sampleCount": 1,
+            "durationSeconds": duration_seconds,
+            "aspectRatio": aspect_ratio,
+            "resolution": resolution,
         },
     }
 
     if reference_image:
         request_body["instances"][0]["image"] = {
             "bytesBase64Encoded": base64.b64encode(reference_image).decode(),
+            "mimeType": "image/png",
+        }
+
+    if last_frame_image:
+        request_body["instances"][0]["lastFrame"] = {
+            "bytesBase64Encoded": base64.b64encode(last_frame_image).decode(),
             "mimeType": "image/png",
         }
 
@@ -140,6 +165,6 @@ async def generate_video(
 async def download_video(uri: str) -> bytes:
     """Download a generated video from its URI."""
     async with httpx.AsyncClient(timeout=120) as client:
-        response = await client.get(uri, params={"key": settings.GOOGLE_AI_API_KEY})
+        response = await client.get(uri)
         response.raise_for_status()
         return response.content

@@ -108,9 +108,13 @@ async def scaffold_nextjs(project_name: str, description: str | None = None) -> 
         "dependencies": {
             "next": "latest", "react": "^19.0.0", "react-dom": "^19.0.0",
             "gsap": "^3.12.0", "@studio-freight/lenis": "^1.0.0", "framer-motion": "^11.0.0",
+            "three": "^0.172.0", "@react-three/fiber": "^9.0.0",
+            "@react-three/drei": "^9.0.0", "@react-three/postprocessing": "^3.0.0",
+            "postprocessing": "^6.36.0",
         },
         "devDependencies": {
             "@types/node": "latest", "@types/react": "latest", "@types/react-dom": "latest",
+            "@types/three": "latest",
             "typescript": "latest", "tailwindcss": "latest", "postcss": "latest",
             "autoprefixer": "latest", "@tailwindcss/postcss": "latest",
         },

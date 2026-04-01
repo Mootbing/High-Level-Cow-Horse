@@ -103,6 +103,185 @@ async def generate_image(prompt: str, project_name: str, section: str) -> str:
 
 
 @mcp.tool()
+async def generate_transition_video(
+    prompt: str,
+    project_name: str,
+    section: str,
+    keyframe_a_prompt: str,
+    keyframe_b_prompt: str,
+    duration: int = 6,
+) -> str:
+    """Generate a scroll-controlled transition video: keyframe A (image) → Veo transition → keyframe B (image).
+
+    Pipeline:
+    1. Generates keyframe A image using Nano Banana
+    2. Generates keyframe B image using Nano Banana
+    3. Uses Veo 3.1 with keyframe A as first frame AND keyframe B as last frame
+       to generate a smooth transition video (first+last frame mode)
+    4. Uploads all three assets (keyframe A, keyframe B, transition video)
+
+    The resulting video is designed for scroll-controlled playback — the user scrolls
+    through the section and the video plays as a morphing transition between two states.
+
+    Returns paths to all three assets so the build step can:
+    - Show keyframe A as the initial static state
+    - Play the transition video mapped to scroll position
+    - Show keyframe B as the final static state
+
+    Use this for cinematic section transitions, hero → content morphs, and
+    storytelling sequences where one visual state smoothly becomes another.
+
+    IMPORTANT: Never include text, words, or logos in prompts. Images should be purely visual.
+    """
+    from openclaw.integrations.google_ai import generate_image as _generate_image
+    from openclaw.integrations.google_ai import generate_video as _generate_video
+    from openclaw.integrations.google_ai import download_video
+
+    results = {"section": section, "status": "partial"}
+
+    # Step 1: Generate keyframe A
+    try:
+        image_a_data = await _generate_image(keyframe_a_prompt)
+        filename_a = f"keyframe-{section}-a-{uuid.uuid4().hex[:8]}.png"
+        safe_name = os.path.basename(project_name.replace("..", "").strip("/")) or "unnamed"
+        project_dir = os.path.join(settings.STORAGE_PATH, safe_name)
+        os.makedirs(project_dir, exist_ok=True)
+        with open(os.path.join(project_dir, filename_a), "wb") as f:
+            f.write(image_a_data)
+        url_a = await _upload_asset(project_name, filename_a, image_a_data)
+        results["keyframe_a"] = url_a
+        logger.info("transition_keyframe_a_generated", section=section, url=url_a)
+    except Exception as exc:
+        logger.warning("transition_keyframe_a_failed", error=str(exc)[:300])
+        results["keyframe_a_error"] = str(exc)[:200]
+        return json.dumps(results)
+
+    # Step 2: Generate keyframe B
+    try:
+        image_b_data = await _generate_image(keyframe_b_prompt)
+        filename_b = f"keyframe-{section}-b-{uuid.uuid4().hex[:8]}.png"
+        with open(os.path.join(project_dir, filename_b), "wb") as f:
+            f.write(image_b_data)
+        url_b = await _upload_asset(project_name, filename_b, image_b_data)
+        results["keyframe_b"] = url_b
+        logger.info("transition_keyframe_b_generated", section=section, url=url_b)
+    except Exception as exc:
+        logger.warning("transition_keyframe_b_failed", error=str(exc)[:300])
+        results["keyframe_b_error"] = str(exc)[:200]
+        # Still usable — can fall back to crossfade between two images
+        return json.dumps(results)
+
+    # Step 3: Generate transition video using Veo 3.1 with first+last frame mode
+    try:
+        transition_prompt = (
+            f"{prompt}. Smooth cinematic transition. Camera movement is slow and deliberate. "
+            f"Duration: {duration} seconds. No text or logos."
+        )
+        video_uri = await _generate_video(
+            prompt=transition_prompt,
+            reference_image=image_a_data,
+            last_frame_image=image_b_data,
+            duration_seconds=duration,
+        )
+        video_data = await download_video(video_uri)
+        filename_video = f"transition-{section}-{uuid.uuid4().hex[:8]}.mp4"
+        with open(os.path.join(project_dir, filename_video), "wb") as f:
+            f.write(video_data)
+        url_video = await _upload_asset(project_name, filename_video, video_data)
+        results["transition_video"] = url_video
+        results["status"] = "complete"
+        logger.info("transition_video_generated", section=section, url=url_video)
+    except Exception as exc:
+        logger.warning("transition_video_failed", error=str(exc)[:300])
+        results["transition_video_error"] = str(exc)[:200]
+        results["status"] = "images_only"
+        results["fallback_note"] = (
+            "Video generation failed. Use CSS/JS crossfade between keyframe A and B "
+            "on scroll instead of video playback."
+        )
+
+    return json.dumps(results)
+
+
+@mcp.tool()
+async def generate_scene_assets(
+    project_name: str,
+    sections: str,
+) -> str:
+    """Generate a complete set of visual assets for an immersive website build.
+
+    sections is a JSON string: a list of objects, each with:
+    - section: name (e.g. "hero", "about", "services", "cta")
+    - type: "video" | "transition" | "image" | "hero_video"
+    - prompt: the generation prompt
+    - keyframe_a_prompt: (for transitions only) starting state prompt
+    - keyframe_b_prompt: (for transitions only) ending state prompt
+
+    This is a batch orchestrator — it calls generate_image, generate_video, or
+    generate_transition_video for each section and returns all asset paths.
+
+    Use this instead of calling individual generation tools one by one.
+
+    Example sections JSON:
+    [
+      {"section": "hero", "type": "hero_video", "prompt": "Aerial view of..."},
+      {"section": "hero-to-about", "type": "transition", "prompt": "Morph from aerial to...",
+       "keyframe_a_prompt": "Aerial city view...", "keyframe_b_prompt": "Close-up workspace..."},
+      {"section": "features", "type": "image", "prompt": "Abstract geometric..."},
+      {"section": "cta", "type": "image", "prompt": "Warm golden hour..."}
+    ]
+    """
+    try:
+        section_list = json.loads(sections)
+    except json.JSONDecodeError as e:
+        return json.dumps({"status": "error", "message": f"Invalid JSON: {str(e)[:200]}"})
+
+    all_results = []
+    for item in section_list:
+        section_name = item.get("section", "unknown")
+        asset_type = item.get("type", "image")
+        prompt = item.get("prompt", "")
+
+        if asset_type == "hero_video":
+            result_str = await generate_video(prompt, project_name)
+            result = json.loads(result_str)
+            result["section"] = section_name
+            result["asset_type"] = "hero_video"
+            all_results.append(result)
+
+        elif asset_type == "transition":
+            result_str = await generate_transition_video(
+                prompt=prompt,
+                project_name=project_name,
+                section=section_name,
+                keyframe_a_prompt=item.get("keyframe_a_prompt", prompt),
+                keyframe_b_prompt=item.get("keyframe_b_prompt", prompt),
+                duration=item.get("duration", 6),
+            )
+            result = json.loads(result_str)
+            result["asset_type"] = "transition"
+            all_results.append(result)
+
+        else:  # image
+            result_str = await generate_image(prompt, project_name, section_name)
+            result = json.loads(result_str)
+            result["asset_type"] = "image"
+            all_results.append(result)
+
+    # Summary
+    succeeded = sum(1 for r in all_results if r.get("status") in ("generated", "complete"))
+    failed = sum(1 for r in all_results if r.get("status") == "failed")
+
+    return json.dumps({
+        "status": "batch_complete",
+        "total": len(all_results),
+        "succeeded": succeeded,
+        "failed": failed,
+        "assets": all_results,
+    })
+
+
+@mcp.tool()
 async def generate_video(prompt: str, project_name: str, duration: int = 8) -> str:
     """Generate a hero video using Veo 3 (Google AI) and upload to the project's GitHub repo.
 

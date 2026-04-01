@@ -1,9 +1,6 @@
 {
-  "mcpServers": {
-    "clarmi-tools": {
-      "command": "python3",
-      "args": ["-m", "openclaw.mcp_server"],
-      "cwd": "/home/mootbing/code/High-Level-Cow-Horse"
-    }
+  "permissions": {
+    "allow": [],
+    "deny": []
   }
 }

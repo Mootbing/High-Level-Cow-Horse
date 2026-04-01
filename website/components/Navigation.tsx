@@ -49,7 +49,7 @@ export default function Navigation() {
               color: "var(--text)",
             }}
           >
-            Clarmi
+            Clarmi.studio
           </a>
 
           <div className="hide-mobile" style={{ display: "flex", alignItems: "center", gap: "clamp(2rem, 3.5vw, 3rem)" }}>

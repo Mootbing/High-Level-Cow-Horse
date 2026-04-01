@@ -236,7 +236,7 @@ img, video { max-width: 100%; display: block; }
   justify-content: center;
   gap: 0.5rem;
   padding: clamp(0.8rem, 1.1vw, 1rem) clamp(1.6rem, 2.2vw, 2.2rem);
-  background: var(--accent);
+  background: var(--text);
   color: white;
   font-weight: 500;
   font-size: clamp(0.85rem, 0.95vw, 0.95rem);
@@ -249,7 +249,7 @@ img, video { max-width: 100%; display: block; }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(124, 92, 252, 0.35);
+  box-shadow: 0 8px 30px rgba(10, 10, 10, 0.25);
 }
 
 .btn-gradient {
@@ -258,7 +258,7 @@ img, video { max-width: 100%; display: block; }
   justify-content: center;
   gap: 0.5rem;
   padding: clamp(0.8rem, 1.1vw, 1rem) clamp(1.6rem, 2.2vw, 2.2rem);
-  background: var(--gradient);
+  background: var(--text);
   color: white;
   font-weight: 500;
   font-size: clamp(0.85rem, 0.95vw, 0.95rem);
@@ -268,7 +268,7 @@ img, video { max-width: 100%; display: block; }
 
 .btn-gradient:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 30px rgba(124, 92, 252, 0.35);
+  box-shadow: 0 8px 30px rgba(10, 10, 10, 0.25);
 }
 
 .btn-outline {
@@ -398,7 +398,7 @@ img, video { max-width: 100%; display: block; }
 .url-input-wrapper button {
   padding: clamp(0.6rem, 0.9vw, 0.8rem) clamp(1.2rem, 1.8vw, 1.5rem);
   margin: 4px;
-  background: var(--accent);
+  background: var(--text);
   color: white;
   font-weight: 500;
   font-size: clamp(0.8rem, 0.9vw, 0.88rem);
@@ -408,7 +408,7 @@ img, video { max-width: 100%; display: block; }
 }
 
 .url-input-wrapper button:hover {
-  box-shadow: 0 8px 30px rgba(124, 92, 252, 0.35);
+  box-shadow: 0 8px 30px rgba(10, 10, 10, 0.25);
 }
 
 /* ============================================
@@ -437,9 +437,20 @@ img, video { max-width: 100%; display: block; }
 }
 
 .mobile-nav a {
-  font-family: "Instrument Serif", Georgia, serif;
-  font-size: clamp(2rem, 5vw, 3rem);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: clamp(1.2rem, 3vw, 1.5rem);
+  font-weight: 400;
+  letter-spacing: -0.01em;
   transition: color 0.3s ease;
+}
+
+@media (min-width: 769px) {
+  .mobile-nav a {
+    font-family: "Instrument Serif", Georgia, serif;
+    font-size: clamp(2rem, 5vw, 3rem);
+    font-weight: 400;
+    letter-spacing: normal;
+  }
 }
 
 .mobile-nav a:hover {

@@ -375,15 +375,14 @@ async def analyze_competitor_websites(project_name: str) -> str:
             analyses.append(analysis)
             continue
 
-        # Fetch the homepage
+        # Fetch the homepage (with bot-detection bypass)
         try:
-            async with httpx.AsyncClient(
-                timeout=15, follow_redirects=True,
-            ) as client:
-                resp = await client.get(website)
-                html = resp.text[:50_000]  # Cap at 50 KB
-                final_url = str(resp.url)
-                is_https = final_url.startswith("https://")
+            from openclaw.mcp_server.tools.lead_gen import _fetch_page
+            html, final_url, is_https, _status = await _fetch_page(
+                website, timeout=15,
+            )
+            if _status != 200:
+                raise Exception(f"HTTP {_status}")
         except Exception as exc:
             analysis["website_scores"] = None
             analysis["strengths"] = []

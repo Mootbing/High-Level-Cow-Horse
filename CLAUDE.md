@@ -102,43 +102,199 @@ Generate a personalized pitch as a standalone HTML slide deck at `/pitch/` in th
 
 ### Step 3: Design
 
-Generate visual assets for the website using Google AI.
+Generate visual assets for an immersive, Awwwards-quality website. Every Clarmi site should feel cinematic — scroll-controlled video, 3D elements, and transitions that make visitors say "wow".
 
-**Design direction**: Modern minimal, AI-infrastructure aesthetic. Black/white, neon accents (cyan, magenta, electric blue). Large typography, heavy whitespace, cinematic feel. Inspired by Apple/Anthropic/Vercel.
+Read `templates/prompts/immersive-site.md` for the full design system reference before starting.
 
-**CRITICAL**: NEVER include text, words, letters, or logos in generated images. All text is added by code.
+**Design direction**: NOT one-size-fits-all. Match the industry and brand personality:
+- **Restaurant/Food**: warm organic photography, steam/texture videos, golden hour lighting
+- **Professional/Law**: glass geometric 3D scenes, architectural video, cool + authoritative
+- **Salon/Beauty**: iridescent surfaces, fluid video transitions, soft pink/lavender palette
+- **Tech/SaaS**: data visualization 3D, wireframe networks, neon accents
+- **Real Estate**: aerial video, golden hour, architectural 3D forms
+- **Retail**: product showcase video, studio lighting, clean and inviting
 
-1. Try `generate_video(prompt, project_name)` for the hero background (cinematic loop, 6-8s)
-   - If it fails (quota/rate limit), skip and generate a hero keyframe image instead. Do NOT retry.
-2. Call `generate_image(prompt, project_name, section)` for each major section (hero, features, how-it-works, CTA)
-3. Write detailed prompts with hex colors, lighting descriptions, composition notes
-4. Record all `/assets/...` paths for Step 3
+**CRITICAL**: NEVER include text, words, letters, or logos in generated images or videos. All text is added by code.
+
+#### 3a. Plan the Visual Experience
+
+Before generating any assets, plan the scroll experience by answering:
+1. **Hero treatment**: 3D scene (glass/organic/wireframe), scroll video, or kinetic typography?
+2. **Transitions**: Which sections need video transitions (A→B morph)? Usually 1-2 max.
+3. **Background elements**: Which sections need generated images for atmosphere?
+4. **3D elements**: Will there be a persistent 3D element, or section-specific scenes?
+
+#### 3b. Generate Assets
+
+Use `generate_scene_assets(project_name, sections_json)` to batch-generate all assets at once. This is preferred over calling individual tools.
+
+**sections_json format**:
+```json
+[
+  {"section": "hero", "type": "hero_video", "prompt": "Slow dolly through [industry-appropriate scene]. [Brand colors]. No text. 8 seconds."},
+  {"section": "hero-to-about", "type": "transition", 
+   "prompt": "Smooth cinematic morph from [hero scene] to [about scene]",
+   "keyframe_a_prompt": "[Starting visual state matching hero]. No text.",
+   "keyframe_b_prompt": "[Ending visual state matching about section]. No text."},
+  {"section": "features", "type": "image", "prompt": "[Abstract/atmospheric image for features background]. No text."},
+  {"section": "cta", "type": "image", "prompt": "[Warm, inviting atmosphere for call-to-action]. No text."}
+]
+```
+
+If `generate_scene_assets` isn't available, fall back to individual calls:
+1. Try `generate_video(prompt, project_name)` for the hero background (cinematic, 6-8s)
+   - If it fails (quota/rate limit), use `generate_image` for a hero keyframe instead. Do NOT retry.
+2. Call `generate_transition_video(...)` for 1-2 section transitions (A→B morph videos)
+   - If video generation fails, the tool returns keyframe images for CSS crossfade fallback
+3. Call `generate_image(prompt, project_name, section)` for each remaining section
+
+#### 3c. Prompt Writing Rules
+
+- Reference `brand_colors` hex values: "dominant warm cream (#F5E6D3) with burgundy (#722F37) accents"
+- Describe camera movement: "slow overhead dolly", "gentle orbital pan", "steady forward tracking"
+- Specify lighting: "warm golden hour from camera left", "cool ambient with neon rim"
+- Keep prompts under 200 words — detailed but focused
+- Always end with "No text, no words, no logos"
+- Record all `/assets/...` paths for Step 4
 
 ### Step 4: Build
 
-Build a fully responsive Next.js landing page with scroll-driven animations.
+Build an immersive, award-winning Next.js landing page with 3D elements, scroll-controlled video, and cinematic animations. Read `templates/prompts/immersive-site.md` for the complete reference.
 
-**Tech stack**: Next.js App Router, TypeScript, GSAP + ScrollTrigger, Lenis smooth scrolling, Tailwind CSS.
+**Tech stack**: Next.js App Router, TypeScript, GSAP + ScrollTrigger, Lenis smooth scrolling, Tailwind CSS, React Three Fiber (3D), @react-three/drei + postprocessing, **ReactBits** (135+ animated React components).
+
+#### ReactBits Component Library
+
+The `reactbits` MCP server provides access to **135+ pre-built animated React components** from [ReactBits.dev](https://reactbits.dev). Use these to add polished effects without writing custom code:
+
+- `list_categories` — see all categories (backgrounds, text animations, animations, etc.)
+- `search_components(query)` — find components by name/description (e.g. "aurora", "spotlight", "text reveal")
+- `get_component(name)` — get the full source code to embed in the project
+- `get_component_demo(name)` — see usage examples
+
+**When to use ReactBits**: Before writing a custom effect from scratch (magnetic button, text animation, background effect, etc.), search ReactBits first. If a matching component exists, use it — it's battle-tested and saves time. Backgrounds and text effects are the highest quality (9-10/10).
+
+**How to use**: Copy the component source from `get_component` into the project's `components/` directory. Adapt colors/sizing to match the prospect's brand. ReactBits components are standalone — no extra dependencies beyond React.
+
+#### 4a. Scaffold
 
 1. Call `scaffold_nextjs(project_name)` — skip if already scaffolded
-2. Call `write_code(project_name, file_path, code)` for each file:
-   - Start with `app/layout.tsx`, then `app/page.tsx`, then components in `/components/`
-   - Output ONLY valid TypeScript/TSX code — no markdown fences
-   - Use `'use client'` directive on components with hooks, refs, or browser APIs
-3. **EMBED designer assets**: use hero video as `<video autoPlay muted loop>`, keyframe images as section backgrounds or `<img>` tags. NEVER skip provided assets.
-4. **REUSE old site content**: use their image URLs directly, reuse copy/blurbs, keep navigation structure, contact info, hours, addresses, menu items, pricing
-5. Call `verify_build(project_name)` — if it fails, fix with `edit_code` or `write_code` and retry
-6. Call `deploy(project_name, commit_message)` — ALWAYS deploy before running out of context
+   - Scaffold now includes: Three.js, @react-three/fiber, @react-three/drei, @react-three/postprocessing
+
+#### 4b. Architecture
+
+Read `templates/prompts/immersive-site.md` for the file architecture. Build files in this order:
+
+1. `app/globals.css` — Tailwind imports + custom CSS properties from brand_colors
+2. `app/layout.tsx` — Google Fonts (from prospect's `fonts` array), metadata, SmoothScroller
+3. `components/SmoothScroller.tsx` — Lenis + GSAP ticker sync (see `templates/prompts/effect-catalog.md`)
+4. `components/Scene3D.tsx` — React Three Fiber canvas (see `templates/prompts/three-js-scene.md`)
+   - **ALWAYS** `dynamic(() => import('./Scene3D'), { ssr: false })` — NEVER server-render Three.js
+   - Pick scene style from the industry table in `three-js-scene.md`
+   - Include mobile fallback: show static image on `< 768px` width
+5. `components/ScrollVideo.tsx` — Scroll-controlled video player (see `templates/prompts/scroll-video-section.md`)
+   - Pin section + scrub `video.currentTime` via GSAP ScrollTrigger
+   - Include poster image for instant visual before video loads
+   - Mobile fallback: static keyframe image instead of video
+6. `components/TransitionSection.tsx` — If transition videos were generated
+   - Video morph between two states, or CSS crossfade fallback
+7. `components/TextReveal.tsx` — Word-by-word scroll reveal for key statements
+8. `app/page.tsx` — Compose all sections in order
+9. Remaining section components as needed
+
+#### 4c. Section Composition (pick 5-8 from this menu)
+
+| Section | Effect | When to Use |
+|---------|--------|-------------|
+| **Hero** | 3D scene background OR scroll video + text overlay | Always first |
+| **Scroll Transition** | Pinned video morph between hero → content | After hero, before main content |
+| **Text Reveal** | Word-by-word opacity on scroll | Mission statement, value prop |
+| **Parallax Gallery** | Multi-speed depth layers with images | Portfolio, menu items, services |
+| **Feature Cards** | Staggered entrance with 3D tilt hover | Service/feature showcase |
+| **Horizontal Scroll** | Pinned vertical→horizontal scroll | Timeline, process, portfolio |
+| **Stats/Numbers** | Animated counters + scroll trigger | Social proof, metrics |
+| **CTA** | Magnetic button + particle/gradient background | Always near end |
+| **Footer** | Stagger-in animation | Always last |
+
+#### 4d. Write Code
+
+Call `write_code(project_name, file_path, code)` for each file:
+- Output ONLY valid TypeScript/TSX — no markdown fences
+- Use `'use client'` directive on components with hooks, refs, or browser APIs
+- **EMBED all designer assets**: hero video as scroll-controlled `<video>`, transition videos in TransitionSection, keyframe images as backgrounds. NEVER skip provided assets.
+- **REUSE old site content**: use their image URLs directly, reuse copy/blurbs, keep navigation structure, contact info, hours, addresses, menu items, pricing
+
+#### 4e. Animation Guidelines
+
+Read `templates/prompts/effect-catalog.md` for the complete pattern library. Key rules:
+
+- **GPU-only properties**: ONLY animate `transform`, `opacity`, `filter`, `clip-path`
+- **Easing**: `power3.out` for entrances, `'none'` (linear) for scrub animations
+- **Stagger**: 0.08-0.15s between elements
+- **Scrub smoothness**: `scrub: 0.3` to `scrub: 1`
+- **Pin duration**: 2-3x viewport height (never > 4x — feels stuck)
+- **Micro-interactions**: Magnetic buttons on CTAs, 3D card tilt on hover, text scramble on headings
+- **Custom cursor**: Only on desktop, only for creative/luxury brands — mix-blend-mode: difference
+
+#### 4f. Mobile Treatment
+
+- **Three.js**: Replace with static fallback image on `< 768px` (3D too heavy for phones)
+- **Scroll video**: Replace with poster/keyframe image on mobile (iOS restricts video.currentTime)
+- **Parallax**: Reduce intensity by 50% on mobile
+- **Custom cursor**: Disable on touch devices
+- **Particle count**: Reduce by 75% on mobile
+- **Horizontal scroll**: Convert to vertical stack on mobile
+
+#### 4g. Verify & Deploy
+
+1. Call `verify_build(project_name)` — if it fails, fix with `edit_code` or `write_code` and retry
+2. Call `deploy(project_name, commit_message)` — ALWAYS deploy before running out of context
+
+**A deployed site with 5 cinematic sections beats an undeployed site with 15.**
 
 **CRITICAL RULES**:
 - NEVER build generic/template sites. Every heading, company name, description comes from brand data
 - NEVER invent company names, testimonials, team members, pricing, or content
 - If no brand data provided, return error: "ERROR: No brand data provided"
-- GPU-accelerated animations only (transform, opacity). Mobile-first responsive.
-- A deployed site with 5 good sections beats an undeployed site with 15 sections
 - **NEVER default to dark theme + gold accent for every site.** Each site's color palette MUST come from the prospect's actual brand colors stored in `brand_colors`. A bagel deli should look warm and inviting (cream, brown, red). A Thai restaurant should reflect Thai culture (white, red, gold). A law firm should look professional (navy, white, silver). Match the industry and the brand — not a generic "luxury" aesthetic.
 - Before writing any CSS/styles, explicitly reference the `brand_colors` array from the prospect data and build the palette from those values. If the extracted colors all look wrong or generic, go back and re-extract from the actual site.
 - **NEVER hardcode the same fonts for every site.** Use the prospect's `fonts` array to set the typography. Load them via Google Fonts `<link>` in `layout.tsx`. If the prospect's original fonts are available on Google Fonts, use them. If not, pick Google Fonts that match the same style/vibe. A 1961 bagel shop gets different fonts than a modern Thai restaurant. Store fonts as `[heading_font, body_font]` in the prospect record.
+- **THREE.JS MUST use `dynamic(() => import(...), { ssr: false })`** — never server-render 3D
+- **Single Canvas per page** — never multiple Three.js Canvas elements
+- **Max 2 post-processing effects** active simultaneously
+- **All `useEffect` cleanups** must call `ScrollTrigger.getAll().forEach(t => t.kill())` and dispose Three.js resources
+
+#### Fallback Strategy (when things go wrong)
+
+| Problem | Fallback |
+|---------|----------|
+| Hero video generation fails | Use `generate_image` for a static hero keyframe + CSS Ken Burns animation |
+| Transition video fails | Tool returns keyframe A + B images — use CSS crossfade on scroll instead |
+| All video generation fails (quota) | Go pure kinetic typography hero + shader backgrounds for atmosphere |
+| Three.js build errors | Remove 3D scene, use shader background (lighter, no R3F dependency) |
+| Lighthouse < 85 due to Three.js | Lazy-load canvas with Intersection Observer, reduce post-processing, shrink textures |
+| Build keeps failing on R3F types | Remove Three.js entirely, use GSAP-only animations — still impressive |
+| Running out of context | Deploy what you have. 5 polished sections > 8 broken sections. ALWAYS deploy. |
+
+**Graceful degradation priority**: 3D scene → Shader background → CSS gradient animation → Static image
+
+#### Template Reference Index
+
+| Template | Path | Purpose |
+|----------|------|---------|
+| Master design system | `templates/prompts/immersive-site.md` | Architecture, section playbook, animation rules, performance budget |
+| Section choreography | `templates/prompts/section-choreography.md` | How sections flow together — rhythm, pacing, composition templates |
+| Three.js scenes | `templates/prompts/three-js-scene.md` | R3F scene recipes by industry, scroll interactions, post-processing |
+| Scroll video | `templates/prompts/scroll-video-section.md` | ScrollVideo + TransitionSection + CanvasFrameScrubber components |
+| Effect catalog | `templates/prompts/effect-catalog.md` | Micro-interactions, GSAP patterns, magnetic buttons, cursors |
+| Scroll animations | `templates/prompts/scroll-animation.md` | All GSAP ScrollTrigger patterns + CSS scroll animations |
+| Hero section | `templates/prompts/hero-section.md` | Three hero approaches (3D, video, typography) with full code |
+| Shader backgrounds | `templates/prompts/shader-backgrounds.md` | Lightweight WebGL shaders for section atmospheres |
+| Video prompt library | `templates/prompts/video-prompt-library.md` | Pre-written Veo/Nano Banana prompts by industry |
+| Responsive patterns | `templates/prompts/responsive-patterns.md` | Breakpoints, mobile fallbacks, touch interactions, fluid typography |
+| Branding → Design | `templates/prompts/branding-to-design.md` | Convert prospect data to design spec JSON |
+| Full site prompt | `templates/prompts/full-site.md` | Quick-reference generation prompt |
+| Page transitions | `templates/prompts/page-transitions.md` | View Transitions API + Framer Motion (multi-page sites only) |
 
 ### Step 5: QA
 
