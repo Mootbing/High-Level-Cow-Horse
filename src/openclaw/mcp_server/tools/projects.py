@@ -11,26 +11,60 @@ async def create_project(name: str, brief: str, client_phone: str | None = None)
 
     Returns project ID, slug, GitHub URL, and Vercel project name.
     Use this at the start of a website build pipeline.
+
+    CRITICAL: If GitHub repo or Vercel project cannot be created, this returns
+    an error. Both must succeed before proceeding with scaffold/build/deploy.
+    Duplicate projects with the same name are automatically deduplicated — calling
+    this twice with the same name returns the existing project.
     """
     from openclaw.db.session import async_session_factory
     from openclaw.services.project_service import create_project as _create
 
-    async with async_session_factory() as session:
-        project = await _create(
-            session=session,
-            name=name,
-            brief=brief,
-            client_phone=client_phone,
-        )
-        metadata = project.metadata_ or {}
+    try:
+        async with async_session_factory() as session:
+            project = await _create(
+                session=session,
+                name=name,
+                brief=brief,
+                client_phone=client_phone,
+            )
+            metadata = project.metadata_ or {}
+
+            # Verify critical resources exist
+            if not metadata.get("github_repo"):
+                return json.dumps({
+                    "status": "error",
+                    "message": "Project created but GitHub repo provisioning failed. Check GitHub PAT and API access.",
+                    "project_id": str(project.id),
+                    "slug": project.slug,
+                })
+            if not metadata.get("vercel_project"):
+                return json.dumps({
+                    "status": "error",
+                    "message": "Project created but Vercel project provisioning failed. Check Vercel token and API access.",
+                    "project_id": str(project.id),
+                    "slug": project.slug,
+                    "github_repo": metadata.get("github_repo"),
+                })
+
+            return json.dumps({
+                "project_id": str(project.id),
+                "name": project.name,
+                "slug": project.slug,
+                "status": project.status,
+                "github_repo": metadata.get("github_repo"),
+                "github_url": metadata.get("github_url"),
+                "vercel_project": metadata.get("vercel_project"),
+            })
+    except RuntimeError as exc:
         return json.dumps({
-            "project_id": str(project.id),
-            "name": project.name,
-            "slug": project.slug,
-            "status": project.status,
-            "github_repo": metadata.get("github_repo"),
-            "github_url": metadata.get("github_url"),
-            "vercel_project": metadata.get("vercel_project"),
+            "status": "error",
+            "message": str(exc),
+        })
+    except Exception as exc:
+        return json.dumps({
+            "status": "error",
+            "message": f"Failed to create project: {str(exc)[:300]}",
         })
 
 

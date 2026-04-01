@@ -16,35 +16,30 @@ async def _get_prospect_for_project(project_name: str):
     """Look up the Prospect record linked to a project.
 
     Returns (project, prospect) or (None, None).
+    Uses the centralized find_project_by_name for consistent lookup.
     """
-    from slugify import slugify
-    from sqlalchemy import select
     from sqlalchemy.orm import selectinload
 
     from openclaw.db.session import async_session_factory
     from openclaw.models.project import Project
+    from openclaw.services.project_service import find_project_by_name
 
     async with async_session_factory() as session:
-        slug_prefix = slugify(project_name)
-        stmt = (
-            select(Project)
-            .options(selectinload(Project.prospect))
-            .where(Project.slug.startswith(slug_prefix))
-        )
-        result = await session.execute(stmt)
-        project = result.scalars().first()
+        project = await find_project_by_name(session, project_name)
 
         if not project:
-            stmt = (
-                select(Project)
-                .options(selectinload(Project.prospect))
-                .where(Project.name.ilike(f"%{project_name}%"))
-                .limit(1)
-            )
-            result = await session.execute(stmt)
-            project = result.scalars().first()
+            return None, None
 
-        if not project or not project.prospect:
+        # Eager-load the prospect relationship if not already loaded
+        if project.prospect_id and not project.prospect:
+            from openclaw.models.prospect import Prospect
+            from sqlalchemy import select
+            stmt = select(Prospect).where(Prospect.id == project.prospect_id)
+            result = await session.execute(stmt)
+            prospect = result.scalars().first()
+            return project, prospect
+
+        if not project.prospect:
             return None, None
         return project, project.prospect
 

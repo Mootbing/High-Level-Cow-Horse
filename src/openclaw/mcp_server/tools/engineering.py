@@ -25,22 +25,11 @@ def _project_dir(project_name: str) -> str:
 async def _get_project_metadata(project_name: str, key: str) -> str | None:
     """Look up a metadata value from the Project record."""
     from openclaw.db.session import async_session_factory
-    from openclaw.models.project import Project
-    from slugify import slugify
-    from sqlalchemy import select
+    from openclaw.services.project_service import find_project_by_name
 
     try:
         async with async_session_factory() as session:
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
-
-            if not project:
-                stmt = select(Project).where(Project.name.ilike(f"%{project_name}%")).limit(1)
-                result = await session.execute(stmt)
-                project = result.scalars().first()
-
+            project = await find_project_by_name(session, project_name)
             if project and project.metadata_:
                 return project.metadata_.get(key)
     except Exception as exc:
@@ -51,26 +40,17 @@ async def _get_project_metadata(project_name: str, key: str) -> str | None:
 async def _save_project_metadata(project_name: str, data: dict) -> None:
     """Save metadata keys to the Project record."""
     from openclaw.db.session import async_session_factory
-    from openclaw.models.project import Project
-    from slugify import slugify
-    from sqlalchemy import select
+    from openclaw.services.project_service import find_project_by_name
 
     try:
         async with async_session_factory() as session:
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
-
-            if not project:
-                stmt = select(Project).where(Project.name.ilike(f"%{project_name}%")).limit(1)
-                result = await session.execute(stmt)
-                project = result.scalars().first()
-
+            project = await find_project_by_name(session, project_name)
             if project:
                 existing = project.metadata_ or {}
                 project.metadata_ = {**existing, **data}
                 await session.commit()
+            else:
+                logger.warning("metadata_save_no_project", project=project_name)
     except Exception as exc:
         logger.warning("metadata_save_failed", project=project_name, error=str(exc)[:200])
 
@@ -182,22 +162,22 @@ export default function RootLayout({{ children }}: {{ children: React.ReactNode 
     except Exception as e:
         logger.warning("npm_install_failed", error=str(e)[:200])
 
-    # Resolve GitHub repo
-    from openclaw.integrations.github_client import create_repo, push_directory
+    # Resolve GitHub repo — MUST exist from create_project, error out if not
+    from openclaw.integrations.github_client import push_directory
     repo_full_name = existing_repo
     if not repo_full_name:
-        repo_data = await create_repo(
-            name=project_name,
-            description=description or f"Website for {project_name} — built by Clarmi Design Studio",
-        )
-        repo_full_name = repo_data["full_name"]
+        return json.dumps({
+            "status": "error",
+            "message": "GitHub repo not provisioned. Run create_project first — it must succeed with a GitHub repo before scaffolding.",
+        })
 
-    # Resolve Vercel project
-    from openclaw.integrations.vercel_client import create_project_from_github
+    # Resolve Vercel project — MUST exist from create_project, error out if not
     vercel_name = existing_vercel
     if not vercel_name:
-        vercel_data = await create_project_from_github(project_name, repo_full_name)
-        vercel_name = vercel_data.get("name")
+        return json.dumps({
+            "status": "error",
+            "message": "Vercel project not provisioned. Run create_project first — it must succeed with a Vercel project before scaffolding.",
+        })
 
     # Save metadata
     await _save_project_metadata(project_name, {
@@ -441,16 +421,18 @@ async def deploy(project_name: str, commit_message: str) -> str:
 
     Only call after verify_build passes. Returns the live Vercel URL.
     """
-    from openclaw.integrations.github_client import get_authenticated_user, push_directory
+    from openclaw.integrations.github_client import push_directory
     from openclaw.integrations.vercel_client import get_latest_deployment, ensure_protection_disabled
 
     project_dir = _project_dir(project_name)
 
-    # Resolve repo
+    # Resolve repo — MUST exist, error out if not
     repo_full_name = await _get_project_metadata(project_name, "github_repo")
     if not repo_full_name:
-        user = await get_authenticated_user()
-        repo_full_name = f"{user}/{project_name}"
+        return json.dumps({
+            "status": "error",
+            "message": "No GitHub repo found for this project. Run create_project first — GitHub repo must be provisioned before deploying.",
+        })
 
     # Push to main
     push_result = await push_directory(
@@ -459,7 +441,12 @@ async def deploy(project_name: str, commit_message: str) -> str:
     )
 
     # Get Vercel URL — wait briefly for the new deployment to register
-    vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
+    vercel_name = await _get_project_metadata(project_name, "vercel_project")
+    if not vercel_name:
+        return json.dumps({
+            "status": "error",
+            "message": "No Vercel project found for this project. Run create_project first — Vercel project must be provisioned before deploying.",
+        })
     try:
         await ensure_protection_disabled(vercel_name)
     except Exception:
@@ -478,15 +465,10 @@ async def deploy(project_name: str, commit_message: str) -> str:
     # Save deployed URL to project record
     if live_url:
         from openclaw.db.session import async_session_factory
-        from openclaw.models.project import Project
-        from slugify import slugify
-        from sqlalchemy import select
+        from openclaw.services.project_service import find_project_by_name
         try:
             async with async_session_factory() as session:
-                slug_prefix = slugify(project_name)
-                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-                result = await session.execute(stmt)
-                project = result.scalars().first()
+                project = await find_project_by_name(session, project_name)
                 if project:
                     project.deployed_url = live_url
                     project.status = "deployed"
@@ -512,18 +494,19 @@ async def deploy_preview(project_name: str, branch_name: str, commit_message: st
     """
     from openclaw.integrations.github_client import (
         create_branch,
-        get_authenticated_user,
         push_directory,
     )
     from openclaw.integrations.vercel_client import get_latest_deployment
 
     project_dir = _project_dir(project_name)
 
-    # Resolve repo
+    # Resolve repo — MUST exist, error out if not
     repo_full_name = await _get_project_metadata(project_name, "github_repo")
     if not repo_full_name:
-        user = await get_authenticated_user()
-        repo_full_name = f"{user}/{project_name}"
+        return json.dumps({
+            "status": "error",
+            "message": "No GitHub repo found for this project. Run create_project first.",
+        })
 
     # Create branch from main
     await create_branch(repo_full_name, branch_name, from_branch="main")
@@ -535,7 +518,12 @@ async def deploy_preview(project_name: str, branch_name: str, commit_message: st
     )
 
     # Poll for Vercel preview deployment (no target filter — previews aren't "production")
-    vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
+    vercel_name = await _get_project_metadata(project_name, "vercel_project")
+    if not vercel_name:
+        return json.dumps({
+            "status": "error",
+            "message": "No Vercel project found for this project. Run create_project first.",
+        })
     push_sha = push_result.get("commit_sha", "")
     preview_url = None
     for _ in range(8):
@@ -566,15 +554,16 @@ async def approve_preview(project_name: str, branch_name: str) -> str:
     """
     from openclaw.integrations.github_client import (
         create_pull_request,
-        get_authenticated_user,
         merge_pull_request,
     )
     from openclaw.integrations.vercel_client import get_latest_deployment
 
     repo_full_name = await _get_project_metadata(project_name, "github_repo")
     if not repo_full_name:
-        user = await get_authenticated_user()
-        repo_full_name = f"{user}/{project_name}"
+        return json.dumps({
+            "status": "error",
+            "message": "No GitHub repo found for this project. Run create_project first.",
+        })
 
     # Create PR and merge (try squash, fall back to regular merge)
     pr = await create_pull_request(
@@ -590,7 +579,12 @@ async def approve_preview(project_name: str, branch_name: str) -> str:
         merge_result = await merge_pull_request(repo_full_name, pr["number"], merge_method="merge")
 
     # Poll for production deployment
-    vercel_name = await _get_project_metadata(project_name, "vercel_project") or project_name
+    vercel_name = await _get_project_metadata(project_name, "vercel_project")
+    if not vercel_name:
+        return json.dumps({
+            "status": "error",
+            "message": "No Vercel project found for this project. Cannot poll for deployment.",
+        })
     live_url = None
     for _ in range(5):
         await asyncio.sleep(5)
@@ -602,15 +596,10 @@ async def approve_preview(project_name: str, branch_name: str) -> str:
     # Update deployed URL
     if live_url:
         from openclaw.db.session import async_session_factory
-        from openclaw.models.project import Project
-        from slugify import slugify
-        from sqlalchemy import select
+        from openclaw.services.project_service import find_project_by_name
         try:
             async with async_session_factory() as session:
-                slug_prefix = slugify(project_name)
-                stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-                result = await session.execute(stmt)
-                project = result.scalars().first()
+                project = await find_project_by_name(session, project_name)
                 if project:
                     project.deployed_url = live_url
                     await session.commit()

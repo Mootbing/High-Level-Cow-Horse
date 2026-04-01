@@ -26,24 +26,13 @@ def _project_dir(project_name: str) -> str:
 
 
 async def _resolve_project(project_name: str):
-    """Find the Project record by name/slug. Returns (project, session) or raises."""
+    """Find the Project record by name. Returns (project, session)."""
     from openclaw.db.session import async_session_factory
-    from openclaw.models.project import Project
-    from slugify import slugify
-    from sqlalchemy import select
+    from openclaw.services.project_service import find_project_by_name
 
     session = async_session_factory()
     async with session:
-        slug_prefix = slugify(project_name)
-        stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-        result = await session.execute(stmt)
-        project = result.scalars().first()
-
-        if not project:
-            stmt = select(Project).where(Project.name.ilike(f"%{project_name}%")).limit(1)
-            result = await session.execute(stmt)
-            project = result.scalars().first()
-
+        project = await find_project_by_name(session, project_name)
         return project, session
 
 
@@ -87,20 +76,10 @@ async def store_superprompt(
     # Store section plan in project metadata
     try:
         from openclaw.db.session import async_session_factory
-        from openclaw.models.project import Project
-        from slugify import slugify
-        from sqlalchemy import select
+        from openclaw.services.project_service import find_project_by_name
 
         async with async_session_factory() as session:
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
-
-            if not project:
-                stmt = select(Project).where(Project.name.ilike(f"%{project_name}%")).limit(1)
-                result = await session.execute(stmt)
-                project = result.scalars().first()
+            project = await find_project_by_name(session, project_name)
 
             if project:
                 existing = project.metadata_ or {}
@@ -185,15 +164,10 @@ async def get_superprompt(project_name: str) -> str:
     section_plan = None
     try:
         from openclaw.db.session import async_session_factory
-        from openclaw.models.project import Project
-        from slugify import slugify
-        from sqlalchemy import select
+        from openclaw.services.project_service import find_project_by_name
 
         async with async_session_factory() as session:
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
+            project = await find_project_by_name(session, project_name)
             if project and project.metadata_:
                 section_plan = project.metadata_.get("section_plan")
     except Exception:
@@ -221,17 +195,13 @@ async def get_build_status(project_name: str) -> str:
     """
     try:
         from openclaw.db.session import async_session_factory
-        from openclaw.models.project import Project
         from openclaw.models.task import Task
-        from slugify import slugify
+        from openclaw.services.project_service import find_project_by_name
         from sqlalchemy import select
 
         async with async_session_factory() as session:
             # Find project
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
+            project = await find_project_by_name(session, project_name)
 
             if not project:
                 return json.dumps({"status": "error", "message": "Project not found"})
@@ -310,18 +280,14 @@ async def mark_section_complete(
     """
     try:
         from openclaw.db.session import async_session_factory
-        from openclaw.models.project import Project
         from openclaw.models.task import Task
+        from openclaw.services.project_service import find_project_by_name
         from openclaw.services.task_service import update_task_status
-        from slugify import slugify
         from sqlalchemy import select
 
         async with async_session_factory() as session:
             # Find project
-            slug_prefix = slugify(project_name)
-            stmt = select(Project).where(Project.slug.startswith(slug_prefix))
-            result = await session.execute(stmt)
-            project = result.scalars().first()
+            project = await find_project_by_name(session, project_name)
 
             if not project:
                 return json.dumps({"status": "error", "message": "Project not found"})
