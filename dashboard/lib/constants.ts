@@ -62,10 +62,16 @@ export const NAV_LINKS = [
   { href: "/knowledge", label: "Knowledge", icon: BookOpen },
 ] as const;
 
-export const MOBILE_NAV_LINKS = [
+export const MOBILE_NAV_MAIN = [
   { href: "/", label: "Home", icon: LayoutDashboard },
   { href: "/prospects", label: "Prospects", icon: Users },
   { href: "/projects", label: "Projects", icon: Rocket },
   { href: "/map", label: "Map", icon: Map },
+] as const;
+
+export const MOBILE_NAV_MORE = [
   { href: "/emails", label: "Emails", icon: Mail },
+  { href: "/messages", label: "Messages", icon: MessageSquare },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/knowledge", label: "Knowledge", icon: BookOpen },
 ] as const;

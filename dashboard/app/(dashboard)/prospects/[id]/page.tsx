@@ -2,7 +2,9 @@
 
 import { use } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useProspect } from "@/lib/hooks/use-api";
+import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -12,6 +14,7 @@ import {
   Palette,
   Type,
   Code,
+  Trash2,
 } from "lucide-react";
 
 export default function ProspectDetailPage({
@@ -21,6 +24,17 @@ export default function ProspectDetailPage({
 }) {
   const { id } = use(params);
   const { data: prospect, isLoading } = useProspect(id);
+  const router = useRouter();
+
+  async function handleDelete() {
+    const confirmed = prompt(
+      `Type "${prospect?.company_name || "delete"}" to permanently delete this prospect:`
+    );
+    if (confirmed === (prospect?.company_name || "delete")) {
+      await api.deleteProspect(id);
+      router.push("/prospects");
+    }
+  }
 
   if (isLoading || !prospect) {
     return (
@@ -40,14 +54,14 @@ export default function ProspectDetailPage({
   return (
     <div className="space-y-5 animate-in max-w-4xl">
       {/* Header */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-start gap-3">
         <Link
           href="/prospects"
-          className="p-2 rounded-full hover:bg-[var(--bg-alt)] transition-colors"
+          className="p-2 rounded-full hover:bg-[var(--bg-alt)] transition-colors mt-0.5"
         >
           <ArrowLeft size={18} style={{ color: "var(--text-muted)" }} />
         </Link>
-        <div>
+        <div className="flex-1">
           <h2
             className="text-2xl tracking-tight"
             style={{ fontFamily: "var(--font-serif)", color: "var(--text)", letterSpacing: "-0.02em" }}
@@ -63,6 +77,16 @@ export default function ProspectDetailPage({
             {prospect.url} <ExternalLink size={10} />
           </a>
         </div>
+        {prospect.project_count === 0 && (
+          <button
+            onClick={handleDelete}
+            className="p-2 rounded-full border transition-all duration-300 hover:bg-red-50 hover:border-red-300"
+            style={{ borderColor: "var(--border)" }}
+            title="Delete prospect"
+          >
+            <Trash2 size={14} className="text-red-400" />
+          </button>
+        )}
       </div>
 
       {/* Info grid */}

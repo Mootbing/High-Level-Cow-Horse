@@ -31,7 +31,7 @@ export function Sidebar() {
             letterSpacing: "-0.02em",
           }}
         >
-          {collapsed ? "C" : "Clarmi"}
+          {collapsed ? "C" : "Clarmi Engine"}
         </span>
       </div>
 

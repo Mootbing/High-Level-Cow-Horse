@@ -1,85 +1,175 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useProjects, useProjectStats } from "@/lib/hooks/use-api";
+import { useSearch } from "@/lib/search-context";
+import { ToolbarSlot } from "@/lib/toolbar-context";
 import { ProjectCard } from "@/components/cards/project-card";
 import { StatusBadge } from "@/components/data/status-badge";
-import { PIPELINE_STAGES, STATUS_LABELS } from "@/lib/constants";
+import { PIPELINE_STAGES, STATUS_LABELS, STATUS_COLORS } from "@/lib/constants";
 import { formatDate } from "@/lib/utils";
+import { SortableHeader } from "@/components/data/sortable-header";
 import Link from "next/link";
-import { Search, LayoutGrid, List, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
+import { LayoutGrid, List, ChevronLeft, ChevronRight, ExternalLink, Filter, Check } from "lucide-react";
 
 type View = "kanban" | "table";
 
 export default function ProjectsPage() {
   const [view, setView] = useState<View>("kanban");
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string | undefined>();
+  const { search } = useSearch();
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   const [page, setPage] = useState(0);
+  const [sort, setSort] = useState("-updated_at");
   const limit = 50;
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
+        setFilterOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  const statusParam = selectedStatuses.length > 0 ? selectedStatuses.join(",") : undefined;
 
   const { data: stats } = useProjectStats();
   const { data, isLoading } = useProjects({
     offset: page * limit,
     limit,
     search: search || undefined,
-    status: statusFilter,
-    sort: "-updated_at",
+    status: statusParam,
+    sort,
   });
 
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
+  function toggleStatus(s: string) {
+    setSelectedStatuses((prev) =>
+      prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]
+    );
+    setPage(0);
+  }
+
   return (
     <div className="space-y-4 animate-in">
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full w-full sm:w-64 border transition-all duration-300 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)]"
-          style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}
-        >
-          <Search size={14} style={{ color: "var(--text-light)" }} />
-          <input
-            type="text"
-            placeholder="Search projects..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="bg-transparent border-none outline-none text-sm flex-1"
-            style={{ color: "var(--text)" }}
-          />
+      <ToolbarSlot count={data?.total ?? stats?.total ?? 0}>
+        {/* Status filter dropdown */}
+        <div className="relative" ref={filterRef}>
+          <button
+            onClick={() => setFilterOpen(!filterOpen)}
+            className={`flex items-center gap-2 text-xs px-3 py-1.5 rounded-full border transition-all duration-300 ${
+              selectedStatuses.length > 0
+                ? "border-[var(--accent)] bg-[var(--accent-soft)]"
+                : ""
+            }`}
+            style={{
+              borderColor: selectedStatuses.length > 0 ? "var(--accent)" : "var(--border)",
+              color: "var(--text)",
+              backgroundColor: selectedStatuses.length > 0 ? "var(--accent-soft)" : "var(--bg-card)",
+            }}
+          >
+            <Filter size={12} />
+            Status
+            {selectedStatuses.length > 0 && (
+              <span
+                className="flex items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                style={{ backgroundColor: "var(--accent)", minWidth: 16, height: 16 }}
+              >
+                {selectedStatuses.length}
+              </span>
+            )}
+          </button>
+
+          {filterOpen && (
+            <div
+              className="absolute top-full left-0 mt-2 w-52 rounded-xl border shadow-lg z-50 overflow-hidden"
+              style={{
+                backgroundColor: "var(--bg-card)",
+                borderColor: "var(--border)",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.1)",
+              }}
+            >
+              <div className="p-1.5">
+                {PIPELINE_STAGES.map((s) => {
+                  const active = selectedStatuses.includes(s);
+                  const count = stats?.by_status[s] || 0;
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => toggleStatus(s)}
+                      className="flex items-center gap-2.5 w-full px-3 py-2 rounded-lg text-left text-sm transition-colors duration-150 hover:bg-[var(--bg-alt)]"
+                      style={{ color: "var(--text)" }}
+                    >
+                      <span
+                        className="flex items-center justify-center w-4 h-4 rounded border transition-all duration-200"
+                        style={{
+                          borderColor: active ? STATUS_COLORS[s] : "var(--border)",
+                          backgroundColor: active ? STATUS_COLORS[s] : "transparent",
+                        }}
+                      >
+                        {active && <Check size={10} color="white" strokeWidth={3} />}
+                      </span>
+                      <span
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: STATUS_COLORS[s] }}
+                      />
+                      <span className="flex-1">{STATUS_LABELS[s]}</span>
+                      <span className="text-xs font-data" style={{ color: "var(--text-light)" }}>
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedStatuses.length > 0 && (
+                <div style={{ borderTop: "1px solid var(--border)" }} className="p-1.5">
+                  <button
+                    onClick={() => { setSelectedStatuses([]); setPage(0); }}
+                    className="w-full px-3 py-2 rounded-lg text-xs text-left transition-colors duration-150 hover:bg-[var(--bg-alt)]"
+                    style={{ color: "var(--text-muted)" }}
+                  >
+                    Clear filters
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
-        {/* Status filter pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={() => setStatusFilter(undefined)}
-            className={`text-xs px-3 py-1.5 rounded-full transition-all duration-300 ${
-              !statusFilter ? "btn-primary" : "btn-outline"
-            }`}
-          >
-            All ({stats?.total || 0})
-          </button>
-          {PIPELINE_STAGES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s === statusFilter ? undefined : s)}
-              className={`text-xs px-3 py-1.5 rounded-full transition-all duration-300 ${
-                statusFilter === s ? "btn-primary" : "btn-outline"
-              }`}
-            >
-              {STATUS_LABELS[s]} ({stats?.by_status[s] || 0})
-            </button>
-          ))}
-        </div>
+        {/* Active filter badges */}
+        {selectedStatuses.length > 0 && (
+          <>
+            {selectedStatuses.map((s) => (
+              <button
+                key={s}
+                onClick={() => toggleStatus(s)}
+                className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full transition-all duration-200"
+                style={{
+                  backgroundColor: STATUS_COLORS[s] + "18",
+                  color: STATUS_COLORS[s],
+                  border: `1px solid ${STATUS_COLORS[s]}30`,
+                }}
+              >
+                {STATUS_LABELS[s]}
+                <span className="ml-0.5">&times;</span>
+              </button>
+            ))}
+          </>
+        )}
 
         {/* View toggle */}
-        <div className="ml-auto flex gap-0.5 p-1 rounded-full border" style={{ borderColor: "var(--border)" }}>
+        <div className="flex gap-0.5 p-0.5 rounded-full border" style={{ borderColor: "var(--border)" }}>
           <button
             onClick={() => setView("kanban")}
             className={`p-1.5 rounded-full transition-all duration-300 ${
               view === "kanban" ? "bg-[var(--text)] text-[var(--bg)]" : ""
             }`}
           >
-            <LayoutGrid size={14} style={{ color: view === "kanban" ? "var(--bg)" : "var(--text-light)" }} />
+            <LayoutGrid size={13} style={{ color: view === "kanban" ? "var(--bg)" : "var(--text-light)" }} />
           </button>
           <button
             onClick={() => setView("table")}
@@ -87,13 +177,13 @@ export default function ProjectsPage() {
               view === "table" ? "bg-[var(--text)] text-[var(--bg)]" : ""
             }`}
           >
-            <List size={14} style={{ color: view === "table" ? "var(--bg)" : "var(--text-light)" }} />
+            <List size={13} style={{ color: view === "table" ? "var(--bg)" : "var(--text-light)" }} />
           </button>
         </div>
-      </div>
+      </ToolbarSlot>
 
       {/* Kanban View */}
-      {view === "kanban" && !statusFilter && (
+      {view === "kanban" && selectedStatuses.length === 0 && (
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory">
           {PIPELINE_STAGES.map((stage) => {
             const items = data?.items.filter((p) => p.status === stage) || [];
@@ -125,16 +215,23 @@ export default function ProjectsPage() {
       )}
 
       {/* Table View */}
-      {(view === "table" || statusFilter) && (
+      {(view === "table" || selectedStatuses.length > 0) && (
         <div className="card-static p-0 overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Name", "Company", "Status", "Priority", "Tasks", "Assets", "Deployed", "Updated"].map((h) => (
-                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-medium tracking-wider uppercase whitespace-nowrap" style={{ color: "var(--text-light)" }}>
-                      {h}
-                    </th>
+                  {[
+                    { label: "Name", key: "name" },
+                    { label: "Company", key: null },
+                    { label: "Status", key: "status" },
+                    { label: "Priority", key: "priority" },
+                    { label: "Tasks", key: null },
+                    { label: "Assets", key: null },
+                    { label: "Deployed", key: null },
+                    { label: "Updated", key: "updated_at" },
+                  ].map((col) => (
+                    <SortableHeader key={col.label} label={col.label} sortKey={col.key} currentSort={sort} onSort={setSort} />
                   ))}
                 </tr>
               </thead>

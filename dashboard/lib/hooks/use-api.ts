@@ -71,10 +71,26 @@ export function useProjectDeployments(id: string) {
   });
 }
 
+export function useProjectHistory(id: string) {
+  return useQuery({
+    queryKey: ["project-history", id],
+    queryFn: () => api.getProjectHistory(id),
+    enabled: !!id,
+  });
+}
+
 export function useEmails(params?: Parameters<typeof api.getEmails>[0]) {
   return useQuery({
     queryKey: ["emails", params],
     queryFn: () => api.getEmails(params),
+  });
+}
+
+export function useProjectEmails(projectId: string) {
+  return useQuery({
+    queryKey: ["project-emails", projectId],
+    queryFn: () => api.getEmails({ project_id: projectId }),
+    enabled: !!projectId,
   });
 }
 

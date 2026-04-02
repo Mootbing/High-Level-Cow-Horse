@@ -26,7 +26,7 @@ async function fetchApi<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
-function qs(params: Record<string, string | number | undefined | null>): string {
+function qs(params: Record<string, string | number | boolean | undefined | null>): string {
   const entries = Object.entries(params).filter(
     ([, v]) => v !== undefined && v !== null && v !== ""
   );
@@ -46,12 +46,16 @@ export const api = {
     industry?: string;
     search?: string;
     sort?: string;
+    prospects_only?: boolean;
   }) =>
     fetchApi<PaginatedResponse<Prospect>>(
       `/api/v1/prospects${qs(params ?? {})}`
     ),
 
   getProspect: (id: string) => fetchApi<Prospect>(`/api/v1/prospects/${id}`),
+
+  deleteProspect: (id: string) =>
+    fetchApi<{ ok: boolean }>(`/api/v1/prospects/${id}`, { method: "DELETE" }),
 
   getProspectsGeo: () => fetchApi<ProspectGeo[]>("/api/v1/prospects/geo"),
 
@@ -86,12 +90,21 @@ export const api = {
   }) => fetchApi<PaginatedResponse<Task>>(`/api/v1/tasks${qs(params ?? {})}`),
 
   // Emails
-  getEmails: (params?: { offset?: number; limit?: number; status?: string }) =>
+  getEmails: (params?: { offset?: number; limit?: number; status?: string; project_id?: string; sort?: string }) =>
     fetchApi<PaginatedResponse<EmailLog>>(
       `/api/v1/emails${qs(params ?? {})}`
     ),
 
   getEmail: (id: string) => fetchApi<EmailLog>(`/api/v1/emails/${id}`),
+
+  deleteEmail: (id: string) =>
+    fetchApi<{ ok: boolean }>(`/api/v1/emails/${id}`, { method: "DELETE" }),
+
+  regenerateEmail: (id: string, instructions?: string) =>
+    fetchApi<EmailLog>(`/api/v1/emails/${id}/regenerate`, {
+      method: "POST",
+      body: JSON.stringify({ instructions }),
+    }),
 
   // Messages
   getMessages: (params?: {
@@ -117,4 +130,32 @@ export const api = {
   // Metrics
   getMetrics: (days?: number) =>
     fetchApi<Metric[]>(`/api/v1/metrics${qs({ days })}`),
+
+  // History
+  getProjectHistory: (id: string) =>
+    fetchApi<{
+      commits: Array<{
+        sha: string;
+        short_sha: string;
+        message: string;
+        author: string;
+        date: string;
+        url: string;
+        branch: string;
+        parents: string[];
+        deployment: {
+          id: string;
+          url: string | null;
+          state: string;
+          created: number | null;
+          inspectorUrl: string;
+        } | null;
+      }>;
+      branches: string[];
+      deploy_count: number;
+    }>(`/api/v1/projects/${id}/history`),
+
+  // Delete
+  deleteProject: (id: string) =>
+    fetchApi<{ ok: boolean }>(`/api/v1/projects/${id}`, { method: "DELETE" }),
 };

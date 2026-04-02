@@ -63,7 +63,7 @@ export default function LoginPage() {
               marginBottom: "0.25rem",
             }}
           >
-            Clarmi Dashboard
+            Clarmi Engine
           </h1>
           <p style={{ fontSize: "0.85rem", color: "var(--text-muted)" }}>
             Enter password to continue

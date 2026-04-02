@@ -8,7 +8,7 @@ import { ExternalLink, FileCode, ListTodo } from "lucide-react";
 
 export function ProjectCard({ project }: { project: Project }) {
   return (
-    <Link href={`/projects/${project.id}`}>
+    <Link href={`/projects/${project.id}`} className="block">
       <div className="card cursor-pointer">
         <div className="flex items-start justify-between mb-2">
           <h4

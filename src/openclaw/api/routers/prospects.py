@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
@@ -25,8 +25,11 @@ async def list_prospects(
     industry: str | None = None,
     search: str | None = None,
     sort: str = "-created_at",
+    prospects_only: bool = False,
 ):
     base = select(Prospect)
+    if prospects_only:
+        base = base.where(~Prospect.projects.any())
     if industry:
         base = base.where(Prospect.industry == industry)
     if search:
@@ -138,11 +141,24 @@ async def get_prospect(session: DBSession, prospect_id: UUID):
     )
 
 
+@router.delete("/{prospect_id}")
+async def delete_prospect(session: DBSession, prospect_id: UUID):
+    stmt = select(Prospect).where(Prospect.id == prospect_id).options(selectinload(Prospect.projects))
+    result = await session.execute(stmt)
+    prospect = result.scalar_one_or_none()
+    if not prospect:
+        raise HTTPException(404, "Prospect not found")
+    if prospect.projects:
+        raise HTTPException(400, "Cannot delete a prospect with linked projects")
+    await session.delete(prospect)
+    await session.commit()
+    return {"ok": True}
+
+
 @router.patch("/{prospect_id}", response_model=ProspectRead)
 async def update_prospect(session: DBSession, prospect_id: UUID, data: ProspectUpdate):
     prospect = await session.get(Prospect, prospect_id)
     if not prospect:
-        from fastapi import HTTPException
         raise HTTPException(404, "Prospect not found")
 
     for field, value in data.model_dump(exclude_unset=True).items():
