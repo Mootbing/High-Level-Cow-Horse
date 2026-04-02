@@ -9,8 +9,9 @@ import { useProject, useProjectTasks, useProjectDeployments, useProjectEmails, u
 const MapView = dynamic(() => import("@/components/map/map-container"), { ssr: false });
 import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/data/status-badge";
-import { SortableHeader } from "@/components/data/sortable-header";
 import { GitTree } from "@/components/charts/git-tree";
+import { EmailTable } from "@/components/tables/email-table";
+import { TaskTable } from "@/components/tables/task-table";
 import { formatDate, timeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -43,17 +44,6 @@ export default function ProjectDetailPage({
   const [emailSort, setEmailSort] = useState("-created_at");
   const router = useRouter();
 
-  function sortItems<T extends Record<string, unknown>>(items: T[], sortStr: string): T[] {
-    const desc = sortStr.startsWith("-");
-    const key = sortStr.replace(/^-/, "");
-    return [...items].sort((a, b) => {
-      const av = a[key] ?? "";
-      const bv = b[key] ?? "";
-      if (av < bv) return desc ? 1 : -1;
-      if (av > bv) return desc ? -1 : 1;
-      return 0;
-    });
-  }
 
   async function handleDelete() {
     const confirmed = prompt(
@@ -347,75 +337,18 @@ export default function ProjectDetailPage({
 
       {tab === "Tasks" && (
         <div className="card-static p-0 overflow-hidden">
-          {tasks && tasks.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {[
-                    { label: "Title", key: "title" },
-                    { label: "Agent", key: "agent_type" },
-                    { label: "Status", key: "status" },
-                    { label: "Retries", key: "retry_count" },
-                    { label: "Started", key: "started_at" },
-                    { label: "Completed", key: "completed_at" },
-                  ].map((col) => (
-                    <SortableHeader key={col.label} label={col.label} sortKey={col.key} currentSort={taskSort} onSort={setTaskSort} />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortItems(tasks, taskSort).map((t) => (
-                  <tr key={t.id} className="hover:bg-[var(--bg-alt)] transition-colors" style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td className="px-5 py-3.5 font-medium" style={{ color: "var(--text)" }}>{t.title}</td>
-                    <td className="px-5 py-3.5">
-                      <span className="text-xs px-2.5 py-1 rounded-full font-data" style={{ backgroundColor: "var(--bg-alt)", color: "var(--text-muted)" }}>{t.agent_type}</span>
-                    </td>
-                    <td className="px-5 py-3.5"><StatusBadge status={t.status} /></td>
-                    <td className="px-5 py-3.5 font-data text-xs" style={{ color: "var(--text-muted)" }}>{t.retry_count}</td>
-                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(t.started_at)}</td>
-                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(t.completed_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="p-10 text-center text-sm" style={{ color: "var(--text-light)" }}>No tasks yet</div>
-          )}
+          <TaskTable tasks={tasks || []} sort={taskSort} onSort={setTaskSort} compact />
         </div>
       )}
 
       {tab === "Emails" && (
         <div className="card-static p-0 overflow-hidden">
-          {emails && emails.items.length > 0 ? (
-            <table className="w-full text-sm">
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {[
-                    { label: "To", key: "to_email" },
-                    { label: "Subject", key: "subject" },
-                    { label: "Status", key: "status" },
-                    { label: "Created", key: "created_at" },
-                    { label: "Sent", key: "sent_at" },
-                  ].map((col) => (
-                    <SortableHeader key={col.label} label={col.label} sortKey={col.key} currentSort={emailSort} onSort={setEmailSort} />
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sortItems(emails.items, emailSort).map((e) => (
-                  <tr key={e.id} className="hover:bg-[var(--bg-alt)] transition-colors" style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td className="px-5 py-3.5 text-xs font-data" style={{ color: "var(--text)" }}>{e.to_email}</td>
-                    <td className="px-5 py-3.5 font-medium" style={{ color: "var(--text)" }}>{e.edited_subject || e.subject || "—"}</td>
-                    <td className="px-5 py-3.5"><StatusBadge status={e.status} /></td>
-                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(e.created_at)}</td>
-                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{e.sent_at ? formatDate(e.sent_at) : "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="p-10 text-center text-sm" style={{ color: "var(--text-light)" }}>No emails yet</div>
-          )}
+          <EmailTable
+            emails={emails?.items || []}
+            sort={emailSort}
+            onSort={setEmailSort}
+            compact
+          />
         </div>
       )}
 

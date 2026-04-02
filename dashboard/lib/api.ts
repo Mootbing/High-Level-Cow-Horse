@@ -87,6 +87,7 @@ export const api = {
     limit?: number;
     status?: string;
     agent_type?: string;
+    sort?: string;
   }) => fetchApi<PaginatedResponse<Task>>(`/api/v1/tasks${qs(params ?? {})}`),
 
   // Emails
@@ -96,6 +97,12 @@ export const api = {
     ),
 
   getEmail: (id: string) => fetchApi<EmailLog>(`/api/v1/emails/${id}`),
+
+  updateEmail: (id: string, data: { subject?: string; body?: string }) =>
+    fetchApi<EmailLog>(`/api/v1/emails/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 
   deleteEmail: (id: string) =>
     fetchApi<{ ok: boolean }>(`/api/v1/emails/${id}`, { method: "DELETE" }),

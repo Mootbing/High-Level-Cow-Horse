@@ -3,6 +3,7 @@ import {
   BookOpen,
   Globe,
   LayoutDashboard,
+  ListTodo,
   Mail,
   Map,
   MessageSquare,
@@ -55,6 +56,7 @@ export const NAV_LINKS = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/prospects", label: "Prospects", icon: Users },
   { href: "/projects", label: "Projects", icon: Rocket },
+  { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/emails", label: "Emails", icon: Mail },
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/map", label: "Map", icon: Map },
@@ -70,6 +72,7 @@ export const MOBILE_NAV_MAIN = [
 ] as const;
 
 export const MOBILE_NAV_MORE = [
+  { href: "/tasks", label: "Tasks", icon: ListTodo },
   { href: "/emails", label: "Emails", icon: Mail },
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
