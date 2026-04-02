@@ -17,7 +17,7 @@ GENAI_BASE = "https://generativelanguage.googleapis.com/v1beta"
 # Model names per the official quickstart:
 # https://github.com/google-gemini/veo-3-nano-banana-gemini-api-quickstart
 NANO_BANANA_MODEL = "gemini-2.5-flash-image"  # Nano Banana image generation
-VEO_MODEL = "veo-3.1-generate-001"  # Veo 3.1 — all video generation
+VEO_MODEL = "veo-3.1-generate-preview"  # Veo 3.1 — all video generation
 
 
 async def generate_image(
@@ -30,13 +30,17 @@ async def generate_image(
     Uses the generateContent endpoint with image output.
     Returns raw image bytes (PNG). Default aspect ratio is 16:9 to match
     video output and ensure consistent full-viewport coverage.
+
+    The aspect ratio is appended to the prompt text since
+    generationConfig does not support aspectRatio for this model.
     """
     url = f"{GENAI_BASE}/models/{model}:generateContent"
+    # Append aspect ratio instruction to prompt for the model to follow
+    full_prompt = f"{prompt} Generate this image in {aspect_ratio} aspect ratio (widescreen landscape)."
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": [{"text": full_prompt}]}],
         "generationConfig": {
             "responseModalities": ["IMAGE", "TEXT"],
-            "aspectRatio": aspect_ratio,
         },
     }
     async with httpx.AsyncClient(timeout=120) as client:
@@ -63,7 +67,7 @@ async def generate_video(
     prompt: str,
     reference_image: bytes | None = None,
     last_frame_image: bytes | None = None,
-    duration_seconds: int = 3,
+    duration_seconds: int = 5,
     resolution: str = "1080p",
     aspect_ratio: str = "16:9",
     model: str | None = None,
@@ -73,23 +77,31 @@ async def generate_video(
     Supports first+last frame mode: pass reference_image as the first frame
     and last_frame_image as the last frame to generate a smooth transition.
 
-    Duration defaults to 3 seconds to minimize cost. Audio is always disabled.
+    Duration defaults to 5 seconds. Veo 3.1 preview requires 4-8 seconds.
+    Audio is always disabled for non-preview models.
     """
     if model is None:
         model = VEO_MODEL
 
     url = f"{GENAI_BASE}/models/{model}:predictLongRunning"
 
+    # Clamp duration to API bounds (4-8 seconds for Veo 3.1 preview)
+    clamped_duration = max(4, min(8, duration_seconds))
+
     # Build request per Veo API (uses instances/parameters format)
+    # Note: veo-3.1-generate-preview does not support includeAudio or resolution
+    parameters: dict = {
+        "sampleCount": 1,
+        "durationSeconds": clamped_duration,
+        "aspectRatio": aspect_ratio,
+    }
+    # Only include resolution/includeAudio if not the preview model
+    if "preview" not in model:
+        parameters["resolution"] = resolution
+        parameters["includeAudio"] = False
     request_body: dict = {
         "instances": [{"prompt": prompt}],
-        "parameters": {
-            "sampleCount": 1,
-            "durationSeconds": duration_seconds,
-            "aspectRatio": aspect_ratio,
-            "resolution": resolution,
-            "includeAudio": False,
-        },
+        "parameters": parameters,
     }
 
     if reference_image:

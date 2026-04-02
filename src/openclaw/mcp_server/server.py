@@ -17,3 +17,4 @@ import openclaw.mcp_server.tools.competitors  # noqa: F401
 import openclaw.mcp_server.tools.lead_gen  # noqa: F401
 import openclaw.mcp_server.tools.ingest  # noqa: F401
 import openclaw.mcp_server.tools.orchestration  # noqa: F401
+import openclaw.mcp_server.tools.offboarding  # noqa: F401

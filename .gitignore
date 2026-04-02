@@ -25,3 +25,5 @@ htmlcov/
 .env.railway.ref
 dump.rdb
 .gstack/
+website/out/
+=2.9.0

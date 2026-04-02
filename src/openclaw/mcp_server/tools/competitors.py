@@ -30,8 +30,8 @@ async def _get_prospect_for_project(project_name: str):
         if not project:
             return None, None
 
-        # Eager-load the prospect relationship if not already loaded
-        if project.prospect_id and not project.prospect:
+        # Always load prospect via explicit query to avoid async lazy-load errors
+        if project.prospect_id:
             from openclaw.models.prospect import Prospect
             from sqlalchemy import select
             stmt = select(Prospect).where(Prospect.id == project.prospect_id)
@@ -39,9 +39,7 @@ async def _get_prospect_for_project(project_name: str):
             prospect = result.scalars().first()
             return project, prospect
 
-        if not project.prospect:
-            return None, None
-        return project, project.prospect
+        return None, None
 
 
 # ---------------------------------------------------------------------------
