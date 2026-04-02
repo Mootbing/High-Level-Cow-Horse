@@ -1,9 +1,101 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import type { Project } from "@/lib/projects";
 import AuditForm from "@/components/AuditForm";
+
+function Lightbox({ src, type, onClose }: { src: string; type: "image" | "video"; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = "";
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 9999,
+        background: "rgba(0,0,0,0.85)",
+        backdropFilter: "blur(8px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "zoom-out",
+        animation: "lightbox-in 0.25s ease",
+      }}
+    >
+      <button
+        onClick={onClose}
+        style={{
+          position: "absolute",
+          top: "calc(1rem + env(safe-area-inset-top, 0px))",
+          right: "1rem",
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          background: "rgba(255,255,255,0.12)",
+          border: "1px solid rgba(255,255,255,0.2)",
+          color: "#fff",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          cursor: "pointer",
+          transition: "background 0.2s",
+          zIndex: 10000,
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.25)"; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.12)"; }}
+      >
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <path d="M4.5 4.5L13.5 13.5M13.5 4.5L4.5 13.5" stroke="white" strokeWidth="1.5" strokeLinecap="round" />
+        </svg>
+      </button>
+      {type === "video" ? (
+        <video
+          src={src}
+          autoPlay
+          loop
+          muted
+          playsInline
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: "92vw",
+            maxHeight: "90vh",
+            borderRadius: "12px",
+            cursor: "default",
+          }}
+        />
+      ) : (
+        <img
+          src={src}
+          alt=""
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            maxWidth: "92vw",
+            maxHeight: "90vh",
+            borderRadius: "12px",
+            objectFit: "contain",
+            cursor: "default",
+          }}
+        />
+      )}
+      <style>{`
+        @keyframes lightbox-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+}
 
 function AwardBadge({ award, color, index }: { award: { title: string; org: string }; color: string; index: number }) {
   return (
@@ -83,6 +175,8 @@ function AwardBadge({ award, color, index }: { award: { title: string; org: stri
 
 export default function CaseStudyClient({ project }: { project: Project }) {
   const pageRef = useRef<HTMLDivElement>(null);
+  const [lightbox, setLightbox] = useState<{ src: string; type: "image" | "video" } | null>(null);
+  const closeLightbox = useCallback(() => setLightbox(null), []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -120,6 +214,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
 
   return (
     <div ref={pageRef} style={{ minHeight: "100vh", background: "var(--bg)" }}>
+      {lightbox && <Lightbox src={lightbox.src} type={lightbox.type} onClose={closeLightbox} />}
       {/* Nav bar */}
       <nav
         style={{
@@ -128,7 +223,8 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           left: 0,
           right: 0,
           zIndex: 100,
-          padding: "0.8rem 0",
+          paddingTop: "calc(0.8rem + env(safe-area-inset-top, 0px))",
+          paddingBottom: "0.8rem",
           background: "rgba(250,250,248,0.9)",
           backdropFilter: "blur(16px) saturate(180%)",
           borderBottom: "1px solid var(--border)",
@@ -327,11 +423,13 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           <div className="container">
             <div
               className="reveal delay-1"
+              onClick={() => setLightbox({ src: project.demoVideo!, type: "video" })}
               style={{
                 borderRadius: "var(--radius-lg)",
                 overflow: "hidden",
                 border: "1px solid var(--border)",
                 background: "var(--bg-card)",
+                cursor: "zoom-in",
               }}
             >
               <video
@@ -412,11 +510,13 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           <div className="container" style={{ marginTop: "clamp(2rem, 4vh, 3rem)" }}>
             <div
               className="reveal delay-3"
+              onClick={() => setLightbox({ src: project.originalScreenshot!, type: "image" })}
               style={{
                 borderRadius: "var(--radius-lg)",
                 overflow: "hidden",
                 border: "1px solid var(--border)",
                 background: "var(--bg-card)",
+                cursor: "zoom-in",
               }}
             >
               <img
@@ -470,11 +570,13 @@ export default function CaseStudyClient({ project }: { project: Project }) {
                 <div
                   key={i}
                   className={`reveal delay-${Math.min(i + 3, 7)}`}
+                  onClick={() => setLightbox({ src, type: "image" })}
                   style={{
                     borderRadius: "var(--radius-lg)",
                     overflow: "hidden",
                     border: "1px solid var(--border)",
                     background: "var(--bg-card)",
+                    cursor: "zoom-in",
                   }}
                 >
                   <img
