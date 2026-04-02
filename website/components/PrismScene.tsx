@@ -15,17 +15,37 @@ export default function PrismScene() {
     if (width === 0 || height === 0) return;
 
     // ---- Renderer (NO alpha — scene needs a background for glass refraction) ----
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: "high-performance",
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance",
+      });
+    } catch {
+      // WebGL context unavailable — silently bail
+      return;
+    }
+    if (!renderer.getContext()) return;
+
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.4;
     renderer.setClearColor(0xfafaf8, 1);
     container.appendChild(renderer.domElement);
+
+    // Handle context loss
+    const canvas = renderer.domElement;
+    const onContextLost = (e: Event) => {
+      e.preventDefault();
+      cancelAnimationFrame(animId);
+    };
+    const onContextRestored = () => {
+      animate();
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
+    canvas.addEventListener("webglcontextrestored", onContextRestored);
 
     // ---- Scene + Camera ----
     const scene = new THREE.Scene();
@@ -313,6 +333,8 @@ export default function PrismScene() {
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
       el.removeEventListener("pointercancel", onPointerUp);
+      canvas.removeEventListener("webglcontextlost", onContextLost);
+      canvas.removeEventListener("webglcontextrestored", onContextRestored);
       renderer.dispose();
       if (container.contains(renderer.domElement)) {
         container.removeChild(renderer.domElement);
