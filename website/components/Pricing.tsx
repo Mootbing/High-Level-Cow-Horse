@@ -9,29 +9,28 @@ interface Feature {
   local: FeatureValue;
   clarmi: FeatureValue;
   tips?: { agency?: string; local?: string; clarmi?: string };
+  info?: string;
 }
 
 const FEATURES: Feature[] = [
-  { label: "Custom design from scratch", agency: true, local: "partial", clarmi: true,
-    tips: { agency: "Custom, but expect 6-12 weeks and $10k+ budgets", local: "Most use WordPress templates with your colors swapped in", clarmi: "Custom designs since day 1" } },
+  { label: "Custom Design", agency: true, local: "partial", clarmi: true,
+    tips: { agency: "6-12 weeks, $10k+", local: "Template with your colors", clarmi: "Custom from day 1" } },
   { label: "48-hour delivery", agency: false, local: false, clarmi: true,
-    tips: { agency: "Typical agency timeline is 6-12 weeks", local: "Usually 2-4 weeks minimum", clarmi: "From brief to live site in under 48 hours" } },
-  { label: "Mobile-responsive on every device", agency: true, local: "partial", clarmi: true,
-    tips: { local: "Heavily dependent on the template used", clarmi: "Tested across every breakpoint from phones, tablets, ultrawide" } },
-  { label: "SEO-optimized from day one", agency: true, local: "partial", clarmi: true,
-    tips: { local: "Basic SEO at best. No structured data or performance tuning", clarmi: "Structured data, meta tags, sitemap, and sub-second load times" } },
-  { label: "Agent Search Optimization (ChatGPT, Perplexity)", agency: "partial", local: false, clarmi: true,
-    tips: { agency: "Very preliminary", local: "Won't bother", clarmi: "MCP Server hosted & updated with site" } },
+    tips: { agency: "6-12 weeks typical", local: "2-4 weeks minimum", clarmi: "Brief to live in 48 hours" } },
+  { label: "Mobile-responsiveness", agency: true, local: "partial", clarmi: true,
+    tips: { local: "Depends on the template", clarmi: "Every breakpoint tested" } },
+  { label: "SEO-optimization", agency: true, local: "partial", clarmi: true,
+    tips: { local: "Basic SEO, no structured data", clarmi: "Structured data, sitemap, sub-second loads" } },
+  { label: "AI SEO", info: "ChatGPT, Perplexity, Claude, etc.", agency: "partial", local: false, clarmi: true,
+    tips: { agency: "Very preliminary", local: "Won't bother", clarmi: "MCP Server hosted with site" } },
   { label: "SSL, hosting & analytics included", agency: false, local: false, clarmi: true,
-    tips: { agency: "Hosting and SSL billed separately, $50-200/mo", local: "You manage your own hosting and domain", clarmi: "SSL, global CDN hosting, and analytics dashboard — all included" } },
-  { label: "Monthly revisions & monitoring", agency: false, local: false, clarmi: true,
-    tips: { agency: "Revisions billed hourly at $150-300/hr", local: "Usually a flat fee per change request", clarmi: "Ongoing tweaks and uptime monitoring every month" } },
-  { label: "Unlimited pre-launch revisions", agency: false, local: false, clarmi: true,
-    tips: { agency: "Most cap at 2-3 revision rounds", local: "Typically 1-2 rounds included", clarmi: "We iterate until you love it — no limits" } },
+    tips: { agency: "Billed separately, $50-200/mo", local: "You manage your own", clarmi: "All included" } },
+  { label: "Unlimited revisions", agency: false, local: false, clarmi: true,
+    tips: { agency: "$150-300/hr, capped rounds", local: "Flat fee per change", clarmi: "No limits, ever" } },
   { label: "Competitor tracking", agency: true, local: false, clarmi: true,
-    tips: { agency: "Available, but usually an add-on retainer", local: "Not offered", clarmi: "We monitor your competitors' sites and keep you ahead" } },
-  { label: "Monthly analytics", agency: false, local: false, clarmi: true,
-    tips: { agency: "Reports available at extra cost", local: "You're on your own with Google Analytics", clarmi: "Monthly performance reports delivered to your inbox" } },
+    tips: { agency: "Add-on retainer", local: "Not offered", clarmi: "Monitored & updated" } },
+  { label: "Uptime monitoring", agency: false, local: false, clarmi: true,
+    tips: { agency: "Extra cost", local: "You're on your own", clarmi: "24/7 monitoring included" } },
 ];
 
 function CheckIcon() {
@@ -97,7 +96,7 @@ export default function Pricing() {
 
   return (
     <section ref={ref} className="section" id="pricing">
-      <div className="container" style={{ maxWidth: 960, margin: "0 auto" }}>
+      <div className="container" style={{ maxWidth: 1200, margin: "0 auto" }}>
         {/* Header */}
         <div className="pricing-reveal" style={{ textAlign: "center", marginBottom: "clamp(3rem, 6vh, 5rem)", opacity: 0, transform: "translateY(30px)", transition: "opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)" }}>
           <h2 className="text-display-lg">
@@ -115,7 +114,7 @@ export default function Pricing() {
             transitionDelay: "0.1s",
             borderRadius: "var(--radius-lg)",
             border: "1px solid var(--border)",
-            overflow: "hidden",
+            overflow: "visible",
           }}
         >
           <div className="pricing-grid">
@@ -154,7 +153,7 @@ export default function Pricing() {
                 marginBottom: "0.3rem",
                 display: "inline-block",
               }}>
-                Inauguration Discount
+                Early Bird
               </span>
               <div className="pricing-header-label" style={{ color: "var(--accent)" }}>Clarmi</div>
               <div style={{ display: "flex", alignItems: "baseline", gap: "0.35rem", justifyContent: "center" }}>
@@ -189,6 +188,12 @@ export default function Pricing() {
               <>
                 <div key={`label-${i}`} className="pricing-cell pricing-feature-label">
                   {feature.label}
+                  {feature.info && (
+                    <span className="pricing-info-wrap">
+                      <span className="pricing-info-icon">?</span>
+                      <span className="pricing-tip">{feature.info}</span>
+                    </span>
+                  )}
                 </div>
                 <div key={`agency-${i}`} className="pricing-cell pricing-check">
                   <StatusIcon value={feature.agency} tip={feature.tips?.agency} />
@@ -301,6 +306,39 @@ export default function Pricing() {
           border-bottom: none;
         }
 
+        .pricing-info-wrap {
+          position: relative;
+          cursor: pointer;
+          display: inline-flex;
+          margin-left: 0.35rem;
+          vertical-align: middle;
+        }
+
+        .pricing-info-icon {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 1px solid var(--text-light);
+          font-size: 0.6rem;
+          font-weight: 600;
+          color: var(--text-light);
+          opacity: 0.5;
+          transition: opacity 0.2s ease;
+        }
+
+        .pricing-info-wrap:hover .pricing-info-icon {
+          opacity: 0.85;
+        }
+
+        .pricing-info-wrap:hover .pricing-tip,
+        .pricing-info-wrap:active .pricing-tip {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+        }
+
         .pricing-tip-wrap {
           position: relative;
           cursor: pointer;
@@ -309,23 +347,26 @@ export default function Pricing() {
 
         .pricing-tip {
           position: absolute;
-          bottom: calc(100% + 8px);
+          bottom: calc(100% + 10px);
           left: 50%;
-          transform: translateX(-50%) translateY(4px);
-          background: var(--text);
-          color: var(--bg);
-          font-size: 0.72rem;
-          line-height: 1.4;
-          padding: 0.4rem 0.65rem;
-          border-radius: 6px;
-          white-space: nowrap;
+          transform: translateX(-50%) translateY(6px);
+          background: rgba(20, 20, 25, 0.95);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          color: #f0f0f0;
+          font-size: 0.8rem;
+          line-height: 1.55;
+          padding: 0.7rem 0.9rem;
+          border-radius: 10px;
           pointer-events: none;
           opacity: 0;
-          transition: opacity 0.2s ease, transform 0.2s ease;
-          z-index: 10;
-          max-width: 220px;
-          white-space: normal;
+          transition: opacity 0.25s ease, transform 0.25s ease;
+          z-index: 100;
+          width: max-content;
+          max-width: 200px;
           text-align: center;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.08);
+          letter-spacing: 0.01em;
         }
 
         .pricing-tip::after {
@@ -334,8 +375,8 @@ export default function Pricing() {
           top: 100%;
           left: 50%;
           transform: translateX(-50%);
-          border: 5px solid transparent;
-          border-top-color: var(--text);
+          border: 6px solid transparent;
+          border-top-color: rgba(20, 20, 25, 0.95);
         }
 
         .pricing-tip-wrap:hover .pricing-tip,
