@@ -129,6 +129,43 @@ async def regenerate_email(session: DBSession, email_id: UUID, body: dict | None
     )
 
 
+@router.patch("/{email_id}", response_model=EmailLogRead)
+async def update_email(session: DBSession, email_id: UUID, body: dict):
+    stmt = (
+        select(EmailLog)
+        .where(EmailLog.id == email_id)
+        .options(selectinload(EmailLog.prospect), selectinload(EmailLog.project))
+    )
+    result = await session.execute(stmt)
+    email = result.scalar_one_or_none()
+    if not email:
+        raise HTTPException(404, "Email not found")
+    if email.status == "sent":
+        raise HTTPException(400, "Cannot edit a sent email")
+    if "subject" in body:
+        email.edited_subject = body["subject"]
+    if "body" in body:
+        email.edited_body = body["body"]
+    await session.commit()
+    await session.refresh(email)
+    return EmailLogRead(
+        id=email.id,
+        prospect_id=email.prospect_id,
+        project_id=email.project_id,
+        to_email=email.to_email,
+        subject=email.subject,
+        body=email.body,
+        edited_subject=email.edited_subject,
+        edited_body=email.edited_body,
+        status=email.status,
+        gmail_message_id=email.gmail_message_id,
+        created_at=email.created_at,
+        sent_at=email.sent_at,
+        prospect_company=email.prospect.company_name if email.prospect else None,
+        project_name=email.project.name if email.project else None,
+    )
+
+
 @router.get("/{email_id}", response_model=EmailLogRead)
 async def get_email(session: DBSession, email_id: UUID):
     stmt = (

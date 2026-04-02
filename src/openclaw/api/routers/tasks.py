@@ -6,6 +6,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
 
 from openclaw.db.deps import DBSession
 from openclaw.models.task import Task
@@ -31,22 +32,43 @@ async def list_tasks(
     limit: int = Query(50, ge=1, le=200),
     status: str | None = None,
     agent_type: str | None = None,
+    sort: str = "-created_at",
 ):
     base = select(Task)
     if status:
-        base = base.where(Task.status == status)
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if len(statuses) == 1:
+            base = base.where(Task.status == statuses[0])
+        elif statuses:
+            base = base.where(Task.status.in_(statuses))
     if agent_type:
         base = base.where(Task.agent_type == agent_type)
 
     count_stmt = select(func.count()).select_from(base.subquery())
     total = (await session.execute(count_stmt)).scalar() or 0
 
-    stmt = base.order_by(Task.created_at.desc()).offset(offset).limit(limit)
+    desc = sort.startswith("-")
+    col_name = sort.lstrip("-")
+    col = getattr(Task, col_name, Task.created_at)
+    order = col.desc() if desc else col.asc()
+
+    stmt = (
+        base.options(selectinload(Task.project))
+        .order_by(order)
+        .offset(offset)
+        .limit(limit)
+    )
     result = await session.execute(stmt)
     tasks = result.scalars().all()
 
+    items = []
+    for t in tasks:
+        read = TaskRead.model_validate(t)
+        read.project_name = t.project.name if t.project else None
+        items.append(read)
+
     return PaginatedResponse(
-        items=[TaskRead.model_validate(t) for t in tasks],
+        items=items,
         total=total,
         offset=offset,
         limit=limit,

@@ -7,7 +7,7 @@ import { useToolbar } from "@/lib/toolbar-context";
 import { NAV_LINKS } from "@/lib/constants";
 import { Search, X } from "lucide-react";
 
-const SEARCHABLE_PAGES = ["/", "/prospects", "/projects", "/emails", "/knowledge"];
+const SEARCHABLE_PAGES = ["/", "/prospects", "/projects", "/tasks", "/emails", "/knowledge"];
 
 export function Topbar() {
   const pathname = usePathname();
