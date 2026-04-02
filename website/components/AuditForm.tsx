@@ -34,7 +34,7 @@ export default function AuditForm({ className }: { className?: string }) {
           aria-label="Your website URL"
         />
         <button type="submit">
-          {submitted ? "We'll be in touch!" : "Upgrade My Site!"}
+          {submitted ? "We'll be in touch!" : "Upgrade!"}
         </button>
       </div>
       <p
