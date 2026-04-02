@@ -220,46 +220,17 @@ export default function PrismScene() {
       scene.add(l);
     });
 
-    // ---- Drag rotation (mouse + touch) ----
+    // ---- Parallax (mouse move only, no drag/click) ----
     let mx = 0, my = 0;
-    let dragging = false;
-    let dragX = 0, dragY = 0;
-    let dragRotX = 0, dragRotY = 0;
-    let velocityX = 0, velocityY = 0;
-    let lastPointerX = 0, lastPointerY = 0;
 
-    const onPointerDown = (e: PointerEvent) => {
-      dragging = true;
-      lastPointerX = e.clientX;
-      lastPointerY = e.clientY;
-      velocityX = 0;
-      velocityY = 0;
-      renderer.domElement.setPointerCapture(e.pointerId);
-    };
     const onPointerMove = (e: PointerEvent) => {
-      // Always update parallax
       mx = (e.clientX / window.innerWidth - 0.5) * 2;
       my = (e.clientY / window.innerHeight - 0.5) * 2;
-      if (!dragging) return;
-      const dx = e.clientX - lastPointerX;
-      const dy = e.clientY - lastPointerY;
-      velocityX = dx * 0.01;
-      velocityY = dy * 0.01;
-      dragRotY += dx * 0.01;
-      dragRotX += dy * 0.01;
-      lastPointerX = e.clientX;
-      lastPointerY = e.clientY;
-    };
-    const onPointerUp = () => {
-      dragging = false;
     };
 
     const el = renderer.domElement;
-    el.style.touchAction = "none";
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
+    el.style.pointerEvents = "none";
+    window.addEventListener("pointermove", onPointerMove);
 
     // ---- Animation loop ----
     let animId: number;
@@ -268,17 +239,9 @@ export default function PrismScene() {
     const animate = () => {
       const t = clock.getElapsedTime();
 
-      // Apply drag velocity as inertia when not dragging
-      if (!dragging) {
-        dragRotY += velocityX;
-        dragRotX += velocityY;
-        velocityX *= 0.95;
-        velocityY *= 0.95;
-      }
-
-      // Main pyramid — slow auto-rotation + drag rotation + parallax
-      prism.rotation.y = t * 0.1 + dragRotY + (dragging ? 0 : mx * 0.25);
-      prism.rotation.x = Math.sin(t * 0.07) * 0.12 + 0.2 + dragRotX + (dragging ? 0 : my * 0.1);
+      // Main pyramid — slow auto-rotation + parallax
+      prism.rotation.y = t * 0.1 + mx * 0.25;
+      prism.rotation.x = Math.sin(t * 0.07) * 0.12 + 0.2 + my * 0.1;
       prism.rotation.z = Math.sin(t * 0.04) * 0.04;
       prism.position.y = Math.sin(t * 0.35) * 0.1 + 0.1;
 
@@ -329,10 +292,7 @@ export default function PrismScene() {
     return () => {
       cancelAnimationFrame(animId);
       window.removeEventListener("resize", onResize);
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("webglcontextlost", onContextLost);
       canvas.removeEventListener("webglcontextrestored", onContextRestored);
       renderer.dispose();
