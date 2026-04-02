@@ -233,6 +233,115 @@ export default function ProjectDetailPage({
               </div>
             </div>
           )}
+
+          {/* Prospect section */}
+          {prospect && (
+            <>
+              <h3 className="text-label md:col-span-2 mt-2">Prospect</h3>
+
+              <div className="card-static md:col-span-2">
+                <h4 className="text-label mb-2">Original Website</h4>
+                <a href={prospect.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-sm text-[var(--accent)] hover:underline font-data">
+                  {prospect.url} <ExternalLink size={11} />
+                </a>
+              </div>
+
+              <div className="card-static space-y-4">
+                <h4 className="text-label">Brand Identity</h4>
+                {prospect.tagline && (
+                  <p className="text-sm italic" style={{ color: "var(--text-muted)", fontFamily: "var(--font-serif)" }}>
+                    &ldquo;{prospect.tagline}&rdquo;
+                  </p>
+                )}
+                {prospect.brand_colors.length > 0 && (
+                  <div>
+                    <span className="text-xs" style={{ color: "var(--text-light)" }}>Colors</span>
+                    <div className="flex gap-2.5 mt-1.5">
+                      {prospect.brand_colors.map((c, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1">
+                          <span className="w-8 h-8 rounded-lg border" style={{ backgroundColor: c, borderColor: "var(--border)" }} />
+                          <span className="text-[10px] font-data" style={{ color: "var(--text-light)" }}>{c}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {prospect.fonts.length > 0 && (
+                  <div>
+                    <span className="text-xs" style={{ color: "var(--text-light)" }}>Fonts</span>
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      {prospect.fonts.map((f, i) => (
+                        <span key={i} className="text-xs px-2.5 py-1 rounded-full" style={{ backgroundColor: "var(--bg-alt)", color: "var(--text-muted)" }}>{f}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {prospect.industry && (
+                  <div>
+                    <span className="text-xs" style={{ color: "var(--text-light)" }}>Industry</span>
+                    <p className="text-sm mt-0.5" style={{ color: "var(--text)" }}>{prospect.industry}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="card-static space-y-4">
+                <h4 className="text-label">Contact & Tech</h4>
+                {prospect.contact_emails.length > 0 && (
+                  <div>
+                    <span className="text-xs" style={{ color: "var(--text-light)" }}>Emails</span>
+                    <div className="space-y-0.5 mt-1">
+                      {prospect.contact_emails.map((e, i) => (
+                        <p key={i} className="text-sm font-data" style={{ color: "var(--text)" }}>{e}</p>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {prospect.tech_stack.length > 0 && (
+                  <div>
+                    <span className="text-xs" style={{ color: "var(--text-light)" }}>Tech Stack</span>
+                    <div className="flex gap-1.5 mt-1 flex-wrap">
+                      {prospect.tech_stack.map((t, i) => (
+                        <span key={i} className="text-xs px-2.5 py-1 rounded-full font-data" style={{ backgroundColor: "var(--accent-soft)", color: "var(--accent)" }}>{t}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {Object.keys(prospect.social_links).length > 0 && (
+                  <div>
+                    <span className="text-xs" style={{ color: "var(--text-light)" }}>Social</span>
+                    <div className="space-y-1 mt-1">
+                      {Object.entries(prospect.social_links).map(([platform, url]) => (
+                        <a key={platform} href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-[var(--accent)] hover:underline">
+                          {platform} <ExternalLink size={9} />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <span className="text-xs" style={{ color: "var(--text-light)" }}>Scraped</span>
+                  <p className="text-sm font-data mt-0.5" style={{ color: "var(--text-muted)" }}>{formatDate(prospect.scraped_at)}</p>
+                </div>
+              </div>
+
+              {(() => {
+                const problems = (prospect.raw_data?.site_problems as string[]) || [];
+                return problems.length > 0 ? (
+                  <div className="card-static md:col-span-2">
+                    <h4 className="text-label mb-3">Site Problems ({problems.length})</h4>
+                    <ul className="space-y-2">
+                      {problems.map((problem, i) => (
+                        <li key={i} className="flex items-start gap-2.5 text-sm" style={{ color: "var(--text-muted)" }}>
+                          <span className="mt-2 w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: "var(--status-qa)" }} />
+                          {problem}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null;
+              })()}
+            </>
+          )}
         </div>
       )}
 
