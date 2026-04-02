@@ -399,7 +399,7 @@ img, video { max-width: 100%; display: block; }
   padding: clamp(0.6rem, 0.9vw, 0.8rem) clamp(1.2rem, 1.8vw, 1.5rem);
   margin: 4px;
   position: relative;
-  background: linear-gradient(135deg, rgba(124, 92, 252, 0.4), rgba(180, 120, 255, 0.25), rgba(100, 200, 255, 0.2));
+  background: linear-gradient(135deg, rgba(100, 70, 210, 0.55), rgba(140, 100, 240, 0.4), rgba(80, 150, 220, 0.35));
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   color: white;
