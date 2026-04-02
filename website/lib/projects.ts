@@ -116,6 +116,14 @@ export const PROJECTS: Project[] = [
     rotation: 1.8,
     url: "https://payo.dev",
     screenshot: "/assets/payo/site.png",
+    demoVideo: "/assets/demos/payo/demo.mp4",
+    screenshots: [
+      "/assets/payo/0.png",
+      "/assets/payo/1.png",
+      "/assets/payo/2.png",
+      "/assets/payo/3.png",
+      "/assets/payo/4.png",
+    ],
     darkPreview: true,
   },
   {
@@ -129,9 +137,9 @@ export const PROJECTS: Project[] = [
     brief:
       "Jason Xu is the founder of Clarmi Design Studio — a fullstack engineer and designer who started winning international design awards at 17. This portfolio captures the craft and vision behind the studio itself.",
     challenge:
-      "As the founder of a design studio, Jason's personal brand is the studio's brand. His previous portfolio didn't reflect the caliber of work Clarmi delivers. He needed an immersive, award-worthy experience that would establish credibility for both himself and the studio.",
+      "Jason here. I didn't have any website before this. But I was always interested in websites with sophisticated designs that made browsing feel like an experience. In the fall of 2023, I created this website with scroll & parallax effects to tell my life story.",
     solution:
-      "We built a cinematic, scroll-driven portfolio with fluid page transitions, custom animations, and a distinctive dark aesthetic. Every micro-interaction was crafted to reflect the attention to detail that defines Clarmi's work — from smooth reveals to carefully choreographed scroll sequences. The result is a portfolio that feels like a product, not a template.",
+      "I built a cinematic, scroll-driven portfolio with fluid page transitions, custom animations, and a distinctive dark aesthetic. Every micro-interaction was crafted to reflect the attention to detail that defines my work — from smooth reveals to carefully choreographed scroll sequences. The whole site is designed to tug at the heartstrings.",
     results: [
       "Won Awwwards Site of the Day",
       "Won CSS Design Awards Website of the Day",
