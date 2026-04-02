@@ -24,7 +24,7 @@ class ProjectRead(BaseSchema):
     updated_at: datetime.datetime | None = None
     prospect_company: str | None = None
     task_count: int = 0
-    asset_count: int = 0
+    email_count: int = 0
 
 
 class ProjectStats(BaseSchema):
