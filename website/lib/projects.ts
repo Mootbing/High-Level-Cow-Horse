@@ -99,7 +99,7 @@ export const PROJECTS: Project[] = [
     caption: "payments for the agent era",
     color: "#22D3EE",
     gradient: "linear-gradient(135deg, #0a0a0a 0%, #0c1220 40%, #0e1a2b 70%, #091b2a 100%)",
-    improvement: "99 Lighthouse score",
+    improvement: "30k+ users served",
     brief:
       "Payo — \"PayPal for Agents\" — is building payment infrastructure for AI agents, a category that didn't exist yet. They needed a developer-first landing page that could explain a complex product simply and build trust with developers.",
     challenge:
@@ -133,7 +133,7 @@ export const PROJECTS: Project[] = [
     caption: "the founder's story",
     color: "#60A5FA",
     gradient: "linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 40%, #16213e 70%, #0f3460 100%)",
-    improvement: "3x Awwwards winner",
+    improvement: "3x award winner",
     brief:
       "Jason Xu is the founder of Clarmi Design Studio — a fullstack engineer and designer who started winning international design awards at 17. This portfolio captures the craft and vision behind the studio itself.",
     challenge:
