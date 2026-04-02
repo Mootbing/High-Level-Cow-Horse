@@ -120,7 +120,7 @@ export default function Pricing() {
               </div>
             </div>
 
-            {/* Arrow connector */}
+            {/* Dash connector */}
             <div
               className="pricing-reveal"
               style={{
@@ -133,7 +133,7 @@ export default function Pricing() {
                 padding: "clamp(0.2rem, 0.5vh, 0.3rem) 0",
               }}
             >
-              <div style={{ width: 1, height: "clamp(20px, 3vh, 32px)", background: "var(--text-light)", opacity: 0.5 }} />
+              <div style={{ width: "clamp(16px, 3vw, 24px)", height: 1, background: "var(--text-light)", opacity: 0.5 }} />
             </div>
           </div>
         ))}
@@ -193,14 +193,14 @@ export default function Pricing() {
               </span>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: "0.4rem", marginTop: "0.25rem" }}>
-              <span className="price-period">+ $50/mo for a limited time</span>
+              <span className="price-period">+ $25/mo for a limited time</span>
               <span style={{
                 fontSize: "clamp(0.75rem, 0.85vw, 0.82rem)",
                 color: "var(--text-light)",
                 textDecoration: "line-through",
                 opacity: 0.4,
               }}>
-                $100/mo
+                $50/mo
               </span>
             </div>
           </div>

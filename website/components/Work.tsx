@@ -226,7 +226,7 @@ export default function Work() {
   }, []);
 
   return (
-    <section ref={sectionRef} className="section" id="work">
+    <section ref={sectionRef} className="section" id="work" style={{ position: "relative", zIndex: 2 }}>
       <div className="container">
         <div style={{ textAlign: "center", marginBottom: "clamp(3rem, 6vh, 5rem)" }}>
           <h2

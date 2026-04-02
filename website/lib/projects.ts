@@ -14,6 +14,9 @@ export interface Project {
   rotation: number;
   url?: string;
   screenshot?: string;
+  screenshots?: string[];
+  originalScreenshot?: string;
+  demoVideo?: string;
   awards?: { title: string; org: string }[];
   darkPreview?: boolean;
 }
@@ -41,7 +44,16 @@ export const PROJECTS: Project[] = [
     ],
     tech: ["Next.js", "TypeScript", "Vercel", "Tailwind CSS"],
     rotation: 2.2,
-    url: "https://original-china-garden-fd8e55.vercel.app",
+    url: "https://original-china-garden-c84a02.vercel.app/",
+    screenshot: "/assets/china-garden/0.png",
+    originalScreenshot: "/assets/china-garden/original.png",
+    screenshots: [
+      "/assets/china-garden/0.png",
+      "/assets/china-garden/1.png",
+      "/assets/china-garden/2.png",
+      "/assets/china-garden/3.png",
+    ],
+    demoVideo: "/assets/demos/china-garden/demo.mp4",
     darkPreview: true,
   },
   {
@@ -55,7 +67,7 @@ export const PROJECTS: Project[] = [
     brief:
       "Ros Niyom Thai serves authentic Northern Thai street food in Long Island City, Queens. They had earned a loyal following — 4.9 stars and 1,000+ reviews — but their online presence didn't match the quality of their food.",
     challenge:
-      "The restaurant had no real website — just a basic listing page. Customers couldn't browse the full menu, find hours easily, or order online without hunting through third-party apps. For a spot with 250+ Yelp photos and a cult following, the digital experience was invisible.",
+      "Ros Niyom had a website, and it wasn't bad — but it wasn't built for mobile. With 70% of their traffic coming from phones, the experience fell apart on smaller screens. Menus were hard to navigate, hours were buried, and ordering required jumping to third-party apps. For a spot with 4.9 stars and a cult following, the mobile experience didn't match the food.",
     solution:
       "We built a dark, gold-accented landing page that feels as rich as their Khao Soi. A visual menu with prices and descriptions, prominent hours and location info, one-tap ordering and call buttons, and social proof pulled from their real reviews. Cormorant Garamond headlines give it an elevated feel without losing the street food soul.",
     results: [
@@ -67,7 +79,17 @@ export const PROJECTS: Project[] = [
     tech: ["Next.js", "TypeScript", "Vercel", "Tailwind CSS"],
     rotation: -2.5,
     url: "https://ros-niyom-thai-4993e7.vercel.app",
-    screenshot: "/assets/ros-niyom-site.png",
+    screenshot: "/assets/ros-niyom/site.png",
+    originalScreenshot: "/assets/ros-niyom/original.png",
+    demoVideo: "/assets/demos/ros-niyom/demo.mp4",
+    screenshots: [
+      "/assets/ros-niyom/0.png",
+      "/assets/ros-niyom/1.png",
+      "/assets/ros-niyom/2.png",
+      "/assets/ros-niyom/3.png",
+      "/assets/ros-niyom/4.png",
+      "/assets/ros-niyom/5.png",
+    ],
     darkPreview: true,
   },
   {
@@ -93,7 +115,7 @@ export const PROJECTS: Project[] = [
     tech: ["Next.js", "TypeScript", "Tailwind CSS", "Vercel"],
     rotation: 1.8,
     url: "https://payo.dev",
-    screenshot: "/assets/payo-site.png",
+    screenshot: "/assets/payo/site.png",
     darkPreview: true,
   },
   {
@@ -119,7 +141,7 @@ export const PROJECTS: Project[] = [
     tech: ["Next.js", "React", "GSAP", "Vercel"],
     rotation: -1.2,
     url: "https://17.jasonxu.me",
-    screenshot: "/assets/jason-xu-site.png",
+    screenshot: "/assets/jason-xu/site.png",
     darkPreview: true,
     awards: [
       { title: "Site of the Day", org: "Awwwards" },
