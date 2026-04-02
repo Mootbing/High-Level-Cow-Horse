@@ -20,6 +20,7 @@ export default function Marquee() {
     <div
       style={{
         borderTop: "1px solid var(--border)",
+        borderBottom: "1px solid var(--border)",
         padding: "clamp(0.9rem, 1.5vh, 1.2rem) 0",
         overflow: "hidden",
         position: "relative",
