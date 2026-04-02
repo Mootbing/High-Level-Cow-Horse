@@ -142,10 +142,10 @@ export default function CaseStudyClient({ project }: { project: Project }) {
               color: "var(--text)",
             }}
           >
-            Clarmi
+            Clarmi Studios
           </Link>
           <Link
-            href="/#work"
+            href="/"
             style={{
               display: "flex",
               alignItems: "center",
@@ -160,26 +160,11 @@ export default function CaseStudyClient({ project }: { project: Project }) {
               height="16"
               viewBox="0 0 16 16"
               fill="none"
-              style={{ transform: "rotate(180deg)" }}
             >
-              <line
-                x1="3"
-                y1="8"
-                x2="13"
-                y2="8"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-              />
-              <polyline
-                points="9,4 13,8 9,12"
-                stroke="currentColor"
-                strokeWidth="1.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+              <line x1="13" y1="8" x2="3" y2="8" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+              <polyline points="7,4 3,8 7,12" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            All Work
+            Back
           </Link>
         </div>
       </nav>
@@ -618,7 +603,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
               color: "var(--text)",
             }}
           >
-            Clarmi
+            Clarmi Studios
           </Link>
         </div>
       </footer>

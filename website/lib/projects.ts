@@ -97,7 +97,7 @@ export const PROJECTS: Project[] = [
     name: "Payo",
     industry: "Fintech",
     caption: "payments for the agent era",
-    color: "#22D3EE",
+    color: "#22C55E",
     gradient: "linear-gradient(135deg, #0a0a0a 0%, #0c1220 40%, #0e1a2b 70%, #091b2a 100%)",
     improvement: "30k+ users served",
     brief:
