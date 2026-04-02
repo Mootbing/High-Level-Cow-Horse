@@ -69,7 +69,7 @@ async def list_projects(
         base.options(
             selectinload(Project.prospect),
             selectinload(Project.tasks),
-            selectinload(Project.assets),
+            selectinload(Project.email_logs),
         )
         .order_by(order)
         .offset(offset)
@@ -96,7 +96,7 @@ async def list_projects(
                 updated_at=p.updated_at,
                 prospect_company=p.prospect.company_name if p.prospect else None,
                 task_count=len(p.tasks),
-                asset_count=len(p.assets),
+                email_count=len(p.email_logs),
             )
         )
 
@@ -111,7 +111,7 @@ async def get_project(session: DBSession, project_id: UUID):
         .options(
             selectinload(Project.prospect),
             selectinload(Project.tasks),
-            selectinload(Project.assets),
+            selectinload(Project.email_logs),
         )
     )
     result = await session.execute(stmt)
@@ -134,7 +134,7 @@ async def get_project(session: DBSession, project_id: UUID):
         updated_at=project.updated_at,
         prospect_company=project.prospect.company_name if project.prospect else None,
         task_count=len(project.tasks),
-        asset_count=len(project.assets),
+        email_count=len(project.email_logs),
     )
 
 

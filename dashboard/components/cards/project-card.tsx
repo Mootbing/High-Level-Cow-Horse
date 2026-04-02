@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Project } from "@/lib/types";
 import { StatusBadge } from "@/components/data/status-badge";
 import { timeAgo } from "@/lib/utils";
-import { ExternalLink, FileCode, ListTodo } from "lucide-react";
+import { ExternalLink, Mail, ListTodo } from "lucide-react";
 
 export function ProjectCard({ project }: { project: Project }) {
   return (
@@ -38,8 +38,8 @@ export function ProjectCard({ project }: { project: Project }) {
             {project.task_count}
           </span>
           <span className="flex items-center gap-1">
-            <FileCode size={12} />
-            {project.asset_count}
+            <Mail size={12} />
+            {project.email_count}
           </span>
           {project.deployed_url && (
             <span className="flex items-center gap-1 text-[var(--status-deployed)]">

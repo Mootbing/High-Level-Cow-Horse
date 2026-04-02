@@ -227,7 +227,7 @@ export default function ProjectsPage() {
                     { label: "Status", key: "status" },
                     { label: "Priority", key: "priority" },
                     { label: "Tasks", key: null },
-                    { label: "Assets", key: null },
+                    { label: "Emails", key: null },
                     { label: "Deployed", key: null },
                     { label: "Updated", key: "updated_at" },
                   ].map((col) => (
@@ -259,7 +259,7 @@ export default function ProjectsPage() {
                         <td className="px-5 py-3.5"><StatusBadge status={p.status} /></td>
                         <td className="px-5 py-3.5 font-data text-xs" style={{ color: "var(--text-muted)" }}>{p.priority}</td>
                         <td className="px-5 py-3.5 font-data text-xs" style={{ color: "var(--text-muted)" }}>{p.task_count}</td>
-                        <td className="px-5 py-3.5 font-data text-xs" style={{ color: "var(--text-muted)" }}>{p.asset_count}</td>
+                        <td className="px-5 py-3.5 font-data text-xs" style={{ color: "var(--text-muted)" }}>{p.email_count}</td>
                         <td className="px-5 py-3.5">
                           {p.deployed_url ? (
                             <a href={p.deployed_url} target="_blank" rel="noopener noreferrer"

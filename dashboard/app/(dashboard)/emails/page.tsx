@@ -228,11 +228,10 @@ export default function EmailsPage() {
                               </button>
                               <button
                                 onClick={(ev) => handleDelete(e.id, ev)}
-                                disabled={e.status === "pending"}
-                                className="p-1.5 rounded-full hover:bg-red-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                                title="Delete draft"
+                                className="p-1.5 rounded-full hover:bg-red-50 transition-colors"
+                                title="Delete"
                               >
-                                <Trash2 size={13} className={e.status === "pending" ? "text-gray-300" : "text-red-400"} />
+                                <Trash2 size={13} className="text-red-400" />
                               </button>
                             </div>
                           )}

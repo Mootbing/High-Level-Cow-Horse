@@ -51,7 +51,7 @@ export interface Project {
   updated_at: string | null;
   prospect_company: string | null;
   task_count: number;
-  asset_count: number;
+  email_count: number;
 }
 
 export interface ProjectStats {
