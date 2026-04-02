@@ -85,6 +85,10 @@ export default function CaseStudyClient({ project }: { project: Project }) {
   const pageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
+  useEffect(() => {
     const el = pageRef.current;
     if (!el) return;
 
@@ -145,7 +149,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
             Clarmi Studios
           </Link>
           <Link
-            href="/"
+            href="/#work"
             style={{
               display: "flex",
               alignItems: "center",

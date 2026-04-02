@@ -13,7 +13,19 @@ export default function SmoothScroller({
   const pathname = usePathname();
 
   useEffect(() => {
-    if (lenisRef.current) {
+    if (!lenisRef.current) return;
+    const hash = window.location.hash;
+    if (hash) {
+      // Smooth scroll to hash target after DOM settles
+      requestAnimationFrame(() => {
+        const target = document.querySelector(hash);
+        if (target) {
+          lenisRef.current?.scrollTo(target as HTMLElement, { duration: 1.2 });
+        } else {
+          lenisRef.current?.scrollTo(0, { immediate: true });
+        }
+      });
+    } else {
       lenisRef.current.scrollTo(0, { immediate: true });
     }
   }, [pathname]);
