@@ -20,6 +20,8 @@ const FEATURES: Feature[] = [
     tips: { local: "Heavily dependent on the template used", clarmi: "Tested across every breakpoint from phones, tablets, ultrawide" } },
   { label: "SEO-optimized from day one", agency: true, local: "partial", clarmi: true,
     tips: { local: "Basic SEO at best. No structured data or performance tuning", clarmi: "Structured data, meta tags, sitemap, and sub-second load times" } },
+  { label: "Agent Search Optimization (ChatGPT, Perplexity)", agency: "partial", local: false, clarmi: true,
+    tips: { agency: "Very preliminary", local: "Won't bother", clarmi: "MCP Server hosted & updated with site" } },
   { label: "SSL, hosting & analytics included", agency: false, local: false, clarmi: true,
     tips: { agency: "Hosting and SSL billed separately, $50-200/mo", local: "You manage your own hosting and domain", clarmi: "SSL, global CDN hosting, and analytics dashboard — all included" } },
   { label: "Monthly revisions & monitoring", agency: false, local: false, clarmi: true,

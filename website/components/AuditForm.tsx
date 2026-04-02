@@ -46,7 +46,7 @@ export default function AuditForm({ className }: { className?: string }) {
       >
         {submitted
           ? "Expect your personalized audit within 1 hour."
-          : "Personalized audits delivered within 1 hour."}
+          : "Personalized audits delivered within 1 hour. Website drafted in less than 24."}
       </p>
     </form>
   );
