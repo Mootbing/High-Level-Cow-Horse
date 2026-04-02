@@ -16,7 +16,7 @@ const FEATURES: Feature[] = [
   { label: "Custom Design", agency: true, local: "partial", clarmi: true,
     tips: { agency: "6-12 weeks, $10k+", local: "Template with your colors", clarmi: "Custom from day 1" } },
   { label: "48-hour delivery", agency: false, local: false, clarmi: true,
-    tips: { agency: "6-12 weeks typical", local: "2-4 weeks minimum", clarmi: "Brief to live in 48 hours" } },
+    tips: { agency: "6-12 weeks typical", local: "2-4 weeks minimum", clarmi: "Website drafted in less than 24 hours" } },
   { label: "Mobile-responsiveness", agency: true, local: "partial", clarmi: true,
     tips: { local: "Depends on the template", clarmi: "Every breakpoint tested" } },
   { label: "SEO-optimization", agency: true, local: "partial", clarmi: true,
@@ -222,7 +222,7 @@ export default function Pricing() {
           }}
         >
           <p className="text-body" style={{ color: "var(--text-muted)" }}>
-            Custom design. 48-hour delivery. Don&apos;t pay until you&apos;re happy.
+            Custom design. Don&apos;t pay until you&apos;re happy.
           </p>
         </div>
       </div>
