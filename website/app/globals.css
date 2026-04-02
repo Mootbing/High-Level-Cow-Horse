@@ -398,7 +398,7 @@ img, video { max-width: 100%; display: block; }
 .url-input-wrapper button {
   padding: clamp(0.6rem, 0.9vw, 0.8rem) clamp(1.2rem, 1.8vw, 1.5rem);
   margin: 4px;
-  background: var(--text);
+  background: var(--accent);
   color: white;
   font-weight: 500;
   font-size: clamp(0.8rem, 0.9vw, 0.88rem);
@@ -408,7 +408,7 @@ img, video { max-width: 100%; display: block; }
 }
 
 .url-input-wrapper button:hover {
-  box-shadow: 0 8px 30px rgba(10, 10, 10, 0.25);
+  box-shadow: 0 8px 30px rgba(124, 92, 252, 0.3);
 }
 
 /* ============================================
