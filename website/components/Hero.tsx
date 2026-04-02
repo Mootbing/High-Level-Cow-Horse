@@ -181,7 +181,7 @@ export default function Hero() {
           className="text-body-lg reveal delay-2"
           style={{ maxWidth: "480px", marginTop: "clamp(1.2rem, 2.5vh, 2rem)", marginBottom: "clamp(1.5rem, 3vh, 2.5rem)" }}
         >
-          We&apos;ll audit your site and build you a new one — free. Don&apos;t pay until you&apos;re happy.
+          We&apos;ll build you a new site — for free. Don&apos;t pay until you&apos;re happy.
         </p>
 
         {/* URL Input CTA */}
