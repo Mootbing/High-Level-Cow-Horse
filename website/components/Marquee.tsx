@@ -20,7 +20,6 @@ export default function Marquee() {
     <div
       style={{
         borderTop: "1px solid var(--border)",
-        borderBottom: "1px solid var(--border)",
         padding: "clamp(0.9rem, 1.5vh, 1.2rem) 0",
         overflow: "hidden",
         position: "relative",
@@ -58,7 +57,6 @@ export default function Marquee() {
             <span
               style={{
                 fontFamily: '"Instrument Serif", Georgia, serif',
-                fontStyle: "italic",
                 fontSize: "clamp(0.95rem, 1.2vw, 1.1rem)",
                 color: "var(--text-light)",
               }}
