@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import type { Project } from "@/lib/projects";
+import AuditForm from "@/components/AuditForm";
 
 function AwardBadge({ award, color, index }: { award: { title: string; org: string }; color: string; index: number }) {
   return (
@@ -326,6 +327,41 @@ export default function CaseStudyClient({ project }: { project: Project }) {
         </div>
       </section>
 
+      {/* Demo video */}
+      {project.demoVideo && (
+        <section
+          style={{
+            paddingTop: "clamp(2rem, 4vh, 3rem)",
+            paddingBottom: "clamp(2rem, 4vh, 3rem)",
+          }}
+        >
+          <div className="container">
+            <div
+              className="reveal delay-1"
+              style={{
+                borderRadius: "var(--radius-lg)",
+                overflow: "hidden",
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+              }}
+            >
+              <video
+                src={project.demoVideo}
+                autoPlay
+                loop
+                muted
+                playsInline
+                style={{
+                  width: "100%",
+                  height: "auto",
+                  display: "block",
+                }}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Awards section — only if project has awards */}
       {project.awards && project.awards.length > 0 && (
         <>
@@ -383,6 +419,25 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           </div>
           <p className="text-body-lg reveal delay-2">{project.challenge}</p>
         </div>
+        {project.originalScreenshot && (
+          <div className="container" style={{ marginTop: "clamp(2rem, 4vh, 3rem)" }}>
+            <div
+              className="reveal delay-3"
+              style={{
+                borderRadius: "var(--radius-lg)",
+                overflow: "hidden",
+                border: "1px solid var(--border)",
+                background: "var(--bg-card)",
+              }}
+            >
+              <img
+                src={project.originalScreenshot}
+                alt={`${project.name} — original site`}
+                style={{ width: "100%", height: "auto", display: "block" }}
+              />
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Solution */}
@@ -413,6 +468,36 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           </div>
           <p className="text-body-lg reveal delay-2">{project.solution}</p>
         </div>
+        {project.screenshots && project.screenshots.length > 0 && (
+          <div className="container" style={{ marginTop: "clamp(2rem, 4vh, 3rem)" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: "clamp(1rem, 2vw, 1.5rem)",
+              }}
+            >
+              {project.screenshots.map((src, i) => (
+                <div
+                  key={i}
+                  className={`reveal delay-${Math.min(i + 3, 7)}`}
+                  style={{
+                    borderRadius: "var(--radius-lg)",
+                    overflow: "hidden",
+                    border: "1px solid var(--border)",
+                    background: "var(--bg-card)",
+                  }}
+                >
+                  <img
+                    src={src}
+                    alt={`${project.name} — screenshot ${i + 1}`}
+                    style={{ width: "100%", height: "auto", display: "block" }}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Results */}
@@ -429,51 +514,54 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           </div>
 
           <div
+            className="results-grid"
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 240px), 1fr))",
-              gap: "clamp(0.75rem, 1.5vw, 1rem)",
-              maxWidth: "900px",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: "clamp(1.5rem, 3vw, 2.5rem)",
+              maxWidth: 1200,
               margin: "0 auto",
             }}
           >
             {project.results.map((result, i) => (
               <div
                 key={i}
-                className={`card reveal delay-${i + 2}`}
+                className={`reveal delay-${i + 2}`}
                 style={{
                   display: "flex",
-                  alignItems: "flex-start",
-                  gap: "0.75rem",
+                  flexDirection: "column",
+                  gap: "clamp(0.4rem, 0.8vh, 0.6rem)",
                 }}
               >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 18 18"
-                  fill="none"
-                  style={{ flexShrink: 0, marginTop: "3px" }}
-                >
-                  <path
-                    d="M4 9L7.5 12.5L14 5.5"
-                    stroke={project.color}
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-                <p
-                  style={{
-                    fontSize: "clamp(0.9rem, 1.05vw, 1rem)",
-                    lineHeight: 1.6,
-                    color: "var(--text-muted)",
-                  }}
-                >
+                <span style={{
+                  fontFamily: '"Instrument Serif", Georgia, serif',
+                  fontSize: "clamp(2.5rem, 4vw, 3.5rem)",
+                  lineHeight: 1,
+                  color: project.color,
+                  opacity: 0.2,
+                }}>
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <p style={{
+                  fontSize: "clamp(0.88rem, 1vw, 0.95rem)",
+                  color: "var(--text-muted)",
+                  lineHeight: 1.6,
+                }}>
                   {result}
                 </p>
               </div>
             ))}
           </div>
+          <style>{`
+            @media (max-width: 768px) {
+              .results-grid { grid-template-columns: repeat(2, 1fr) !important; }
+            }
+            @media (max-width: 480px) {
+              .results-grid { grid-template-columns: 1fr !important; }
+            }
+            .audit-form-centered { display: flex; flex-direction: column; align-items: center; }
+            .audit-form-centered .url-input-wrapper { margin: 0 auto; }
+          `}</style>
         </div>
       </section>
 
@@ -500,9 +588,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           >
             Drop your URL and we&apos;ll show you what&apos;s possible.
           </p>
-          <Link href="/#cta" className="btn-primary">
-            Get Your Free Audit
-          </Link>
+          <AuditForm className="audit-form-centered" />
         </div>
       </section>
 

@@ -48,7 +48,7 @@ function PortraitCard({ className }: { className?: string }) {
         }}
       >
         <img
-          src="/assets/jason.png"
+          src="/assets/jason-xu/portrait.png"
           alt="Jason Xu, Founder of Clarmi Design Studio"
           style={{
             width: "100%",
