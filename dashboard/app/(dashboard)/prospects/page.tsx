@@ -3,13 +3,19 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useProspects } from "@/lib/hooks/use-api";
+import { useSearch } from "@/lib/search-context";
+import { ToolbarSlot } from "@/lib/toolbar-context";
+import { useQueryClient } from "@tanstack/react-query";
+import { api } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import { Search, ExternalLink, ChevronLeft, ChevronRight } from "lucide-react";
+import { SortableHeader } from "@/components/data/sortable-header";
+import { ExternalLink, ChevronLeft, ChevronRight, Check, Trash2 } from "lucide-react";
 
 export default function ProspectsPage() {
-  const [search, setSearch] = useState("");
+  const { search } = useSearch();
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState("-created_at");
+  const [showAll, setShowAll] = useState(false);
   const limit = 25;
 
   const { data, isLoading } = useProspects({
@@ -17,44 +23,39 @@ export default function ProspectsPage() {
     limit,
     search: search || undefined,
     sort,
+    prospects_only: !showAll || undefined,
   });
 
+  const queryClient = useQueryClient();
   const totalPages = data ? Math.ceil(data.total / limit) : 0;
 
-  const toggleSort = (col: string) => {
-    if (sort === col) setSort(`-${col}`);
-    else if (sort === `-${col}`) setSort(col);
-    else setSort(`-${col}`);
-  };
+  async function handleDelete(id: string, name: string) {
+    if (!confirm(`Delete prospect "${name}"?`)) return;
+    await api.deleteProspect(id);
+    queryClient.invalidateQueries({ queryKey: ["prospects"] });
+  }
 
-  const SortIcon = ({ col }: { col: string }) => {
-    if (sort === col) return <span className="ml-1 text-[var(--accent)]">&#9650;</span>;
-    if (sort === `-${col}`) return <span className="ml-1 text-[var(--accent)]">&#9660;</span>;
-    return null;
-  };
 
   return (
     <div className="space-y-4 animate-in">
-      {/* Toolbar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div
-          className="flex items-center gap-2 px-4 py-2.5 rounded-full w-full sm:w-72 border transition-all duration-300 focus-within:border-[var(--accent)] focus-within:shadow-[0_0_0_3px_var(--accent-soft)]"
-          style={{ backgroundColor: "var(--bg-card)", borderColor: "var(--border)" }}
+      <ToolbarSlot count={data?.total ?? 0}>
+        <button
+          onClick={() => { setShowAll(!showAll); setPage(0); }}
+          className="flex items-center gap-2 text-xs"
+          style={{ color: "var(--text-muted)" }}
         >
-          <Search size={14} style={{ color: "var(--text-light)" }} />
-          <input
-            type="text"
-            placeholder="Search prospects..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            className="bg-transparent border-none outline-none text-sm flex-1"
-            style={{ color: "var(--text)" }}
-          />
-        </div>
-        <span className="text-label">
-          {data?.total ?? 0} prospects
-        </span>
-      </div>
+          <span
+            className="flex items-center justify-center w-4 h-4 rounded border transition-all duration-200"
+            style={{
+              borderColor: showAll ? "var(--accent)" : "var(--border)",
+              backgroundColor: showAll ? "var(--accent)" : "transparent",
+            }}
+          >
+            {showAll && <Check size={10} color="white" strokeWidth={3} />}
+          </span>
+          Show all
+        </button>
+      </ToolbarSlot>
 
       {/* Table */}
       <div className="card-static p-0 overflow-hidden">
@@ -72,24 +73,9 @@ export default function ProspectsPage() {
                   { label: "Projects", key: null },
                   { label: "Scraped", key: "scraped_at" },
                 ].map((col) => (
-                  <th
-                    key={col.label}
-                    className="px-5 py-3.5 text-left text-[11px] font-medium tracking-wider uppercase whitespace-nowrap"
-                    style={{ color: "var(--text-light)" }}
-                  >
-                    {col.key ? (
-                      <button
-                        onClick={() => toggleSort(col.key)}
-                        className="flex items-center hover:text-[var(--text)] transition-colors"
-                      >
-                        {col.label}
-                        <SortIcon col={col.key} />
-                      </button>
-                    ) : (
-                      col.label
-                    )}
-                  </th>
+                  <SortableHeader key={col.label} label={col.label} sortKey={col.key} currentSort={sort} onSort={setSort} />
                 ))}
+                <th className="px-3 py-3.5 w-12" />
               </tr>
             </thead>
             <tbody>
@@ -162,6 +148,17 @@ export default function ProspectsPage() {
                       </td>
                       <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>
                         {formatDate(p.scraped_at)}
+                      </td>
+                      <td className="px-3 py-3.5">
+                        {p.project_count === 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDelete(p.id, p.company_name || "Unknown"); }}
+                            className="p-1.5 rounded-full hover:bg-red-50 transition-colors"
+                            title="Delete prospect"
+                          >
+                            <Trash2 size={13} className="text-red-400" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}

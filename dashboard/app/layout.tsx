@@ -3,8 +3,8 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 
 export const metadata: Metadata = {
-  title: "Clarmi Studio — Dashboard",
-  description: "Admin dashboard & CRM for Clarmi Design Studio",
+  title: "Clarmi Engine",
+  description: "Clarmi Engine — Internal Dashboard",
 };
 
 export default function RootLayout({

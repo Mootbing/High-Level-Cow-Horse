@@ -30,7 +30,7 @@ export function StatCard({
       </div>
       <div>
         <span
-          className="display-number text-3xl"
+          className="text-3xl font-bold tracking-tight"
           style={{ color: "var(--text)" }}
         >
           {value}

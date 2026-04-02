@@ -47,7 +47,11 @@ async def list_projects(
 ):
     base = select(Project)
     if status:
-        base = base.where(Project.status == status)
+        statuses = [s.strip() for s in status.split(",") if s.strip()]
+        if len(statuses) == 1:
+            base = base.where(Project.status == statuses[0])
+        elif statuses:
+            base = base.where(Project.status.in_(statuses))
     if search:
         base = base.where(
             Project.name.ilike(f"%{search}%") | Project.slug.ilike(f"%{search}%")
@@ -145,3 +149,13 @@ async def update_project(session: DBSession, project_id: UUID, data: ProjectUpda
     await session.commit()
     await session.refresh(project)
     return ProjectRead.model_validate(project)
+
+
+@router.delete("/{project_id}")
+async def delete_project(session: DBSession, project_id: UUID):
+    project = await session.get(Project, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+    await session.delete(project)
+    await session.commit()
+    return {"ok": True}

@@ -1,8 +1,9 @@
 "use client";
 
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useEffect } from "react";
 import type { ProspectGeo } from "@/lib/types";
 import { STATUS_COLORS } from "@/lib/constants";
 import Link from "next/link";
@@ -23,6 +24,25 @@ function createIcon(color: string) {
   });
 }
 
+function FitBounds({ prospects }: { prospects: ProspectGeo[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (prospects.length === 0) return;
+
+    if (prospects.length === 1) {
+      map.setView([prospects[0].latitude, prospects[0].longitude], 14);
+    } else {
+      const bounds = L.latLngBounds(
+        prospects.map((p) => [p.latitude, p.longitude] as [number, number])
+      );
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
+    }
+  }, [map, prospects]);
+
+  return null;
+}
+
 interface MapViewProps {
   prospects: ProspectGeo[];
   isLoading: boolean;
@@ -31,26 +51,21 @@ interface MapViewProps {
 export default function MapView({ prospects, isLoading }: MapViewProps) {
   if (isLoading) {
     return (
-      <div className="w-full flex items-center justify-center text-sm" style={{ height: "calc(100vh - 10rem)", color: "var(--text-light)" }}>
+      <div className="w-full flex items-center justify-center text-sm" style={{ height: "100%", minHeight: 200, color: "var(--text-light)" }}>
         Loading map...
       </div>
     );
   }
 
-  const center: [number, number] =
-    prospects.length > 0
-      ? [
-          prospects.reduce((s, p) => s + p.latitude, 0) / prospects.length,
-          prospects.reduce((s, p) => s + p.longitude, 0) / prospects.length,
-        ]
-      : [39.8283, -98.5795];
+  const defaultCenter: [number, number] = [39.8283, -98.5795];
 
   return (
-    <MapContainer center={center} zoom={prospects.length > 0 ? 5 : 4} style={{ height: "calc(100vh - 10rem)", width: "100%" }} scrollWheelZoom>
+    <MapContainer center={defaultCenter} zoom={4} style={{ height: "100%", minHeight: 200, width: "100%" }} scrollWheelZoom>
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
       />
+      <FitBounds prospects={prospects} />
       {prospects.map((p) => {
         const color = p.project_status ? STATUS_COLORS[p.project_status] || "#8e8e93" : "#8e8e93";
         return (

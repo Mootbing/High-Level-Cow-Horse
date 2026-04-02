@@ -2,8 +2,15 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
-import { useProject, useProjectTasks, useProjectDeployments } from "@/lib/hooks/use-api";
+import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
+import { useProject, useProjectTasks, useProjectDeployments, useProjectEmails, useProspect, useProjectHistory } from "@/lib/hooks/use-api";
+
+const MapView = dynamic(() => import("@/components/map/map-container"), { ssr: false });
+import { api } from "@/lib/api";
 import { StatusBadge } from "@/components/data/status-badge";
+import { SortableHeader } from "@/components/data/sortable-header";
+import { GitTree } from "@/components/charts/git-tree";
 import { formatDate, timeAgo } from "@/lib/utils";
 import {
   ArrowLeft,
@@ -11,11 +18,12 @@ import {
   GitBranch,
   Clock,
   ListTodo,
-  FileCode,
   Rocket,
+  Trash2,
+  Mail,
 } from "lucide-react";
 
-const TABS = ["Overview", "Tasks", "Deployments"] as const;
+const TABS = ["Overview", "Tasks", "Emails", "History"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function ProjectDetailPage({
@@ -27,7 +35,35 @@ export default function ProjectDetailPage({
   const { data: project, isLoading } = useProject(id);
   const { data: tasks } = useProjectTasks(id);
   const { data: deployments } = useProjectDeployments(id);
+  const { data: emails } = useProjectEmails(id);
+  const { data: prospect } = useProspect(project?.prospect_id || "");
+  const { data: history } = useProjectHistory(id);
   const [tab, setTab] = useState<Tab>("Overview");
+  const [taskSort, setTaskSort] = useState("-created_at");
+  const [emailSort, setEmailSort] = useState("-created_at");
+  const router = useRouter();
+
+  function sortItems<T extends Record<string, unknown>>(items: T[], sortStr: string): T[] {
+    const desc = sortStr.startsWith("-");
+    const key = sortStr.replace(/^-/, "");
+    return [...items].sort((a, b) => {
+      const av = a[key] ?? "";
+      const bv = b[key] ?? "";
+      if (av < bv) return desc ? 1 : -1;
+      if (av > bv) return desc ? -1 : 1;
+      return 0;
+    });
+  }
+
+  async function handleDelete() {
+    const confirmed = prompt(
+      `Type "${project?.name}" to permanently delete this project:`
+    );
+    if (confirmed === project?.name) {
+      await api.deleteProject(id);
+      router.push("/projects");
+    }
+  }
 
   if (isLoading || !project) {
     return (
@@ -42,7 +78,10 @@ export default function ProjectDetailPage({
     );
   }
 
-  const githubUrl = (project.metadata_ as Record<string, string>)?.github_url;
+  const meta = project.metadata_ as Record<string, string>;
+  const githubUrl = meta?.github_url;
+  const vercelProject = meta?.vercel_project;
+  const vercelUrl = vercelProject ? `https://vercel.com/jason-clarmi/${vercelProject}` : null;
 
   return (
     <div className="space-y-5 animate-in max-w-4xl">
@@ -71,28 +110,64 @@ export default function ProjectDetailPage({
               <GitBranch size={14} /> Repo
             </a>
           )}
+          {vercelUrl && (
+            <a href={vercelUrl} target="_blank" rel="noopener noreferrer" className="btn-outline flex items-center gap-1.5 text-xs" title="Vercel">
+              <svg width="14" height="14" viewBox="0 0 76 65" fill="currentColor"><path d="M37.5274 0L75.0548 65H0L37.5274 0Z" /></svg>
+              Vercel
+            </a>
+          )}
           {project.deployed_url && (
             <a href={project.deployed_url} target="_blank" rel="noopener noreferrer" className="btn-gradient flex items-center gap-1.5 text-xs">
               <ExternalLink size={12} /> View Site
             </a>
           )}
+          <button
+            onClick={handleDelete}
+            className="p-2 rounded-full border transition-all duration-300 hover:bg-red-50 hover:border-red-300"
+            style={{ borderColor: "var(--border)" }}
+            title="Delete project"
+          >
+            <Trash2 size={14} className="text-red-400 hover:text-red-600 transition-colors" />
+          </button>
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-full border" style={{ borderColor: "var(--border)", width: "fit-content" }}>
-        {TABS.map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 ${
-              tab === t ? "bg-[var(--text)] text-[var(--bg)]" : "hover:bg-[var(--bg-alt)]"
-            }`}
-            style={tab !== t ? { color: "var(--text-muted)" } : {}}
-          >
-            {t}
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const counts: Record<string, number | undefined> = {
+            Tasks: project.task_count,
+            Emails: emails?.total,
+            History: history?.commits.length,
+          };
+          const count = counts[t];
+          const isActive = tab === t;
+          return (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-medium transition-all duration-300 ${
+                isActive ? "bg-[var(--text)] text-[var(--bg)]" : "hover:bg-[var(--bg-alt)]"
+              }`}
+              style={!isActive ? { color: "var(--text-muted)" } : {}}
+            >
+              {t}
+              {count !== undefined && count > 0 && (
+                <span
+                  className="flex items-center justify-center rounded-full text-[9px] font-semibold"
+                  style={{
+                    minWidth: 16,
+                    height: 16,
+                    backgroundColor: isActive ? "var(--bg)" : "var(--bg-alt)",
+                    color: isActive ? "var(--text)" : "var(--text-muted)",
+                  }}
+                >
+                  {count}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Tab content */}
@@ -106,7 +181,7 @@ export default function ProjectDetailPage({
             <div className="grid grid-cols-2 gap-4 pt-2">
               <div>
                 <span className="text-xs" style={{ color: "var(--text-light)" }}>Priority</span>
-                <p className="display-number text-xl mt-0.5" style={{ color: "var(--text)" }}>{project.priority}</p>
+                <p className="text-xl font-bold tracking-tight mt-0.5" style={{ color: "var(--text)" }}>{project.priority}</p>
               </div>
               <div>
                 <span className="text-xs" style={{ color: "var(--text-light)" }}>Slug</span>
@@ -125,24 +200,39 @@ export default function ProjectDetailPage({
             </div>
           </div>
 
-          <div className="card-static space-y-3">
-            <h3 className="text-label">Quick Stats</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { icon: ListTodo, value: project.task_count, label: "Tasks", color: "var(--accent)" },
-                { icon: FileCode, value: project.asset_count, label: "Assets", color: "#7C5CFC" },
-                { icon: Rocket, value: deployments?.length || 0, label: "Deploys", color: "var(--status-deployed)" },
-              ].map((stat) => (
-                <div key={stat.label} className="card-inset flex items-center gap-3">
-                  <stat.icon size={16} style={{ color: stat.color }} />
-                  <div>
-                    <p className="display-number text-xl" style={{ color: "var(--text)" }}>{stat.value}</p>
-                    <span className="text-[10px] uppercase tracking-wider" style={{ color: "var(--text-light)" }}>{stat.label}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="card-static space-y-1">
+            <h3 className="text-label mb-2">Quick Stats</h3>
+            {[
+              { icon: ListTodo, value: project.task_count, label: "Tasks", color: "var(--accent)" },
+              { icon: Mail, value: emails?.total || 0, label: "Emails", color: "#ff9f0a" },
+              { icon: Rocket, value: history?.deploy_count ?? 0, label: "Deploys", color: "var(--status-deployed)" },
+            ].map((stat) => (
+              <div key={stat.label} className="flex items-center gap-3 py-2" style={{ borderBottom: "1px solid var(--border)" }}>
+                <stat.icon size={14} style={{ color: stat.color }} />
+                <span className="text-sm flex-1" style={{ color: "var(--text-muted)" }}>{stat.label}</span>
+                <span className="text-sm font-bold" style={{ color: "var(--text)" }}>{stat.value}</span>
+              </div>
+            ))}
           </div>
+          {prospect?.latitude && prospect?.longitude && (
+            <div className="card-static space-y-3 md:col-span-2">
+              <h3 className="text-label">Location</h3>
+              <div className="rounded-xl overflow-hidden" style={{ height: 220 }}>
+                <MapView
+                  prospects={[{
+                    id: prospect.id,
+                    company_name: prospect.company_name,
+                    url: prospect.url,
+                    latitude: prospect.latitude,
+                    longitude: prospect.longitude,
+                    industry: prospect.industry,
+                    project_status: project.status,
+                  }]}
+                  isLoading={false}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -152,13 +242,20 @@ export default function ProjectDetailPage({
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["Title", "Agent", "Status", "Retries", "Started", "Completed"].map((h) => (
-                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-medium tracking-wider uppercase" style={{ color: "var(--text-light)" }}>{h}</th>
+                  {[
+                    { label: "Title", key: "title" },
+                    { label: "Agent", key: "agent_type" },
+                    { label: "Status", key: "status" },
+                    { label: "Retries", key: "retry_count" },
+                    { label: "Started", key: "started_at" },
+                    { label: "Completed", key: "completed_at" },
+                  ].map((col) => (
+                    <SortableHeader key={col.label} label={col.label} sortKey={col.key} currentSort={taskSort} onSort={setTaskSort} />
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {tasks.map((t) => (
+                {sortItems(tasks, taskSort).map((t) => (
                   <tr key={t.id} className="hover:bg-[var(--bg-alt)] transition-colors" style={{ borderBottom: "1px solid var(--border)" }}>
                     <td className="px-5 py-3.5 font-medium" style={{ color: "var(--text)" }}>{t.title}</td>
                     <td className="px-5 py-3.5">
@@ -178,36 +275,47 @@ export default function ProjectDetailPage({
         </div>
       )}
 
-      {tab === "Deployments" && (
+      {tab === "Emails" && (
         <div className="card-static p-0 overflow-hidden">
-          {deployments && deployments.length > 0 ? (
+          {emails && emails.items.length > 0 ? (
             <table className="w-full text-sm">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)" }}>
-                  {["URL", "Status", "Deployed"].map((h) => (
-                    <th key={h} className="px-5 py-3.5 text-left text-[11px] font-medium tracking-wider uppercase" style={{ color: "var(--text-light)" }}>{h}</th>
+                  {[
+                    { label: "To", key: "to_email" },
+                    { label: "Subject", key: "subject" },
+                    { label: "Status", key: "status" },
+                    { label: "Created", key: "created_at" },
+                    { label: "Sent", key: "sent_at" },
+                  ].map((col) => (
+                    <SortableHeader key={col.label} label={col.label} sortKey={col.key} currentSort={emailSort} onSort={setEmailSort} />
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {deployments.map((d) => (
-                  <tr key={d.id} className="hover:bg-[var(--bg-alt)] transition-colors" style={{ borderBottom: "1px solid var(--border)" }}>
-                    <td className="px-5 py-3.5">
-                      {d.url ? (
-                        <a href={d.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-[var(--accent)] hover:underline font-data">
-                          {d.url} <ExternalLink size={10} />
-                        </a>
-                      ) : <span className="text-xs" style={{ color: "var(--text-light)" }}>—</span>}
-                    </td>
-                    <td className="px-5 py-3.5"><StatusBadge status={d.status} /></td>
-                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(d.created_at)}</td>
+                {sortItems(emails.items, emailSort).map((e) => (
+                  <tr key={e.id} className="hover:bg-[var(--bg-alt)] transition-colors" style={{ borderBottom: "1px solid var(--border)" }}>
+                    <td className="px-5 py-3.5 text-xs font-data" style={{ color: "var(--text)" }}>{e.to_email}</td>
+                    <td className="px-5 py-3.5 font-medium" style={{ color: "var(--text)" }}>{e.edited_subject || e.subject || "—"}</td>
+                    <td className="px-5 py-3.5"><StatusBadge status={e.status} /></td>
+                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(e.created_at)}</td>
+                    <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{e.sent_at ? formatDate(e.sent_at) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <div className="p-10 text-center text-sm" style={{ color: "var(--text-light)" }}>No deployments yet</div>
+            <div className="p-10 text-center text-sm" style={{ color: "var(--text-light)" }}>No emails yet</div>
           )}
+        </div>
+      )}
+
+      {tab === "History" && (
+        <div className="card-static p-0 overflow-hidden">
+          <GitTree
+            commits={history?.commits || []}
+            branches={history?.branches || []}
+          />
         </div>
       )}
     </div>
