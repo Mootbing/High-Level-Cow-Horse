@@ -16,7 +16,6 @@ export default function Home() {
       <main>
         <Hero />
         <Marquee />
-        <div className="section-divider" />
         <Process />
         <div className="section-divider" />
         <Work />
