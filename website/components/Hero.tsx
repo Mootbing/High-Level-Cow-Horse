@@ -149,7 +149,7 @@ export default function Hero() {
           right: 0,
           height: "100%",
           zIndex: 1,
-          pointerEvents: "auto",
+          pointerEvents: "none",
         }}
       >
         <PrismScene />
@@ -179,7 +179,7 @@ export default function Hero() {
         {/* Sub */}
         <p
           className="text-body-lg reveal delay-2"
-          style={{ maxWidth: "480px", marginTop: "clamp(1.2rem, 2.5vh, 2rem)" }}
+          style={{ maxWidth: "480px", marginTop: "clamp(1.2rem, 2.5vh, 2rem)", marginBottom: "clamp(1.5rem, 3vh, 2.5rem)" }}
         >
           We&apos;ll audit your site and build you a new one — free. Don&apos;t pay until you&apos;re happy.
         </p>
@@ -199,8 +199,8 @@ export default function Hero() {
           }}
         >
           {[
-            { value: "48hr", label: "Delivery" },
-            { value: "97+", label: "Lighthouse" },
+            { value: "<48hr", label: "Delivery" },
+            { value: "<0.5s", label: "Page Load" },
             { value: "$250", label: "To Launch" },
           ].map((stat) => (
             <div key={stat.label}>

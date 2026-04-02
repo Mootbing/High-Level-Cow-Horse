@@ -215,7 +215,7 @@ export default function Founder() {
               </p>
               {[
                 "I've been obsessed with building things on the internet since I was 14. By 16, something I made got acquired by the United Nations. At 17, I won international design awards. At 19, I joined a startup as the 2nd engineer and helped scale it past $12M ARR.",
-                "I'm at UPenn now, and I started Clarmi because it kept bugging me — small businesses with amazing products, stuck behind websites that don't do them justice. The design and engineering that VC-funded startups get shouldn't cost $10,000. So I built a studio where it doesn't.",
+                "Last semester I found the best Chinese food I\u2019ve ever had \u2014 a tiny spot tucked behind a laundromat in Chinatown. No website. No Instagram. Just a handwritten sign and a line out the door. I thought: this place is incredible, and nobody outside a three-block radius will ever know it exists. That\u2019s the moment Clarmi clicked. The design and engineering that VC-funded startups get shouldn\u2019t cost $10,000. So I built a studio where it doesn\u2019t.",
                 "If your website doesn't make you proud, send me the URL. I'll show you what it could be.",
               ].map((text, i) => (
                 <p
