@@ -157,7 +157,7 @@ async def delete_project(session: DBSession, project_id: UUID):
     from openclaw.models.message import Message
     from openclaw.models.agent_log import AgentLog
     from openclaw.models.knowledge import KnowledgeBase
-    from sqlalchemy import update
+    from sqlalchemy import delete as sql_delete
 
     stmt = (
         select(Project)
@@ -169,34 +169,32 @@ async def delete_project(session: DBSession, project_id: UUID):
     if not project:
         raise HTTPException(404, "Project not found")
 
-    # Late-stage projects: clean up GitHub + Vercel
+    # Clean up GitHub + Vercel regardless of stage
     meta = project.metadata_ or {}
     github_repo = meta.get("github_repo")
     vercel_project = meta.get("vercel_project") or project.slug
-    is_late_stage = project.status in ("design", "build", "qa", "deployed")
 
     external_errors = []
-    if is_late_stage:
-        try:
-            from openclaw.integrations.github_client import delete_repo
-            if github_repo:
-                await delete_repo(github_repo)
-        except Exception as exc:
-            external_errors.append(f"GitHub: {str(exc)[:100]}")
-        try:
-            from openclaw.integrations.vercel_client import delete_project as delete_vercel
-            if vercel_project:
-                await delete_vercel(vercel_project)
-        except Exception as exc:
-            external_errors.append(f"Vercel: {str(exc)[:100]}")
+    try:
+        from openclaw.integrations.github_client import delete_repo
+        if github_repo:
+            await delete_repo(github_repo)
+    except Exception as exc:
+        external_errors.append(f"GitHub: {str(exc)[:100]}")
+    try:
+        from openclaw.integrations.vercel_client import delete_project as delete_vercel
+        if vercel_project:
+            await delete_vercel(vercel_project)
+    except Exception as exc:
+        external_errors.append(f"Vercel: {str(exc)[:100]}")
 
-    # Null out FKs on related rows that don't cascade
+    # Delete all related rows (non-cascading FKs)
     for model in (EmailLog, Message, AgentLog, KnowledgeBase):
         await session.execute(
-            update(model).where(model.project_id == project_id).values(project_id=None)
+            sql_delete(model).where(model.project_id == project_id)
         )
 
-    # Delete the prospect if linked
+    # Grab prospect before deleting project
     prospect = project.prospect
     prospect_id = project.prospect_id
 
@@ -204,9 +202,8 @@ async def delete_project(session: DBSession, project_id: UUID):
     await session.delete(project)
     await session.flush()
 
-    # Delete the prospect after the project FK is gone
+    # Delete the prospect if no other projects reference it
     if prospect:
-        # Check no other projects reference this prospect
         other = await session.execute(
             select(func.count(Project.id)).where(
                 Project.prospect_id == prospect_id, Project.id != project_id
