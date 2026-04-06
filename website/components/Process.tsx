@@ -9,27 +9,27 @@ gsap.registerPlugin(ScrollTrigger);
 const STEPS = [
   {
     number: "01",
-    title: "Send Us Your URL",
-    desc: "Drop your link. We run a full audit — design, performance, SEO, mobile — and a detailed report lands in your inbox.",
+    title: "Enter Your URL",
+    desc: "Drop your link. We audit design, performance, SEO, and mobile in minutes.",
     detail: "4 min audit",
   },
   {
     number: "02",
-    title: "We Research Everything",
-    desc: "We crawl your competitors, extract your brand identity, and learn your business so the new site feels like yours.",
-    detail: "Competitor analysis",
+    title: "Build Site",
+    desc: "We research your brand, crawl competitors, and build a full redesign you can preview live.",
+    detail: "No commitment",
   },
   {
     number: "03",
-    title: "See It Before You Pay",
-    desc: "You get a full audit and a live preview of your redesigned site first. No upfront risk. Pay only when you approve.",
-    detail: "No commitment",
+    title: "Book Call",
+    desc: "Love what you see? Hop on a 15-minute call to finalize details.",
+    detail: "15 min",
   },
   {
     number: "04",
     title: "Go Live",
-    desc: "Say the word and we push it live to your domain. SSL, hosting, analytics, and updates are covered in one flat monthly fee.",
-    detail: "$500 to launch",
+    desc: "We push it to your domain. SSL, hosting, and updates — one flat monthly fee.",
+    detail: "$25/mo",
   },
 ];
 
