@@ -44,7 +44,7 @@ if missing:
     }
     to_install = [pip_names.get(m, m) for m in missing]
     print(f"Installing missing deps: {', '.join(to_install)}")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", *to_install])
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--break-system-packages", *to_install])
 
 import asyncio
 from openclaw.audit_worker.worker import run_audit_worker
