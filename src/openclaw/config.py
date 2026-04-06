@@ -30,9 +30,7 @@ class Settings(BaseSettings):
 
     # API
     API_PORT: int = 8000
-    AUDIT_WORKER_PORT: int = 8002
     DASHBOARD_CORS_ORIGIN: str = "http://localhost:3001"
-    WEBSITE_CORS_ORIGIN: str = "https://clarmi.com"
 
     # Storage
     STORAGE_PATH: str = "./data/projects"

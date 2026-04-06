@@ -1,13 +1,8 @@
-"""Run the audit worker service."""
+"""Run the audit worker (poll loop only — no HTTP server)."""
 
-import uvicorn
+import asyncio
 
-from openclaw.config import settings
+from openclaw.audit_worker.worker import run_audit_worker
 
 if __name__ == "__main__":
-    uvicorn.run(
-        "openclaw.audit_worker.app:app",
-        host="0.0.0.0",
-        port=settings.AUDIT_WORKER_PORT,
-        reload=settings.DEBUG,
-    )
+    asyncio.run(run_audit_worker())
