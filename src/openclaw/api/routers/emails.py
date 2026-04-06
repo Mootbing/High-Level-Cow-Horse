@@ -129,6 +129,57 @@ async def regenerate_email(session: DBSession, email_id: UUID, body: dict | None
     )
 
 
+@router.post("/{email_id}/send", response_model=EmailLogRead)
+async def send_email(session: DBSession, email_id: UUID):
+    from openclaw.integrations.gmail_client import send_email as _send
+    from datetime import datetime
+
+    stmt = (
+        select(EmailLog)
+        .where(EmailLog.id == email_id)
+        .options(selectinload(EmailLog.prospect), selectinload(EmailLog.project))
+    )
+    result = await session.execute(stmt)
+    email = result.scalar_one_or_none()
+    if not email:
+        raise HTTPException(404, "Email not found")
+    if email.status == "sent":
+        raise HTTPException(400, "Email already sent")
+
+    subject = email.edited_subject or email.subject
+    body = email.edited_body or email.body
+
+    try:
+        gmail_result = await _send(to=email.to_email, subject=subject, body=body)
+    except Exception as exc:
+        email.status = "failed"
+        await session.commit()
+        raise HTTPException(502, f"Gmail send failed: {str(exc)[:200]}")
+
+    email.status = "sent"
+    email.gmail_message_id = gmail_result.get("id")
+    email.sent_at = datetime.utcnow()
+    await session.commit()
+    await session.refresh(email)
+
+    return EmailLogRead(
+        id=email.id,
+        prospect_id=email.prospect_id,
+        project_id=email.project_id,
+        to_email=email.to_email,
+        subject=email.subject,
+        body=email.body,
+        edited_subject=email.edited_subject,
+        edited_body=email.edited_body,
+        status=email.status,
+        gmail_message_id=email.gmail_message_id,
+        created_at=email.created_at,
+        sent_at=email.sent_at,
+        prospect_company=email.prospect.company_name if email.prospect else None,
+        project_name=email.project.name if email.project else None,
+    )
+
+
 @router.patch("/{email_id}", response_model=EmailLogRead)
 async def update_email(session: DBSession, email_id: UUID, body: dict):
     stmt = (

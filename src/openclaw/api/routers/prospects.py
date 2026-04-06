@@ -17,6 +17,37 @@ from openclaw.api.schemas.prospects import ProspectGeo, ProspectRead, ProspectUp
 router = APIRouter(prefix="/prospects", tags=["prospects"])
 
 
+def _to_prospect_read(p: Prospect) -> ProspectRead:
+    """Convert a Prospect ORM object to ProspectRead, coercing bad data types."""
+    social = p.social_links or {}
+    if isinstance(social, list):
+        social = {}
+    tech = p.tech_stack or []
+    if isinstance(tech, str):
+        tech = [t.strip() for t in tech.split(",")]
+    problems = p.raw_data.get("site_problems", []) if p.raw_data else []
+    return ProspectRead(
+        id=p.id,
+        url=p.url,
+        company_name=p.company_name,
+        tagline=p.tagline,
+        contact_emails=p.contact_emails or [],
+        brand_colors=p.brand_colors or [],
+        fonts=p.fonts or [],
+        logo_url=p.logo_url,
+        social_links=social,
+        industry=p.industry,
+        tech_stack=tech,
+        raw_data=p.raw_data or {},
+        latitude=p.latitude,
+        longitude=p.longitude,
+        scraped_at=p.scraped_at,
+        created_at=p.created_at,
+        project_count=len(p.projects),
+        site_problems_count=len(problems),
+    )
+
+
 @router.get("", response_model=PaginatedResponse[ProspectRead])
 async def list_prospects(
     session: DBSession,
@@ -55,29 +86,10 @@ async def list_prospects(
 
     items = []
     for p in prospects:
-        problems = p.raw_data.get("site_problems", []) if p.raw_data else []
-        items.append(
-            ProspectRead(
-                id=p.id,
-                url=p.url,
-                company_name=p.company_name,
-                tagline=p.tagline,
-                contact_emails=p.contact_emails or [],
-                brand_colors=p.brand_colors or [],
-                fonts=p.fonts or [],
-                logo_url=p.logo_url,
-                social_links=p.social_links or {},
-                industry=p.industry,
-                tech_stack=p.tech_stack or [],
-                raw_data=p.raw_data or {},
-                latitude=p.latitude,
-                longitude=p.longitude,
-                scraped_at=p.scraped_at,
-                created_at=p.created_at,
-                project_count=len(p.projects),
-                site_problems_count=len(problems),
-            )
-        )
+        try:
+            items.append(_to_prospect_read(p))
+        except Exception:
+            continue
 
     return PaginatedResponse(items=items, total=total, offset=offset, limit=limit)
 
@@ -118,27 +130,7 @@ async def get_prospect(session: DBSession, prospect_id: UUID):
         from fastapi import HTTPException
         raise HTTPException(404, "Prospect not found")
 
-    problems = prospect.raw_data.get("site_problems", []) if prospect.raw_data else []
-    return ProspectRead(
-        id=prospect.id,
-        url=prospect.url,
-        company_name=prospect.company_name,
-        tagline=prospect.tagline,
-        contact_emails=prospect.contact_emails or [],
-        brand_colors=prospect.brand_colors or [],
-        fonts=prospect.fonts or [],
-        logo_url=prospect.logo_url,
-        social_links=prospect.social_links or {},
-        industry=prospect.industry,
-        tech_stack=prospect.tech_stack or [],
-        raw_data=prospect.raw_data or {},
-        latitude=prospect.latitude,
-        longitude=prospect.longitude,
-        scraped_at=prospect.scraped_at,
-        created_at=prospect.created_at,
-        project_count=len(prospect.projects),
-        site_problems_count=len(problems),
-    )
+    return _to_prospect_read(prospect)
 
 
 @router.delete("/{prospect_id}")

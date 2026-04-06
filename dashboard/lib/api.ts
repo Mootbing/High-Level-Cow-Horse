@@ -113,6 +113,11 @@ export const api = {
       body: JSON.stringify({ instructions }),
     }),
 
+  sendEmail: (id: string) =>
+    fetchApi<EmailLog>(`/api/v1/emails/${id}/send`, {
+      method: "POST",
+    }),
+
   // Messages
   getMessages: (params?: {
     offset?: number;

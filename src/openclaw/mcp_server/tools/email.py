@@ -6,6 +6,8 @@ from datetime import datetime
 
 from openclaw.mcp_server.server import mcp
 
+CALENDAR_CTA = "\n\nLet's talk for 15 minutes: https://calendar.app.google/XghjfgsV4yegkmXR9"
+
 
 @mcp.tool()
 async def draft_email(
@@ -44,6 +46,10 @@ async def draft_email(
         prospect = result.scalar_one_or_none()
         if prospect:
             prospect_id = prospect.id
+
+        # Append calendar booking link if not already present
+        if "calendar.app.google" not in body:
+            body = body.rstrip() + CALENDAR_CTA
 
         email_log = EmailLog(
             to_email=to,
