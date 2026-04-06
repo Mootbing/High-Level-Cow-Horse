@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from openclaw.config import settings
+from openclaw.workers.task_worker import run_task_worker
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    task = asyncio.create_task(run_task_worker())
     yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
 
 
 app = FastAPI(
