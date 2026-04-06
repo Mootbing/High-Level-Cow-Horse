@@ -7,7 +7,7 @@ const LINKS = {
     { label: "Pricing", href: "#pricing" },
   ],
   Resources: [
-    { label: "Free Site", href: "#cta" },
+    { label: "Free Audit", href: "#cta" },
     { label: "Case Studies", href: "#work" },
     { label: "Email Us", href: "mailto:jason@clarmi.studio" },
   ],

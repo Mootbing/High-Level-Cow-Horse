@@ -396,17 +396,19 @@ img, video { max-width: 100%; display: block; }
 }
 
 .url-input-wrapper button {
-  padding: clamp(0.6rem, 0.9vw, 0.8rem) clamp(1.2rem, 1.8vw, 1.5rem);
-  margin: 4px;
+  padding: 0 clamp(1.4rem, 2vw, 1.8rem);
+  margin: 0;
   background: #000;
   color: white;
   font-weight: 600;
   font-size: clamp(0.8rem, 0.9vw, 0.88rem);
   border-radius: var(--radius-full);
   border: none;
+  border-left: 1px solid var(--border);
   transition: all 0.3s ease;
   white-space: nowrap;
   cursor: pointer;
+  align-self: stretch;
 }
 
 .url-input-wrapper button:hover {
