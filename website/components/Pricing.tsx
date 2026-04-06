@@ -100,7 +100,7 @@ export default function Pricing() {
         {/* Header */}
         <div className="pricing-reveal" style={{ textAlign: "center", marginBottom: "clamp(3rem, 6vh, 5rem)", opacity: 0, transform: "translateY(30px)", transition: "opacity 0.9s cubic-bezier(0.16,1,0.3,1), transform 0.9s cubic-bezier(0.16,1,0.3,1)" }}>
           <h2 className="text-display-lg">
-            Honest pricing. <em className="font-serif" style={{ fontStyle: "italic" }}>No surprises.</em>
+            One flat fee. <em className="font-serif" style={{ fontStyle: "italic" }}>Unlimited updates.</em>
           </h2>
         </div>
 
@@ -188,7 +188,7 @@ export default function Pricing() {
           }}
         >
           <p className="text-body" style={{ color: "var(--text-muted)" }}>
-            Custom design. Don&apos;t pay until you&apos;re happy.
+            Your done-for-you brand system and website for less than one typical freelance design invoice.
           </p>
         </div>
       </div>

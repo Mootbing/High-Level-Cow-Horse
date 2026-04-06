@@ -21,14 +21,14 @@ const STEPS = [
   },
   {
     number: "03",
-    title: "Audit + Website, Free",
-    desc: "You get a full audit and a live preview of your redesigned site — completely free. No payment until you say \"deploy it.\"",
+    title: "See It Before You Pay",
+    desc: "You get a full audit and a live preview of your redesigned site first. No upfront risk. Pay only when you approve.",
     detail: "No commitment",
   },
   {
     number: "04",
     title: "Go Live",
-    desc: "Say the word and we push it live to your domain. SSL, hosting, analytics — all included. Minutes, not weeks.",
+    desc: "Say the word and we push it live to your domain. SSL, hosting, analytics, and updates are covered in one flat monthly fee.",
     detail: "$500 to launch",
   },
 ];
@@ -141,7 +141,7 @@ export default function Process() {
             The <em className="font-serif" style={{ fontStyle: "italic" }}>Clarmi Way</em>
           </h2>
           <p className="text-body-lg reveal delay-1" style={{ maxWidth: "420px", margin: "clamp(0.8rem, 1.5vh, 1rem) auto 0" }}>
-            Redesigned in hours. Not months.
+            From audit to launch in 36 hours.
           </p>
         </div>
 

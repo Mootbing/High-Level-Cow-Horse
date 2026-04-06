@@ -54,11 +54,15 @@ export default function CTA() {
 
       <div className="container" style={{ position: "relative", zIndex: 2, display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
         <h2 className="text-display-hero reveal delay-1" style={{ color: "var(--text)" }}>
-          Let&apos;s build
-          <br /><em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>together</em>
+          Your next site,
+          <br /><em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>done in 36 hours</em>
         </h2>
 
-        <div className="reveal delay-2 cta-actions" style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", width: "100%", maxWidth: 620, display: "flex", alignItems: "flex-start", gap: "clamp(0.6rem, 1vw, 0.8rem)" }}>
+        <p className="text-body-lg reveal delay-2" style={{ marginTop: "clamp(0.9rem, 1.8vh, 1.2rem)", maxWidth: 560 }}>
+          Submit your URL. Get a full audit plus a working redesign preview. Approve when ready, then pay.
+        </p>
+
+        <div className="reveal delay-3 cta-actions" style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", width: "100%", maxWidth: 620, display: "flex", alignItems: "flex-start", gap: "clamp(0.6rem, 1vw, 0.8rem)" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <AuditForm />
           </div>
