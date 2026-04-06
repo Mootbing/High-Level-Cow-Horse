@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/data/status-badge";
 import { SortableHeader } from "@/components/data/sortable-header";
 import { formatDate, truncate } from "@/lib/utils";
 import type { EmailLog } from "@/lib/types";
-import { ChevronDown, ChevronUp, Trash2, RefreshCw } from "lucide-react";
+import { ChevronDown, ChevronUp, Trash2, RefreshCw, Send } from "lucide-react";
 
 interface EmailTableProps {
   emails: EmailLog[];
@@ -108,6 +108,7 @@ function EditableField({
 
 export function EmailTable({ emails, sort, onSort, compact }: EmailTableProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   async function handleDelete(id: string, e: React.MouseEvent) {
@@ -117,6 +118,21 @@ export function EmailTable({ emails, sort, onSort, compact }: EmailTableProps) {
     queryClient.invalidateQueries({ queryKey: ["emails"] });
     queryClient.invalidateQueries({ queryKey: ["project-emails"] });
     if (expandedId === id) setExpandedId(null);
+  }
+
+  async function handleSend(id: string, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm("Send this email?")) return;
+    setSendingId(id);
+    try {
+      await api.sendEmail(id);
+      queryClient.invalidateQueries({ queryKey: ["emails"] });
+      queryClient.invalidateQueries({ queryKey: ["project-emails"] });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Send failed");
+    } finally {
+      setSendingId(null);
+    }
   }
 
   async function handleRegenerate(id: string, e: React.MouseEvent) {
@@ -190,7 +206,28 @@ export function EmailTable({ emails, sort, onSort, compact }: EmailTableProps) {
                     </>
                   )}
                   <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(e.created_at)}</td>
-                  <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(e.sent_at)}</td>
+                  <td className="px-5 py-3.5 text-xs">
+                    {e.sent_at ? (
+                      <span style={{ color: "var(--text-light)" }}>{formatDate(e.sent_at)}</span>
+                    ) : e.status !== "sent" ? (
+                      <button
+                        onClick={(ev) => handleSend(e.id, ev)}
+                        disabled={sendingId === e.id}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-sm"
+                        style={{
+                          backgroundColor: "var(--accent-soft)",
+                          color: "var(--accent)",
+                          border: "1px solid var(--accent)",
+                          opacity: sendingId === e.id ? 0.6 : 1,
+                        }}
+                      >
+                        <Send size={11} className={sendingId === e.id ? "animate-pulse" : ""} />
+                        {sendingId === e.id ? "Sending..." : "Send"}
+                      </button>
+                    ) : (
+                      <span style={{ color: "var(--text-light)" }}>—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-3.5">
                     {e.status !== "sent" && (
                       <div className="flex items-center gap-1">

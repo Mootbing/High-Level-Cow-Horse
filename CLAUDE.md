@@ -473,10 +473,11 @@ Draft a personalized cold email referencing specific site problems.
    - **Observation**: Use highest-severity site_problem, framed as friendly observation
    - **Value prop**: What Clarmi does and why it matters for their industry
    - **CTA**: Low-commitment question — link to the pitch page (`deployed_url/pitch`) and competitor analysis (`deployed_url/competitors`) so they can see the proposal and market research
-4. Call `draft_email(to, subject, body)` — ALWAYS save as draft, never send directly
+   - **Calendar link**: Do NOT include a calendar link in the body — `draft_email` automatically appends "Let's talk for 15 minutes" with the Google Calendar booking link
+4. Call `draft_email(to, subject, body)` — ALWAYS save as draft, never send directly. The tool auto-appends the calendar booking CTA.
 5. Tell the owner the draft is ready for review. Use `send_email(email_id)` only after the owner approves.
 
-**Email rules**: Under 150 words. Warm and direct. NEVER use "I hope this email finds you well", "I came across your website", "in today's digital landscape", "take your brand to the next level". No exclamation marks in subject line.
+**Email rules**: Under 150 words. Warm and direct. NEVER use "I hope this email finds you well", "I came across your website", "in today's digital landscape", "take your brand to the next level". No exclamation marks in subject line. Every email ends with a Google Calendar booking link (auto-appended by `draft_email`).
 
 ## Client Funnel (Client-Facing Agent)
 
