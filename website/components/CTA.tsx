@@ -58,7 +58,7 @@ export default function CTA() {
           <br /><em className="font-serif" style={{ fontStyle: "italic", color: "var(--accent)" }}>together</em>
         </h2>
 
-        <div className="reveal delay-2" style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", width: "100%", maxWidth: 620, display: "flex", alignItems: "flex-start", gap: "clamp(0.6rem, 1vw, 0.8rem)" }}>
+        <div className="reveal delay-2 cta-actions" style={{ marginTop: "clamp(1.5rem, 3vh, 2.5rem)", width: "100%", maxWidth: 620, display: "flex", alignItems: "flex-start", gap: "clamp(0.6rem, 1vw, 0.8rem)" }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <AuditForm />
           </div>
@@ -66,7 +66,7 @@ export default function CTA() {
             href="https://calendar.app.google/1R6HGErUx6kvbgSa9"
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-outline"
+            className="btn-outline cta-talk-btn"
             style={{
               marginTop: 0,
               whiteSpace: "nowrap",
