@@ -155,7 +155,7 @@ export default function AuditForm({ className }: { className?: string }) {
   // Submitting state
   if (step === "submitting") {
     return (
-      <div className={className}>
+      <div className={className} style={{ opacity: 1, transform: "none" }}>
         <div
           className="url-input-wrapper"
           style={{ justifyContent: "center", padding: "clamp(0.9rem, 1.3vw, 1.1rem)" }}
@@ -171,7 +171,7 @@ export default function AuditForm({ className }: { className?: string }) {
   // Done state — show success message + URL bar for another audit
   if (step === "done") {
     return (
-      <div className={className}>
+      <div className={className} style={{ opacity: 1, transform: "none" }}>
         <p
           style={{
             marginBottom: "0.6rem",
@@ -209,7 +209,7 @@ export default function AuditForm({ className }: { className?: string }) {
 
   // Error state — show error + URL bar to retry
   return (
-    <div className={className}>
+    <div className={className} style={{ opacity: 1, transform: "none" }}>
       <p
         style={{
           marginBottom: "0.6rem",
