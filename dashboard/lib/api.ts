@@ -90,6 +90,9 @@ export const api = {
     sort?: string;
   }) => fetchApi<PaginatedResponse<Task>>(`/api/v1/tasks${qs(params ?? {})}`),
 
+  deleteTask: (id: string) =>
+    fetchApi<{ ok: boolean }>(`/api/v1/tasks/${id}`, { method: "DELETE" }),
+
   retryTask: (id: string) =>
     fetchApi<Task>(`/api/v1/tasks/${id}/retry`, { method: "POST" }),
 
