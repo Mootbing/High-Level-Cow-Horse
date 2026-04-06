@@ -202,11 +202,12 @@ async def get_latest_deployment(project_name: str, target: str = "production") -
         return deployments[0] if deployments else None
 
 
-async def promote_deployment(deployment_id: str) -> bool:
-    """Promote a deployment to production. Used for rollbacks."""
+async def promote_deployment(project_name: str, deployment_id: str) -> bool:
+    """Promote a deployment to production via instant rollback."""
     async with httpx.AsyncClient(timeout=30) as client:
+        # Vercel instant rollback: POST /v9/projects/{project}/promote/{deployment}
         resp = await client.post(
-            f"{VERCEL_API}/v10/projects/deployments/{deployment_id}/promote",
+            f"{VERCEL_API}/v9/projects/{project_name}/promote/{deployment_id}",
             headers=_headers(),
             params=_params(),
         )

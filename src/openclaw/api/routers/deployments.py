@@ -44,7 +44,10 @@ async def rollback_deployment(session: DBSession, project_id: UUID, body: dict):
     if not deployment_id:
         raise HTTPException(400, "deployment_id required")
 
-    ok = await promote_deployment(deployment_id)
+    meta = project.metadata_ or {}
+    vercel_project = meta.get("vercel_project") or project.slug
+
+    ok = await promote_deployment(vercel_project, deployment_id)
     if not ok:
         raise HTTPException(502, "Failed to promote deployment on Vercel")
 
