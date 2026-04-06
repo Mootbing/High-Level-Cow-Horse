@@ -114,7 +114,7 @@ export default function Pricing() {
             transitionDelay: "0.1s",
             borderRadius: "var(--radius-lg)",
             border: "1px solid var(--border)",
-            overflow: "visible",
+            overflow: "hidden",
           }}
         >
           <div className="pricing-grid">
@@ -146,7 +146,7 @@ export default function Pricing() {
                 $1,000
               </div>
               <span className="pricing-header-monthly" style={{ color: "var(--accent)", opacity: 0.8 }}>+ $25/mo <span style={{ opacity: 0.5, fontSize: "0.7em" }}>(annual)</span></span>
-              <span className="pricing-header-monthly" style={{ color: "var(--text-light)", opacity: 0.45, fontSize: "0.75em" }}>$35/mo month-to-month</span>
+              {/* <span className="pricing-header-monthly" style={{ color: "var(--text-light)", opacity: 0.45, fontSize: "0.75em" }}>$35/mo month-to-month</span> */}
             </div>
 
             {/* Feature rows */}
