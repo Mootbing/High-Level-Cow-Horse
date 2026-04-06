@@ -252,10 +252,10 @@ Client replies "approve" (or similar affirmative). Agent records the sign-off ti
 **Trigger**: Client approves sign-off (Flow 7), or on a recurring monthly schedule for maintenance fees.
 
 **Client interaction**: Agent sends a payment link via WhatsApp or email:
-> "Here's your invoice for the initial build: $500
+> "Here's your invoice for the initial build: $1,000
 > Payment link: [Stripe Checkout URL]
 >
-> Your $50/month maintenance starts next month and will be billed automatically."
+> Your $25/month maintenance starts next month and will be billed automatically."
 
 For recurring payments, Stripe handles the billing automatically via subscription. Client receives Stripe-generated receipts.
 
