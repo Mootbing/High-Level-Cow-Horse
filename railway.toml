@@ -1,0 +1,13 @@
+[build]
+builder = "dockerfile"
+dockerfilePath = "Dockerfile.audit-worker"
+
+[deploy]
+healthcheckPath = "/api/v1/health"
+healthcheckTimeout = 10
+numReplicas = 1
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 3
+
+[service]
+internalPort = 8001
