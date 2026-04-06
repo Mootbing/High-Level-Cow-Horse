@@ -141,46 +141,12 @@ export default function Pricing() {
 
             {/* Clarmi header */}
             <div className="pricing-cell pricing-header pricing-header-clarmi">
-              <span style={{
-                padding: "0.15rem 0.5rem",
-                background: "var(--accent-soft)",
-                color: "var(--accent)",
-                borderRadius: "var(--radius-full)",
-                fontSize: "0.62rem",
-                fontWeight: 600,
-                letterSpacing: "0.05em",
-                border: "1px solid rgba(124, 92, 252, 0.15)",
-                marginBottom: "0.3rem",
-                display: "inline-block",
-              }}>
-                Early Bird
-              </span>
               <div className="pricing-header-label" style={{ color: "var(--accent)" }}>Clarmi</div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "0.35rem", justifyContent: "center" }}>
-                <div className="pricing-header-price" style={{ color: "var(--accent)" }}>
-                  $250
-                </div>
-                <span style={{
-                  fontFamily: '"Instrument Serif", Georgia, serif',
-                  fontSize: "clamp(0.9rem, 1.2vw, 1.1rem)",
-                  color: "var(--text-light)",
-                  textDecoration: "line-through",
-                  opacity: 0.4,
-                }}>
-                  $500
-                </span>
+              <div className="pricing-header-price" style={{ color: "var(--accent)" }}>
+                $1,000
               </div>
-              <div style={{ display: "flex", alignItems: "baseline", gap: "0.3rem", justifyContent: "center" }}>
-                <span className="pricing-header-monthly" style={{ color: "var(--accent)", opacity: 0.8 }}>+ $25/mo</span>
-                <span style={{
-                  fontSize: "clamp(0.65rem, 0.72vw, 0.7rem)",
-                  color: "var(--text-light)",
-                  textDecoration: "line-through",
-                  opacity: 0.35,
-                }}>
-                  $50/mo
-                </span>
-              </div>
+              <span className="pricing-header-monthly" style={{ color: "var(--accent)", opacity: 0.8 }}>+ $25/mo <span style={{ opacity: 0.5, fontSize: "0.7em" }}>(annual)</span></span>
+              <span className="pricing-header-monthly" style={{ color: "var(--text-light)", opacity: 0.45, fontSize: "0.75em" }}>$35/mo month-to-month</span>
             </div>
 
             {/* Feature rows */}

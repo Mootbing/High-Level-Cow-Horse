@@ -201,7 +201,7 @@ export default function Hero() {
           {[
             { value: "<48hr", label: "Delivery" },
             { value: "<0.5s", label: "Page Load" },
-            { value: "$250", label: "To Launch" },
+            { value: "$1,000", label: "To Launch" },
           ].map((stat) => (
             <div key={stat.label}>
               <div style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontSize: "clamp(1.4rem, 2vw, 1.7rem)", color: "var(--text)", letterSpacing: "-0.02em" }}>

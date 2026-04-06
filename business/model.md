@@ -1,12 +1,6 @@
-**Regular:** 
+**Standard:** 
 
-* $1000: Design package + ($50 | $75 | $100/mo maintenance). Pay as you go for features
-
-**Early Bird Sale:** 
-
-* $500: professional website + $25/mo maintenance (12mo contract - without contract $30$/mo)
-* Automatically grandfathers in later plans and features
-* Grandfathers in months left you have from your previous agency
+* $1,000: professional website + $25/mo maintenance (annual billing) or $35/mo (month-to-month)
 
 **Features:**
 
@@ -22,8 +16,8 @@ Post deployment:
 * Free unlimited revisions (queued)
   * Deployed next business week
   * Rush deploy (50$) within the hour
-* Monthly traffic monitoring package early bird $25 ($50/mo regular)
-* Monthly competitor analysis package early bird $25 ($50/mo regular)
+* Monthly traffic monitoring package $25/mo
+* Monthly competitor analysis package $25/mo
 * Technician call \[scheduled] ($100/hr)
 
 All included:

@@ -4,11 +4,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Clarmi Design Studio — Award-Winning Websites for Small Businesses",
   description:
-    "Award-winning design studio building custom websites that make small businesses look like big ones. Founded by a CSS Design Awards recipient. $250 to launch.",
+    "Award-winning design studio building custom websites that make small businesses look like big ones. Founded by a CSS Design Awards recipient. $1,000 to launch.",
   openGraph: {
     title: "Clarmi Design Studio",
     description:
-      "Custom websites that make small businesses look like big ones. $250 to launch.",
+      "Custom websites that make small businesses look like big ones. $1,000 to launch.",
     type: "website",
   },
 };

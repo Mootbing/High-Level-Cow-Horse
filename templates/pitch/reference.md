@@ -55,7 +55,7 @@ Content exceeds limits? **Split into multiple slides. Never cram.**
 - Comparison pricing stack, vertically centered, each row is a label + price:
   1. "AGENCIES" — "$10,000 + $200/mo" — struck through with `text-decoration: line-through`, dimmed opacity
   2. "LOCAL DESIGNERS" — "$5,000 + $150/mo" — struck through with `text-decoration: line-through`, dimmed opacity
-  3. "CLARMI" — "$500 + $50/mo" — NOT struck through, full opacity, accent color highlight, largest size
+  3. "CLARMI" — "$1,000 + $25/mo (annual) or $35/mo (monthly)" — NOT struck through, full opacity, accent color highlight, largest size
 - Animate rows in sequence (stagger reveal): first two appear and get struck, then Clarmi appears bold
 - 4 included items below the stack
 - Optional add-ons below divider
