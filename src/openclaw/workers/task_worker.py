@@ -22,7 +22,7 @@ async def _process_next() -> bool:
     async with async_session_factory() as session:
         stmt = (
             select(Task)
-            .where(Task.status == "pending")
+            .where(Task.status == "pending", Task.agent_type.in_(list(HANDLERS.keys())))
             .order_by(Task.priority.asc(), Task.created_at.asc())
             .limit(1)
             .with_for_update(skip_locked=True)
