@@ -90,6 +90,8 @@ async def delete_email(session: DBSession, email_id: UUID):
 
 @router.post("/{email_id}/regenerate", response_model=EmailLogRead)
 async def regenerate_email(session: DBSession, email_id: UUID, body: dict | None = None):
+    from openclaw.models.task import Task
+
     stmt = (
         select(EmailLog)
         .where(EmailLog.id == email_id)
@@ -103,9 +105,20 @@ async def regenerate_email(session: DBSession, email_id: UUID, body: dict | None
         raise HTTPException(400, "Cannot regenerate a sent email")
 
     instructions = (body or {}).get("instructions", "")
-    # Store instructions in edited_body so the agent knows what to fix
-    email.edited_subject = None
-    email.edited_body = f"[REGENERATE] {instructions}" if instructions else None
+
+    # Queue a background task for the generic worker
+    task = Task(
+        agent_type="email_regen",
+        title=f"Regenerate email to {email.to_email}",
+        input_data={
+            "email_id": str(email.id),
+            "instructions": instructions,
+        },
+        status="pending",
+        project_id=email.project_id,
+    )
+    session.add(task)
+
     email.status = "pending"
     email.created_at = func.now()
     await session.commit()
