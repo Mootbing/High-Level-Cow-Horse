@@ -623,7 +623,7 @@ The `lead-prospecting` cron runs weekdays at 9 AM:
 **Config** (in .env):
 ```
 PROSPECTING_ENABLED=true
-PROSPECTING_INDUSTRIES=restaurant,salon,dentist
+PROSPECTING_INDUSTRIES=plumber,electrician,roofer,hvac contractor,garage door repair,pest control service,locksmith,boutique travel operator,boutique hostel,local adventure guide,boat charter,glamping site,bed and breakfast,physical therapist,chiropractor,med spa,fertility clinic,dermatology clinic,iv therapy clinic,sleep clinic,commercial cleaning company,industrial supplier,logistics broker,construction subcontractor,safety compliance firm,environmental testing lab,it managed service provider,dog trainer,pet groomer,pet boarding,mobile vet,pet daycare,trade school,driving school,tutoring center,test prep center,language school,music teacher,cnc shop,metal fabrication shop,injection molding shop,pcb prototyping shop,custom furniture maker,yoga studio,pilates studio,personal trainer,nutritionist,massage therapist,jewelry store,bridal boutique,high end florist,specialty food shop,wine store,architect,interior designer,photographer,videographer,event planner
 PROSPECTING_LOCATIONS=Austin TX,Dallas TX
 PROSPECTING_DAILY_LIMIT=50
 ```

@@ -39,7 +39,7 @@ class Settings(BaseSettings):
 
     # Lead Generation / Prospecting
     PROSPECTING_ENABLED: bool = False
-    PROSPECTING_INDUSTRIES: str = ""  # Comma-separated: "restaurant,salon,dentist"
+    PROSPECTING_INDUSTRIES: str = ""  # Comma-separated Google Places queries, e.g. "plumber,electrician,hvac contractor"
     PROSPECTING_LOCATIONS: str = ""   # Comma-separated: "Austin TX,Dallas TX"
     PROSPECTING_DAILY_LIMIT: int = 50
 
