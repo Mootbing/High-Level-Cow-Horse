@@ -679,7 +679,27 @@ export default function CaseStudyClient({ project }: { project: Project }) {
           >
             Drop your URL and we&apos;ll show you what&apos;s possible.
           </p>
-          <AuditForm className="audit-form-centered" />
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "center", gap: "clamp(0.6rem, 1vw, 0.8rem)" }}>
+            <AuditForm className="audit-form-centered" />
+            <a
+              href="https://calendar.app.google/1R6HGErUx6kvbgSa9"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn-outline"
+              style={{
+                whiteSpace: "nowrap",
+                padding: "clamp(0.9rem, 1.3vw, 1.1rem) clamp(1.2rem, 1.8vw, 1.5rem)",
+                fontSize: "clamp(0.85rem, 0.95vw, 0.9rem)",
+                flexShrink: 0,
+                background: "#FFFFFF",
+                border: "1px solid var(--border)",
+                color: "#0A0A0A",
+                boxShadow: "0 2px 12px rgba(0, 0, 0, 0.04)",
+              }}
+            >
+              Let&apos;s Talk
+            </a>
+          </div>
         </div>
       </section>
 

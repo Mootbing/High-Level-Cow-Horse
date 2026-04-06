@@ -86,7 +86,7 @@ export default function AuditForm({ className }: { className?: string }) {
             onChange={(e) => setUrl(e.target.value)}
             aria-label="Your website URL"
           />
-          <button type="submit">Build!</button>
+          <button type="submit">Free Audit</button>
         </div>
         <p
           style={{
@@ -200,7 +200,7 @@ export default function AuditForm({ className }: { className?: string }) {
               onChange={(e) => setUrl(e.target.value)}
               aria-label="Your website URL"
             />
-            <button type="submit">Build!</button>
+            <button type="submit">Free Audit</button>
           </div>
         </form>
       </div>
@@ -238,7 +238,7 @@ export default function AuditForm({ className }: { className?: string }) {
             onChange={(e) => setUrl(e.target.value)}
             aria-label="Your website URL"
           />
-          <button type="submit">Build!</button>
+          <button type="submit">Free Audit</button>
         </div>
       </form>
     </div>

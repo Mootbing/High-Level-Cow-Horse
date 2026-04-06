@@ -71,7 +71,7 @@ export default function Navigation() {
               </a>
             ))}
             <a href="#cta" className="btn-primary" style={{ padding: "0.6rem 1.4rem", fontSize: "0.85rem" }}>
-              Free Site
+              Free Audit
             </a>
           </div>
 
@@ -98,7 +98,7 @@ export default function Navigation() {
         {NAV_LINKS.map((link) => (
           <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)}>{link.label}</a>
         ))}
-        <a href="#cta" className="btn-primary" style={{ marginTop: "1rem" }} onClick={() => setMobileOpen(false)}>Free Site</a>
+        <a href="#cta" className="btn-primary" style={{ marginTop: "1rem" }} onClick={() => setMobileOpen(false)}>Free Audit</a>
       </div>
     </>
   );
