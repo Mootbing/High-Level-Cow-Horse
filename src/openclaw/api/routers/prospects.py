@@ -35,6 +35,7 @@ def _to_prospect_read(p: Prospect) -> ProspectRead:
         brand_colors=p.brand_colors or [],
         fonts=p.fonts or [],
         logo_url=p.logo_url,
+        phone_number=p.phone_number,
         social_links=social,
         industry=p.industry,
         tech_stack=tech,

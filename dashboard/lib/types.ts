@@ -14,6 +14,7 @@ export interface Prospect {
   brand_colors: string[];
   fonts: string[];
   logo_url: string | null;
+  phone_number: string | null;
   social_links: Record<string, string>;
   industry: string | null;
   tech_stack: string[];

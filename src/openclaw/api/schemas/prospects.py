@@ -18,6 +18,7 @@ class ProspectRead(BaseSchema):
     brand_colors: list[Any] = []
     fonts: list[Any] = []
     logo_url: str | None = None
+    phone_number: str | None = None
     social_links: dict[str, Any] = {}
     industry: str | None = None
     tech_stack: list[Any] = []

@@ -68,6 +68,7 @@ export default function ProspectsPage() {
                   { label: "URL", key: "url" },
                   { label: "Industry", key: "industry" },
                   { label: "Emails", key: null },
+                  { label: "Phone", key: null },
                   { label: "Colors", key: null },
                   { label: "Problems", key: null },
                   { label: "Projects", key: null },
@@ -80,9 +81,9 @@ export default function ProspectsPage() {
             </thead>
             <tbody>
               {isLoading
-                ? Array.from({ length: 8 }).map((_, i) => (
+                ? Array.from({ length: 9 }).map((_, i) => (
                     <tr key={i} style={{ borderBottom: "1px solid var(--border)" }}>
-                      {Array.from({ length: 8 }).map((_, j) => (
+                      {Array.from({ length: 9 }).map((_, j) => (
                         <td key={j} className="px-5 py-3.5">
                           <div className="skeleton h-4 w-20" />
                         </td>
@@ -127,6 +128,9 @@ export default function ProspectsPage() {
                       </td>
                       <td className="px-5 py-3.5 text-xs font-data" style={{ color: "var(--text-muted)" }}>
                         {p.contact_emails.length > 0 ? p.contact_emails[0] : "—"}
+                      </td>
+                      <td className="px-5 py-3.5 text-xs font-data" style={{ color: "var(--text-muted)" }}>
+                        {p.phone_number || "—"}
                       </td>
                       <td className="px-5 py-3.5">
                         <div className="flex gap-1">

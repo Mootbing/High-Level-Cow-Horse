@@ -181,7 +181,7 @@ export default function Hero() {
           className="text-body-lg reveal delay-2"
           style={{ maxWidth: "480px", marginTop: "clamp(1.2rem, 2.5vh, 2rem)", marginBottom: "clamp(1.5rem, 3vh, 2.5rem)" }}
         >
-          Done-for-you brand + website in 36 hours. Don&apos;t pay until you say, &quot;ship it.&quot;
+          Brand specific websites in 36 hours. Don&apos;t pay until you&apos;re happy.
         </p>
 
         {/* URL Input CTA */}

@@ -28,6 +28,7 @@ class Prospect(UUIDPrimaryKeyMixin, Base):
     brand_colors: Mapped[list[Any]] = mapped_column(JSON, default=list)
     fonts: Mapped[list[Any]] = mapped_column(JSON, default=list)
     logo_url: Mapped[str | None] = mapped_column(String(512))
+    phone_number: Mapped[str | None] = mapped_column(String(50))
     social_links: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     industry: Mapped[str | None] = mapped_column(String(128))
     tech_stack: Mapped[list[Any]] = mapped_column(JSON, default=list)
