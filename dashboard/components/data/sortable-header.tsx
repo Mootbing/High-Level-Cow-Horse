@@ -10,7 +10,7 @@ interface SortableHeaderProps {
 export function SortableHeader({ label, sortKey, currentSort, onSort }: SortableHeaderProps) {
   if (!sortKey) {
     return (
-      <th className="px-5 py-3.5 text-left text-[11px] font-medium tracking-wider uppercase whitespace-nowrap" style={{ color: "var(--text-light)" }}>
+      <th className="px-5 py-3.5 text-left text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-light)" }}>
         {label}
       </th>
     );
@@ -26,7 +26,7 @@ export function SortableHeader({ label, sortKey, currentSort, onSort }: Sortable
   }
 
   return (
-    <th className="px-5 py-3.5 text-left text-[11px] font-medium tracking-wider uppercase whitespace-nowrap" style={{ color: "var(--text-light)" }}>
+    <th className="px-5 py-3.5 text-left text-xs font-medium whitespace-nowrap" style={{ color: "var(--text-light)" }}>
       <button
         onClick={handleClick}
         className="flex items-center gap-1 hover:text-[var(--text)] transition-colors"
