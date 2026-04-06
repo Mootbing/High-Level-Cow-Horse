@@ -462,12 +462,16 @@ def _extract_contact_emails(html: str) -> list[str]:
     # Deduplicate, skip common non-business emails
     skip_domains = {"example.com", "sentry.io", "wixpress.com",
                     "wordpress.org", "schema.org", "w3.org"}
+    skip_prefixes = {"info", "contact", "hello", "support", "admin", "office",
+                     "mail", "enquiries", "inquiries", "sales", "help",
+                     "noreply", "no-reply"}
     emails: list[str] = []
     seen: set[str] = set()
     for email in matches:
         lower = email.lower()
         domain = lower.split("@")[1]
-        if domain in skip_domains or lower in seen:
+        prefix = lower.split("@")[0]
+        if domain in skip_domains or lower in seen or prefix in skip_prefixes:
             continue
         seen.add(lower)
         emails.append(lower)

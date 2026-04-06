@@ -651,9 +651,14 @@ def _extract_contact_from_text(html: str) -> dict[str, str]:
     email_re = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
     skip_domains = {"example.com", "sentry.io", "wixpress.com", "wordpress.org",
                     "schema.org", "w3.org", "googleusercontent.com"}
+    skip_prefixes = {"info", "contact", "hello", "support", "admin", "office",
+                     "mail", "enquiries", "inquiries", "sales", "help",
+                     "noreply", "no-reply"}
     for m in email_re.findall(html):
-        domain = m.lower().split("@")[1]
-        if domain not in skip_domains:
+        lower = m.lower()
+        domain = lower.split("@")[1]
+        prefix = lower.split("@")[0]
+        if domain not in skip_domains and prefix not in skip_prefixes:
             contact["email"] = m.lower()
             break
 
