@@ -25,6 +25,93 @@ from openclaw.services.website_audit import (
 logger = structlog.get_logger()
 
 
+def _place_unique_key(place: dict) -> str:
+    """Return a stable key for a Google Place across repeated searches."""
+    place_id = (place.get("place_id") or "").strip()
+    if place_id:
+        return f"place:{place_id}"
+
+    website = place.get("website")
+    if website:
+        normalized = _normalize_url(website)
+        if normalized:
+            return f"site:{normalized}"
+
+    maps_url = (place.get("google_maps_url") or "").strip()
+    if maps_url:
+        return f"maps:{maps_url.lower()}"
+
+    # Last-resort fallback if upstream data is incomplete.
+    name = (place.get("name") or "").strip().lower()
+    address = (place.get("address") or "").strip().lower()
+    return f"nameaddr:{name}|{address}"
+
+
+def _offset_lat_lng(latitude: float, longitude: float, north_m: float, east_m: float) -> tuple[float, float]:
+    """Offset a lat/lng by meters north/east."""
+    lat_delta = north_m / 111_320.0
+    cos_lat = max(0.01, abs(math.cos(math.radians(latitude))))
+    lng_delta = east_m / (111_320.0 * cos_lat)
+    return latitude + lat_delta, longitude + lng_delta
+
+
+def _build_search_plan(latitude: float, longitude: float, radius_m: float) -> list[tuple[float, float, float]]:
+    """Create multi-center search plan to reduce same-top-results repetition."""
+    offset_m = max(radius_m * 0.55, 2000.0)
+    north = _offset_lat_lng(latitude, longitude, offset_m, 0)
+    south = _offset_lat_lng(latitude, longitude, -offset_m, 0)
+    east = _offset_lat_lng(latitude, longitude, 0, offset_m)
+    west = _offset_lat_lng(latitude, longitude, 0, -offset_m)
+
+    return [
+        (latitude, longitude, radius_m),
+        (north[0], north[1], radius_m * 1.1),
+        (south[0], south[1], radius_m * 1.1),
+        (east[0], east[1], radius_m * 1.2),
+        (west[0], west[1], radius_m * 1.2),
+    ]
+
+
+async def _discover_unique_places(
+    query: str,
+    latitude: float,
+    longitude: float,
+    radius_m: float,
+    max_results: int,
+) -> tuple[list[dict], int]:
+    """Discover places with adaptive retries and in-memory dedupe."""
+    from openclaw.integrations.google_places import search_nearby_competitors
+
+    per_attempt_limit = min(20, max(max_results, max_results * 2))
+    plan = _build_search_plan(latitude, longitude, radius_m)
+
+    seen_keys: set[str] = set()
+    unique_places: list[dict] = []
+
+    attempts = 0
+    for center_lat, center_lng, center_radius in plan:
+        attempts += 1
+        batch = await search_nearby_competitors(
+            query,
+            center_lat,
+            center_lng,
+            radius_m=center_radius,
+            max_results=per_attempt_limit,
+        )
+        for place in batch:
+            key = _place_unique_key(place)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            unique_places.append(place)
+
+        # Stop early once we have enough unique candidates to filter by mode + existing DB.
+        if len(unique_places) >= max_results * 3:
+            break
+
+    return unique_places, attempts
+
+
 def _compute_opportunity_score(
     business_rating: float | None,
     review_count: int,
@@ -111,14 +198,12 @@ async def discover_prospects(
     or audit_prospect_website to evaluate individual results.
 
     Args:
-        industry: Business type (e.g. "restaurant", "salon", "dental office", "plumber")
+        industry: Business type (e.g. "plumber", "electrician", "med spa", "commercial cleaning company")
         location: City/area (e.g. "Austin TX", "Brooklyn NY", "downtown Dallas")
         max_results: Maximum businesses to return (default 10, max 20)
         radius_m: Search radius in meters (default 10km)
         mode: "revamp" (businesses with websites) or "adventure" (businesses without websites)
     """
-    from openclaw.integrations.google_places import search_nearby_competitors
-
     mode = mode.lower()
     if mode not in ("revamp", "adventure"):
         return json.dumps({"status": "error", "message": f"Invalid mode: {mode}. Use 'revamp' or 'adventure'."})
@@ -133,11 +218,15 @@ async def discover_prospects(
             "message": f"Could not geocode location: {location}. Try a more specific city/address.",
         })
 
-    # Search Google Places
+    # Search Google Places with adaptive multi-center discovery
     query = f"{industry} in {location}"
     try:
-        places = await search_nearby_competitors(
-            query, lat, lng, radius_m=radius_m, max_results=max_results,
+        places, search_attempts = await _discover_unique_places(
+            query=query,
+            latitude=lat,
+            longitude=lng,
+            radius_m=radius_m,
+            max_results=max_results,
         )
     except Exception as exc:
         logger.error("discover_places_error", error=str(exc))
@@ -239,6 +328,7 @@ async def discover_prospects(
         industry=industry,
         location=location,
         mode=mode,
+        search_attempts=search_attempts,
         total_places=len(places),
         target_count=len(target_places),
         new_prospects=len(new_prospects),
@@ -249,6 +339,7 @@ async def discover_prospects(
         "mode": mode,
         "search_query": query,
         "search_center": {"latitude": lat, "longitude": lng},
+        "search_attempts": search_attempts,
         "total_places_found": len(places),
         "with_websites": len(with_websites),
         "without_websites": len(without_websites_list),
@@ -410,7 +501,7 @@ async def run_lead_generation(
       (rating + reviews). Successful offline businesses with no online presence = goldmine.
 
     Args:
-        industry: Business type (e.g. "restaurant", "hair salon", "dentist")
+        industry: Business type (e.g. "plumber", "electrician", "med spa")
         location: City/area (e.g. "Austin TX", "downtown Chicago")
         max_results: Max businesses to discover (default 10, max 20)
         radius_m: Search radius in meters (default 10km)
@@ -418,7 +509,6 @@ async def run_lead_generation(
         mode: "revamp" (businesses with websites) or "adventure" (businesses without websites)
     """
     from openclaw.db.session import async_session_factory
-    from openclaw.integrations.google_places import search_nearby_competitors
     from openclaw.models.prospect import Prospect
     from openclaw.services.prospect_service import get_or_create_prospect
     from sqlalchemy import or_, select
@@ -438,11 +528,15 @@ async def run_lead_generation(
             "message": f"Could not geocode location: {location}",
         })
 
-    # Step 2: Discover businesses
+    # Step 2: Discover businesses with adaptive multi-center search
     query = f"{industry} in {location}"
     try:
-        places = await search_nearby_competitors(
-            query, lat, lng, radius_m=radius_m, max_results=max_results,
+        places, search_attempts = await _discover_unique_places(
+            query=query,
+            latitude=lat,
+            longitude=lng,
+            radius_m=radius_m,
+            max_results=max_results,
         )
     except Exception as exc:
         return json.dumps({
@@ -502,6 +596,46 @@ async def run_lead_generation(
                         if normalized in p_url:
                             existing_map[normalized] = str(prospect.id)
                             break
+
+    unseen_target_places: list[dict] = []
+    existing_target_places: list[dict] = []
+    for place in target_places:
+        if mode == "adventure":
+            key = place.get("google_maps_url") or ""
+        else:
+            lookup_url = place.get("website")
+            key = _normalize_url(lookup_url) if lookup_url else ""
+
+        if key and key in existing_map:
+            existing_target_places.append(place)
+        else:
+            unseen_target_places.append(place)
+
+    if not unseen_target_places and existing_target_places:
+        return json.dumps({
+            "status": "no_new_results",
+            "mode": mode,
+            "batch_id": batch_id,
+            "search_query": query,
+            "search_center": {"latitude": lat, "longitude": lng},
+            "search_attempts": search_attempts,
+            "summary": {
+                "total_places_found": len(places),
+                "with_websites": len(with_websites),
+                "without_websites": len(without_websites),
+                "target_count": len(target_places),
+                "new_candidates": 0,
+                "already_in_database": len(existing_target_places),
+                "min_opportunity_score": min_opportunity_score,
+            },
+            "message": (
+                "No new leads found in this run. Try increasing radius_m or running "
+                "again later for fresh Google Places inventory."
+            ),
+        }, indent=2)
+
+    # Prioritize unseen candidates first so repeat daily runs surface new leads.
+    target_places = unseen_target_places + existing_target_places
 
     # Process each place
     leads: list[dict] = []
@@ -696,8 +830,10 @@ async def run_lead_generation(
         location=location,
         mode=mode,
         batch_id=batch_id,
+        search_attempts=search_attempts,
         total_places=len(places),
         target_count=len(target_places),
+        new_candidates=len(unseen_target_places),
         qualified=len(qualified),
         below_threshold=len(below),
         errors=len(errors),
@@ -710,11 +846,13 @@ async def run_lead_generation(
         "batch_id": batch_id,
         "search_query": query,
         "search_center": {"latitude": lat, "longitude": lng},
+        "search_attempts": search_attempts,
         "summary": {
             "total_places_found": len(places),
             "with_websites": len(with_websites),
             "without_websites": len(without_websites),
             "target_count": len(target_places),
+            "new_candidates": len(unseen_target_places),
             "qualified_leads": len(qualified),
             "below_threshold": len(below),
             "already_in_database": skipped_existing,
@@ -1021,7 +1159,7 @@ async def batch_lead_generation(
     This is the tool to use for daily prospecting runs or batch discovery.
 
     Args:
-        industries: List of industries (e.g. ["restaurant", "salon", "dentist"])
+        industries: List of industries (e.g. ["plumber", "electrician", "med spa"])
         locations: List of locations (e.g. ["Austin TX", "Dallas TX"])
         max_per_search: Max results per industry+location combo (default 5)
         min_opportunity_score: Minimum score to qualify (default 2.5)
@@ -1043,7 +1181,7 @@ async def batch_lead_generation(
                 "status": "error",
                 "message": (
                     "No industries provided and PROSPECTING_INDUSTRIES not configured. "
-                    "Pass industries=['restaurant', 'salon'] or set the env var."
+                    "Pass industries=['plumber', 'electrician'] or set the env var."
                 ),
             })
 
