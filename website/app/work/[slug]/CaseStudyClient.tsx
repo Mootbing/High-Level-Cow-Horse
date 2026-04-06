@@ -242,7 +242,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
               color: "var(--text)",
             }}
           >
-            Clarmi Studios
+            Clarmi Studio
           </Link>
           <Link
             href="/#work"
@@ -709,7 +709,7 @@ export default function CaseStudyClient({ project }: { project: Project }) {
               color: "var(--text)",
             }}
           >
-            Clarmi Studios
+            Clarmi Studio
           </Link>
         </div>
       </footer>

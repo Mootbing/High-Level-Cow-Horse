@@ -1,6 +1,6 @@
 # Clarmi Design Studio
 
-AI-powered digital design agency. A single autonomous agent handles the entire website pipeline — research, competitor analysis, pitch decks, design, build, QA, and outreach — communicating with you over WhatsApp or CLI.
+Digital design agency. A single autonomous agent handles the entire website pipeline — research, competitor analysis, pitch decks, design, build, QA, and outreach — communicating with you over WhatsApp or CLI.
 
 Built on [OpenClaw](https://openclaw.com) with a Python MCP tool server, Next.js client sites, and Vercel deployments.
 

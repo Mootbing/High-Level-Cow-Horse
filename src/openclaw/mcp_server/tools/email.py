@@ -6,7 +6,7 @@ from datetime import datetime
 
 from openclaw.mcp_server.server import mcp
 
-CALENDAR_CTA = "\n\nLet's talk for 15 minutes: https://calendar.app.google/XghjfgsV4yegkmXR9"
+CALENDAR_CTA = "\n\nLet's talk for 15 minutes: https://calendar.app.google/1R6HGErUx6kvbgSa9"
 
 
 @mcp.tool()
