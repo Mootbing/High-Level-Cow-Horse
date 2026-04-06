@@ -181,7 +181,7 @@ export default function Hero() {
           className="text-body-lg reveal delay-2"
           style={{ maxWidth: "480px", marginTop: "clamp(1.2rem, 2.5vh, 2rem)", marginBottom: "clamp(1.5rem, 3vh, 2.5rem)" }}
         >
-          We&apos;ll build you a new site — for free. Don&apos;t pay until you&apos;re happy.
+          Done-for-you brand + website in 36 hours. Don&apos;t pay until you say, &quot;ship it.&quot;
         </p>
 
         {/* URL Input CTA */}
@@ -199,7 +199,7 @@ export default function Hero() {
           }}
         >
           {[
-            { value: "<48hr", label: "Delivery" },
+            { value: "36hr", label: "Brand + Site" },
             { value: "<0.5s", label: "Page Load" },
             { value: "$500", label: "To Launch" },
           ].map((stat) => (
