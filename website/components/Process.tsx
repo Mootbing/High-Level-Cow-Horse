@@ -29,7 +29,7 @@ const STEPS = [
     number: "04",
     title: "Go Live",
     desc: "Say the word and we push it live to your domain. SSL, hosting, analytics — all included. Minutes, not weeks.",
-    detail: "$1,000 to launch",
+    detail: "$500 to launch",
   },
 ];
 
