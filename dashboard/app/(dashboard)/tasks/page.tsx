@@ -9,7 +9,7 @@ import { STATUS_COLORS, STATUS_LABELS } from "@/lib/constants";
 import { TaskTable } from "@/components/tables/task-table";
 import { ChevronLeft, ChevronRight, Filter, Check } from "lucide-react";
 
-const TASK_STATUSES = ["pending", "in_progress", "completed"] as const;
+const TASK_STATUSES = ["pending", "in_progress", "completed", "failed"] as const;
 
 export default function TasksPage() {
   const { search } = useSearch();
