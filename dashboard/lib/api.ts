@@ -146,6 +146,12 @@ export const api = {
   getMetrics: (days?: number) =>
     fetchApi<Metric[]>(`/api/v1/metrics${qs({ days })}`),
 
+  rollbackDeployment: (projectId: string, deploymentId: string) =>
+    fetchApi<{ ok: boolean }>(`/api/v1/projects/${projectId}/rollback`, {
+      method: "POST",
+      body: JSON.stringify({ deployment_id: deploymentId }),
+    }),
+
   // History
   getProjectHistory: (id: string) =>
     fetchApi<{

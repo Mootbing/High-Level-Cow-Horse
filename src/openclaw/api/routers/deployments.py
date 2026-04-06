@@ -31,6 +31,26 @@ async def list_project_deployments(session: DBSession, project_id: UUID):
     return [DeploymentRead.model_validate(d) for d in result.scalars().all()]
 
 
+@router.post("/projects/{project_id}/rollback")
+async def rollback_deployment(session: DBSession, project_id: UUID, body: dict):
+    """Promote an older Vercel deployment to production (rollback)."""
+    from openclaw.integrations.vercel_client import promote_deployment
+
+    project = await session.get(Project, project_id)
+    if not project:
+        raise HTTPException(404, "Project not found")
+
+    deployment_id = body.get("deployment_id")
+    if not deployment_id:
+        raise HTTPException(400, "deployment_id required")
+
+    ok = await promote_deployment(deployment_id)
+    if not ok:
+        raise HTTPException(502, "Failed to promote deployment on Vercel")
+
+    return {"ok": True, "promoted_deployment_id": deployment_id}
+
+
 @router.get("/projects/{project_id}/history")
 async def get_project_history(session: DBSession, project_id: UUID):
     """Fetch git commit history + Vercel deployments for a project."""

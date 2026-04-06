@@ -202,6 +202,21 @@ async def get_latest_deployment(project_name: str, target: str = "production") -
         return deployments[0] if deployments else None
 
 
+async def promote_deployment(deployment_id: str) -> bool:
+    """Promote a deployment to production. Used for rollbacks."""
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{VERCEL_API}/v10/projects/deployments/{deployment_id}/promote",
+            headers=_headers(),
+            params=_params(),
+        )
+        if resp.status_code in (200, 201, 202):
+            logger.info("deployment_promoted", deployment_id=deployment_id)
+            return True
+        logger.warning("promote_failed", deployment_id=deployment_id, status=resp.status_code, body=resp.text[:300])
+        return False
+
+
 async def delete_project(project_name: str) -> bool:
     """Delete a Vercel project. Returns True if deleted."""
     async with httpx.AsyncClient(timeout=30) as client:
