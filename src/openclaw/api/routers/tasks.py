@@ -83,6 +83,18 @@ async def get_task(session: DBSession, task_id: UUID):
     return TaskRead.model_validate(task)
 
 
+@router.delete("/tasks/{task_id}")
+async def delete_task(session: DBSession, task_id: UUID):
+    task = await session.get(Task, task_id)
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if task.status == "in_progress":
+        raise HTTPException(400, "Cannot delete an in-progress task")
+    await session.delete(task)
+    await session.commit()
+    return {"ok": True}
+
+
 @router.post("/tasks/{task_id}/retry", response_model=TaskRead)
 async def retry_task(session: DBSession, task_id: UUID):
     stmt = (

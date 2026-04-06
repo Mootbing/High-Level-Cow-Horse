@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/data/status-badge";
 import { SortableHeader } from "@/components/data/sortable-header";
 import { formatDate } from "@/lib/utils";
 import type { Task } from "@/lib/types";
-import { RotateCcw } from "lucide-react";
+import { RotateCcw, Trash2 } from "lucide-react";
 
 interface TaskTableProps {
   tasks: Task[];
@@ -32,6 +32,17 @@ export function TaskTable({ tasks, sort, onSort, compact }: TaskTableProps) {
       alert(err instanceof Error ? err.message : "Retry failed");
     } finally {
       setRetryingId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("Delete this task?")) return;
+    try {
+      await api.deleteTask(id);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["project-tasks"] });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Delete failed");
     }
   }
 
@@ -79,22 +90,33 @@ export function TaskTable({ tasks, sort, onSort, compact }: TaskTableProps) {
               <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(t.started_at)}</td>
               <td className="px-5 py-3.5 text-xs" style={{ color: "var(--text-light)" }}>{formatDate(t.completed_at)}</td>
               <td className="px-3 py-3.5">
-                {(t.status === "failed" || t.status === "completed") && (
-                  <button
-                    onClick={() => handleRetry(t.id)}
-                    disabled={retryingId === t.id}
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-sm"
-                    style={{
-                      backgroundColor: "var(--accent-soft)",
-                      color: "var(--accent)",
-                      border: "1px solid var(--accent)",
-                      opacity: retryingId === t.id ? 0.6 : 1,
-                    }}
-                    title="Retry task"
-                  >
-                    <RotateCcw size={11} className={retryingId === t.id ? "animate-spin" : ""} />
-                    {retryingId === t.id ? "Queuing..." : "Retry"}
-                  </button>
+                {t.status !== "in_progress" && (
+                  <div className="flex items-center gap-1">
+                    {(t.status === "failed" || t.status === "completed") && (
+                      <button
+                        onClick={() => handleRetry(t.id)}
+                        disabled={retryingId === t.id}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 hover:shadow-sm"
+                        style={{
+                          backgroundColor: "var(--accent-soft)",
+                          color: "var(--accent)",
+                          border: "1px solid var(--accent)",
+                          opacity: retryingId === t.id ? 0.6 : 1,
+                        }}
+                        title="Retry task"
+                      >
+                        <RotateCcw size={11} className={retryingId === t.id ? "animate-spin" : ""} />
+                        {retryingId === t.id ? "Queuing..." : "Retry"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDelete(t.id)}
+                      className="p-1.5 rounded-full hover:bg-red-50 transition-colors"
+                      title="Delete task"
+                    >
+                      <Trash2 size={13} className="text-red-400" />
+                    </button>
+                  </div>
                 )}
               </td>
             </tr>
