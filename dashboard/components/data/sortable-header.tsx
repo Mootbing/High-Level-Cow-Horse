@@ -20,7 +20,7 @@ export function SortableHeader({ label, sortKey, currentSort, onSort }: Sortable
   const isDesc = currentSort === `-${sortKey}`;
 
   function handleClick() {
-    if (isDesc) onSort(sortKey);
+    if (isDesc) onSort(sortKey!);
     else if (isAsc) onSort(`-${sortKey}`);
     else onSort(`-${sortKey}`);
   }
