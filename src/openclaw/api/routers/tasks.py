@@ -81,3 +81,31 @@ async def get_task(session: DBSession, task_id: UUID):
     if not task:
         raise HTTPException(404, "Task not found")
     return TaskRead.model_validate(task)
+
+
+@router.post("/tasks/{task_id}/retry", response_model=TaskRead)
+async def retry_task(session: DBSession, task_id: UUID):
+    stmt = (
+        select(Task)
+        .where(Task.id == task_id)
+        .options(selectinload(Task.project))
+    )
+    result = await session.execute(stmt)
+    task = result.scalar_one_or_none()
+    if not task:
+        raise HTTPException(404, "Task not found")
+    if task.status not in ("failed", "completed"):
+        raise HTTPException(400, f"Cannot retry task with status '{task.status}'")
+
+    task.status = "pending"
+    task.error = None
+    task.retry_count = 0
+    task.started_at = None
+    task.completed_at = None
+    task.output_data = {}
+    await session.commit()
+    await session.refresh(task)
+
+    read = TaskRead.model_validate(task)
+    read.project_name = task.project.name if task.project else None
+    return read

@@ -40,19 +40,40 @@ Original body:
 Respond with ONLY the JSON object, nothing else."""
 
 
-async def _call_claude(prompt: str) -> str:
+async def _call_claude(prompt: str, timeout: int = 60) -> str:
     """Shell out to claude CLI and return raw stdout."""
     proc = await asyncio.to_thread(
         subprocess.run,
         ["claude", "-p", prompt, "--output-format", "json"],
         capture_output=True,
         text=True,
-        timeout=60,
+        timeout=timeout,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {proc.stderr[:300]}")
 
     # Parse claude JSON wrapper
+    try:
+        claude_output = json.loads(proc.stdout)
+        return claude_output.get("result", proc.stdout)
+    except json.JSONDecodeError:
+        return proc.stdout
+
+
+async def _call_claude_with_tools(prompt: str, cwd: str | None = None, timeout: int = 300) -> str:
+    """Shell out to claude CLI with full tool access (for build tasks)."""
+    cmd = ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", "*"]
+    proc = await asyncio.to_thread(
+        subprocess.run,
+        cmd,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        cwd=cwd,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {proc.stderr[:500]}")
+
     try:
         claude_output = json.loads(proc.stdout)
         return claude_output.get("result", proc.stdout)
@@ -105,10 +126,103 @@ async def handle_email_regen(task: "Task", session: "AsyncSession") -> dict:
         raise
 
 
+async def _load_project_context(project_id, session: "AsyncSession") -> dict:
+    """Load project + superprompt for build tasks."""
+    from openclaw.models.project import Project
+    from openclaw.config import settings
+    import os
+
+    project = await session.get(Project, project_id)
+    if not project:
+        raise ValueError(f"Project {project_id} not found")
+
+    meta = project.metadata_ or {}
+    superprompt_path = meta.get("superprompt_path") or os.path.join(
+        settings.STORAGE_PATH, project.slug, "superprompt.md"
+    )
+
+    superprompt = ""
+    if os.path.exists(superprompt_path):
+        with open(superprompt_path) as f:
+            superprompt = f.read()
+
+    return {
+        "project": project,
+        "superprompt": superprompt,
+        "section_plan": meta.get("section_plan", []),
+    }
+
+
+async def handle_section_builder(task: "Task", session: "AsyncSession") -> dict:
+    """Build a single website section via Claude CLI with MCP tools."""
+    ctx = await _load_project_context(task.project_id, session)
+    project = ctx["project"]
+    superprompt = ctx["superprompt"]
+
+    section_id = task.input_data.get("section_id", "unknown")
+    component_files = task.input_data.get("component_files", [])
+    description = task.input_data.get("description", "")
+
+    prompt = f"""You are a section builder for Clarmi Design Studio. Build the "{section_id}" section for the "{project.name}" project.
+
+## Assignment
+- Section: {section_id}
+- Component files (write ONLY these): {json.dumps(component_files)}
+- Description: {description}
+
+## Project Context (Superprompt)
+{superprompt}
+
+## Instructions
+1. Use write_code("{project.slug}", "<file_path>", <code>) to write each component file
+2. Use CSS custom properties: var(--color-primary), var(--color-secondary), etc.
+3. Use clamp() for font sizes, GSAP ScrollTrigger with cleanup
+4. Search ReactBits for components before writing custom effects
+5. NEVER invent content — use only data from the superprompt
+6. When done, call mark_section_complete("{project.slug}", "{section_id}", {json.dumps(component_files)})
+"""
+
+    result = await _call_claude_with_tools(prompt, timeout=300)
+    return {"section_id": section_id, "result": result[:2000]}
+
+
+async def handle_orchestrator(task: "Task", session: "AsyncSession") -> dict:
+    """Orchestrate a full website build — assemble page.tsx from completed sections."""
+    ctx = await _load_project_context(task.project_id, session)
+    project = ctx["project"]
+    superprompt = ctx["superprompt"]
+    section_plan = task.input_data.get("section_plan", ctx["section_plan"])
+
+    sections_str = json.dumps(section_plan, indent=2)
+
+    prompt = f"""You are the build orchestrator for Clarmi Design Studio. Assemble the "{project.name}" website.
+
+## Section Plan
+{sections_str}
+
+## Project Context (Superprompt)
+{superprompt}
+
+## Instructions
+1. Check build status with get_build_status("{project.slug}")
+2. Read each completed section component with read_code("{project.slug}", "<file>")
+3. Write app/page.tsx that imports and composes all sections in order
+4. Write any missing shared infrastructure (globals.css, layout.tsx, SmoothScroller.tsx) if not present
+5. Run verify_build("{project.slug}") — fix any errors
+6. Deploy with deploy("{project.slug}", "Build {project.name} website")
+7. ALWAYS deploy what you have, even if some sections are imperfect
+"""
+
+    result = await _call_claude_with_tools(prompt, timeout=600)
+    return {"result": result[:2000]}
+
+
 # ---------------------------------------------------------------------------
 # Registry
 # ---------------------------------------------------------------------------
 
 HANDLERS: dict[str, Callable[..., Awaitable[dict]]] = {
     "email_regen": handle_email_regen,
+    "section_builder": handle_section_builder,
+    "orchestrator": handle_orchestrator,
 }
