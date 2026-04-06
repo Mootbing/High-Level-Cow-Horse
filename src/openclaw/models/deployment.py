@@ -23,7 +23,7 @@ class Deployment(UUIDPrimaryKeyMixin, Base):
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("projects.id", ondelete="CASCADE"),
     )
-    deployment_id: Mapped[str | None] = mapped_column(String(128))
+    vercel_deployment_id: Mapped[str | None] = mapped_column(String(128))
     url: Mapped[str | None] = mapped_column(String(512))
     status: Mapped[str] = mapped_column(String(32), default="pending")
     created_at: Mapped[datetime.datetime] = mapped_column(default=func.now())
