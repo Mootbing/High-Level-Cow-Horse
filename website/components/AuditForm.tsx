@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 
-const AUDIT_API_URL = process.env.NEXT_PUBLIC_AUDIT_API_URL || "";
-
 type Step = "url" | "email" | "submitting" | "done" | "error";
 
 export default function AuditForm({ className }: { className?: string }) {
@@ -25,7 +23,7 @@ export default function AuditForm({ className }: { className?: string }) {
     setErrorMsg("");
 
     try {
-      const res = await fetch(`${AUDIT_API_URL}/api/v1/audit`, {
+      const res = await fetch("/api/audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url.trim(), email: email.trim() }),
