@@ -153,9 +153,67 @@ async def update_project(session: DBSession, project_id: UUID, data: ProjectUpda
 
 @router.delete("/{project_id}")
 async def delete_project(session: DBSession, project_id: UUID):
-    project = await session.get(Project, project_id)
+    from openclaw.models.email_log import EmailLog
+    from openclaw.models.message import Message
+    from openclaw.models.agent_log import AgentLog
+    from openclaw.models.knowledge import KnowledgeBase
+    from sqlalchemy import update
+
+    stmt = (
+        select(Project)
+        .where(Project.id == project_id)
+        .options(selectinload(Project.prospect))
+    )
+    result = await session.execute(stmt)
+    project = result.scalar_one_or_none()
     if not project:
         raise HTTPException(404, "Project not found")
+
+    # Late-stage projects: clean up GitHub + Vercel
+    meta = project.metadata_ or {}
+    github_repo = meta.get("github_repo")
+    vercel_project = meta.get("vercel_project") or project.slug
+    is_late_stage = project.status in ("design", "build", "qa", "deployed")
+
+    external_errors = []
+    if is_late_stage:
+        try:
+            from openclaw.integrations.github_client import delete_repo
+            if github_repo:
+                await delete_repo(github_repo)
+        except Exception as exc:
+            external_errors.append(f"GitHub: {str(exc)[:100]}")
+        try:
+            from openclaw.integrations.vercel_client import delete_project as delete_vercel
+            if vercel_project:
+                await delete_vercel(vercel_project)
+        except Exception as exc:
+            external_errors.append(f"Vercel: {str(exc)[:100]}")
+
+    # Null out FKs on related rows that don't cascade
+    for model in (EmailLog, Message, AgentLog, KnowledgeBase):
+        await session.execute(
+            update(model).where(model.project_id == project_id).values(project_id=None)
+        )
+
+    # Delete the prospect if linked
+    prospect = project.prospect
+    prospect_id = project.prospect_id
+
+    # Delete the project (cascades to tasks, assets, deployments)
     await session.delete(project)
+    await session.flush()
+
+    # Delete the prospect after the project FK is gone
+    if prospect:
+        # Check no other projects reference this prospect
+        other = await session.execute(
+            select(func.count(Project.id)).where(
+                Project.prospect_id == prospect_id, Project.id != project_id
+            )
+        )
+        if (other.scalar() or 0) == 0:
+            await session.delete(prospect)
+
     await session.commit()
-    return {"ok": True}
+    return {"ok": True, "external_errors": external_errors or None}
