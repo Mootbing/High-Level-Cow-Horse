@@ -14,7 +14,7 @@ async def deploy_project(session: AsyncSession, project_id: str, project_name: s
     result = await trigger_deployment(project_name, files)
     deployment = Deployment(
         project_id=project_id,
-        deployment_id=result.get("id", ""),
+        vercel_deployment_id=result.get("id", ""),
         url=result.get("url", ""),
         status="building",
     )
@@ -24,12 +24,12 @@ async def deploy_project(session: AsyncSession, project_id: str, project_name: s
     return deployment
 
 
-async def check_deployment(session: AsyncSession, deployment_id: str) -> str:
+async def check_deployment(session: AsyncSession, vercel_deployment_id: str) -> str:
     """Check and update deployment status."""
-    deployment = await session.get(Deployment, deployment_id)
-    if not deployment or not deployment.deployment_id:
+    deployment = await session.get(Deployment, vercel_deployment_id)
+    if not deployment or not deployment.vercel_deployment_id:
         return "unknown"
-    status_data = await get_deployment_status(deployment.deployment_id)
+    status_data = await get_deployment_status(deployment.vercel_deployment_id)
     new_status = status_data.get("readyState", "unknown")
     if new_status == "READY":
         deployment.status = "ready"
