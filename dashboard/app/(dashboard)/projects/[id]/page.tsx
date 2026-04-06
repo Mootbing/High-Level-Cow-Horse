@@ -357,6 +357,7 @@ export default function ProjectDetailPage({
           <GitTree
             commits={history?.commits || []}
             branches={history?.branches || []}
+            projectId={id}
           />
         </div>
       )}
