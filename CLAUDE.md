@@ -183,7 +183,7 @@ Generate a personalized pitch as a standalone HTML slide deck at `/pitch/` in th
 2. **The Current Reality** — prospect's `site_problems` as punchy bullets + impact statement
 3. **What We're Proposing** — text-only description of the replacement site, closing with positioning quote
 4. **Key Improvements** — 3-column grid: Brand Upgrade / Customer Experience / Operational Wins
-5. **Pricing** — Comparison stack: "AGENCIES: $10,000 + $200/mo" (struck through) → "LOCAL DESIGNERS: $5,000 + $150/mo" (struck through) → "CLARMI: $1,000 + $25/mo (annual) or $35/mo (monthly)" (highlighted, not struck). Included items and optional add-ons below.
+5. **Pricing** — Comparison stack: "AGENCIES: $10,000 + $200/mo" (struck through) → "LOCAL DESIGNERS: $5,000 + $150/mo" (struck through) → "CLARMI: $500 + $25/mo (annual) or $35/mo (monthly)" (highlighted, not struck). Included items and optional add-ons below.
 6. **Live Demo** (optional) — only if `deployed_url` exists, link button to live site
 
 **Design rules**:

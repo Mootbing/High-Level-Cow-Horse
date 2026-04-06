@@ -22,7 +22,7 @@ export default function Terms() {
           },
           {
             title: "Pricing & Payment",
-            body: "Our standard pricing is $1,000 one-time for website design and development, plus $25/month (annual billing) or $35/month (month-to-month) for hosting, maintenance, and ongoing revisions. You don't pay until you're satisfied with the design. Monthly fees are billed on the first of each month. All prices are in USD.",
+            body: "Our standard pricing is $500 one-time for website design and development, plus $25/month (annual billing) or $35/month (month-to-month) for hosting, maintenance, and ongoing revisions. You don't pay until you're satisfied with the design. Monthly fees are billed on the first of each month. All prices are in USD.",
           },
           {
             title: "Revisions",
