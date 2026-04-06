@@ -90,6 +90,9 @@ export const api = {
     sort?: string;
   }) => fetchApi<PaginatedResponse<Task>>(`/api/v1/tasks${qs(params ?? {})}`),
 
+  retryTask: (id: string) =>
+    fetchApi<Task>(`/api/v1/tasks/${id}/retry`, { method: "POST" }),
+
   // Emails
   getEmails: (params?: { offset?: number; limit?: number; status?: string; project_id?: string; sort?: string }) =>
     fetchApi<PaginatedResponse<EmailLog>>(
