@@ -143,7 +143,7 @@ export default function Pricing() {
             <div className="pricing-cell pricing-header pricing-header-clarmi">
               <div className="pricing-header-label" style={{ color: "var(--accent)" }}>Clarmi</div>
               <div className="pricing-header-price" style={{ color: "var(--accent)" }}>
-                $1,000
+                $500
               </div>
               <span className="pricing-header-monthly" style={{ color: "var(--accent)", opacity: 0.8 }}>+ $25/mo <span style={{ opacity: 0.5, fontSize: "0.7em" }}>(annual)</span></span>
               {/* <span className="pricing-header-monthly" style={{ color: "var(--text-light)", opacity: 0.45, fontSize: "0.75em" }}>$35/mo month-to-month</span> */}

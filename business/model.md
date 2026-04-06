@@ -1,6 +1,6 @@
 **Standard:** 
 
-* $1,000: professional website + $25/mo maintenance (annual billing) or $35/mo (month-to-month)
+* $500: professional website + $25/mo maintenance (annual billing) or $35/mo (month-to-month)
 
 **Features:**
 
