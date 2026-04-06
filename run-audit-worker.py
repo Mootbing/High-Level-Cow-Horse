@@ -26,6 +26,7 @@ REQUIRED = [
     "httpx",
     "slugify",
     "PIL",
+    "greenlet",
 ]
 
 missing = []
