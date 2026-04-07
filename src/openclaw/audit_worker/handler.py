@@ -69,7 +69,8 @@ async def _call_claude_with_tools(prompt: str, timeout: int = 120) -> str:
         timeout=timeout,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {proc.stderr[:500]}")
+        detail = proc.stderr[:500] or proc.stdout[:500]
+        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {detail}")
 
     try:
         claude_output = json.loads(proc.stdout)
