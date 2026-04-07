@@ -61,7 +61,7 @@ Return ONLY valid JSON (no markdown fences, no explanation) with this exact stru
 
 async def _call_claude_with_tools(prompt: str, timeout: int = 120) -> str:
     """Shell out to claude CLI with MCP tool access."""
-    cmd = ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", "mcp__clarmi-tools__audit_prospect_website"]
+    cmd = ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", "mcp__clarmi-tools__audit_prospect_website,WebFetch"]
     # Strip ANTHROPIC_API_KEY from env so Claude CLI uses stored OAuth credentials
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     proc = await asyncio.to_thread(
