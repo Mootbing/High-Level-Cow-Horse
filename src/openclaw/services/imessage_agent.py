@@ -6,7 +6,6 @@ import asyncio
 import json
 import os
 import re
-import subprocess
 from typing import TYPE_CHECKING
 
 import structlog
@@ -143,30 +142,42 @@ async def find_projects_for_phone(
     return list(result.scalars().all())
 
 
-async def _call_claude(prompt: str, allowed_tools: str = "*", timeout: int = 120) -> str:
-    """Shell out to claude CLI with tool access."""
+# Fix 8: Use native async subprocess instead of thread pool
+async def _call_claude(prompt: str, allowed_tools: str = "*", timeout: int = 600) -> str:
+    """Shell out to claude CLI with tool access using async subprocess."""
     cmd = ["claude", "-p", prompt, "--output-format", "json"]
     if allowed_tools:
         cmd.extend(["--allowedTools", allowed_tools])
 
-    proc = await asyncio.to_thread(
-        subprocess.run,
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=timeout,
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
         env=_CLEAN_ENV,
     )
+    try:
+        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+            proc.communicate(), timeout=timeout
+        )
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        logger.error("claude_cli_timeout", timeout=timeout)
+        raise RuntimeError(f"Claude CLI timed out after {timeout}s")
+
+    stdout_text = stdout_bytes.decode()
+    stderr_text = stderr_bytes.decode()
+
     if proc.returncode != 0:
-        detail = proc.stderr[:500] or proc.stdout[:500]
+        detail = stderr_text[:500] or stdout_text[:500]
         logger.error("claude_cli_failed", exit_code=proc.returncode, detail=detail)
         raise RuntimeError(f"Claude CLI failed (exit {proc.returncode}): {detail}")
 
     try:
-        claude_output = json.loads(proc.stdout)
-        return claude_output.get("result", proc.stdout)
+        claude_output = json.loads(stdout_text)
+        return claude_output.get("result", stdout_text)
     except json.JSONDecodeError:
-        return proc.stdout
+        return stdout_text
 
 
 async def process_message(
@@ -192,16 +203,23 @@ async def process_message(
 
     # Load conversation history
     history = await _load_conversation_history(phone, session)
-    history_block = f"\n\nRecent conversation:\n{history}" if history else ""
+
+    # Fix 7: Wrap history in XML delimiters to mitigate prompt injection
+    history_block = (
+        f"\n\n<conversation_history>\n{history}\n</conversation_history>"
+        if history
+        else ""
+    )
 
     if _is_owner(phone):
         system = OWNER_SYSTEM_PROMPT.replace("{api_port}", str(settings.API_PORT)).replace("{{date}}", today)
         prompt = f"""{system}{history_block}
 
+---
 Owner's message: {text}"""
 
         try:
-            return await _call_claude(prompt, allowed_tools="*", timeout=120)
+            return await _call_claude(prompt, allowed_tools="*", timeout=600)
         except Exception as e:
             logger.exception("owner_message_failed", phone=phone)
             return f"Something went wrong processing your request: {str(e)[:200]}"
@@ -240,10 +258,11 @@ Owner's message: {text}"""
 
         prompt = f"""{system}{history_block}
 
+---
 Client's message: {text}"""
 
         try:
-            return await _call_claude(prompt, allowed_tools=allowed, timeout=120)
+            return await _call_claude(prompt, allowed_tools=allowed, timeout=600)
         except Exception as e:
             logger.exception("client_message_failed", phone=phone, project=project.slug)
             return "Something went wrong. Our team has been notified and will follow up shortly."
@@ -252,5 +271,5 @@ Client's message: {text}"""
     project_list = "\n".join(f"- {p.name} ({p.status})" for p in projects)
     return (
         f"You have multiple projects with us:\n{project_list}\n\n"
-        "Which project is this about? Reply with the project name."
+        "Which project is this about? Reply with /clarmi followed by the project name."
     )

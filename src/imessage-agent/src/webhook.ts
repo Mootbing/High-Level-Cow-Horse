@@ -16,7 +16,7 @@ interface WebhookResponse {
 
 const client = axios.create({
   baseURL: config.webhookUrl.replace(/\/incoming$/, ""),
-  timeout: 180_000, // 3 minutes — Claude tool calls can take time
+  timeout: 660_000, // 11 minutes — Claude tool calls can chain multiple MCP calls
   headers: {
     "Content-Type": "application/json",
     "X-Webhook-Secret": config.webhookSecret,
@@ -47,6 +47,9 @@ export async function forwardToBackend(
       if (status === 500) {
         return "Something went wrong on our end. Please try again in a moment.";
       }
+    } else if (axiosErr.code === "ECONNABORTED" || axiosErr.code === "ETIMEDOUT") {
+      console.error("Backend request timed out after 180s");
+      return "Your request is taking longer than expected. Please try again in a moment.";
     } else if (axiosErr.code === "ECONNREFUSED") {
       console.error("Backend unavailable — connection refused");
       return "Our system is temporarily offline. Please try again shortly.";
