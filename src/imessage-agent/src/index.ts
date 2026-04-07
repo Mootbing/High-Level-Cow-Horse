@@ -40,18 +40,32 @@ async function handleMessage(msg: Message): Promise<void> {
   const preview = text.substring(COMMAND_PREFIX.length).trim().substring(0, 80);
   console.log(`[clarmi-agent] /clarmi from ${phone}: ${preview}...`);
 
-  // Forward to Python backend
+  // Fire-and-forget: don't block the watcher's poll loop.
+  // The watcher awaits handleMessage — if we await the webhook here (up to 3 min),
+  // the watcher's isChecking guard blocks all subsequent polls, dropping messages.
+  processAndReply(msg.sender, phone, text, msg.chatId, msg.guid, msg.date).catch(
+    (err) => console.error(`[clarmi-agent] Background processing error for ${phone}:`, err)
+  );
+}
+
+async function processAndReply(
+  sender: string,
+  phone: string,
+  text: string,
+  chatId: string,
+  guid: string,
+  date: Date,
+): Promise<void> {
   const replyText = await forwardToBackend({
     phone_number: phone,
     message_text: text,
-    chat_guid: msg.chatId,
-    message_guid: msg.guid,
-    timestamp: msg.date.getTime(),
+    chat_guid: chatId,
+    message_guid: guid,
+    timestamp: date.getTime(),
   });
 
-  // Send reply via iMessage
   try {
-    await sdk.send(msg.sender, replyText);
+    await sdk.send(sender, replyText);
     console.log(
       `[clarmi-agent] Replied to ${phone} (${replyText.length} chars)`
     );
