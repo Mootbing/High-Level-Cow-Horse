@@ -6,7 +6,7 @@ import asyncio
 import json
 import os
 import subprocess
-from datetime import datetime, timezone
+from datetime import datetime, timezone, UTC
 from typing import TYPE_CHECKING
 
 import structlog
@@ -123,50 +123,55 @@ async def handle_website_audit(task: "Task", session: "AsyncSession") -> dict:
         contact_emails=data.get("contact_emails", []),
     )
 
-    # 3. Get or create prospect
-    prospect, created = await get_or_create_prospect(
-        session,
-        url=audit.final_url,
-        company_name=audit.page_title,
-        contact_emails=[email] + audit.contact_emails,
-        brand_colors=audit.brand_colors,
-        tech_stack=audit.tech_stack,
-        raw_data={
-            "lead_source": "website_audit_form",
-            "visitor_email": email,
-            "website_scores": audit.scores,
-            "website_overall": audit.overall,
-            "site_problems": audit.site_problems,
-            "audited_at": datetime.now(timezone.utc).isoformat(),
-            "personalized_intro": data.get("personalized_intro", ""),
-            "personalized_cta": data.get("personalized_cta", ""),
-        },
-    )
+    # Use a fresh session for DB operations after the thread-based Claude CLI call
+    # to avoid greenlet context issues with asyncio.to_thread
+    from openclaw.db.session import async_session_factory
 
-    # 4. Render email with Claude's personalized copy + our reliable HTML template
-    subject = data["personalized_subject"]
-    html_body = render_audit_email(
-        audit,
-        email,
-        personalized_intro=data.get("personalized_intro"),
-        personalized_cta=data.get("personalized_cta"),
-    )
+    async with async_session_factory() as db:
+        # 3. Get or create prospect
+        prospect, created = await get_or_create_prospect(
+            db,
+            url=audit.final_url,
+            company_name=audit.page_title,
+            contact_emails=[email] + audit.contact_emails,
+            brand_colors=audit.brand_colors,
+            tech_stack=audit.tech_stack,
+            raw_data={
+                "lead_source": "website_audit_form",
+                "visitor_email": email,
+                "website_scores": audit.scores,
+                "website_overall": audit.overall,
+                "site_problems": audit.site_problems,
+                "audited_at": datetime.now(UTC).isoformat(),
+                "personalized_intro": data.get("personalized_intro", ""),
+                "personalized_cta": data.get("personalized_cta", ""),
+            },
+        )
 
-    # 5. Send via Gmail
-    gmail_result = await send_email(to=email, subject=subject, body=html_body)
+        # 4. Render email with Claude's personalized copy + our reliable HTML template
+        subject = data["personalized_subject"]
+        html_body = render_audit_email(
+            audit,
+            email,
+            personalized_intro=data.get("personalized_intro"),
+            personalized_cta=data.get("personalized_cta"),
+        )
 
-    # 6. Log it
-    email_log = EmailLog(
-        prospect_id=prospect.id,
-        to_email=email,
-        subject=subject,
-        body=html_body,
-        status="sent",
-        gmail_message_id=gmail_result.get("id"),
-        sent_at=datetime.now(timezone.utc),
-    )
-    session.add(email_log)
-    await session.commit()
+        # 5. Send via Gmail
+        gmail_result = await send_email(to=email, subject=subject, body=html_body)
+
+        # 6. Log it
+        email_log = EmailLog(
+            prospect_id=prospect.id,
+            to_email=email,
+            subject=subject,
+            body=html_body,
+            status="sent",
+            gmail_message_id=gmail_result.get("id"),
+            sent_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+        db.add(email_log)
+        await db.commit()
 
     logger.info(
         "audit_email_sent",
