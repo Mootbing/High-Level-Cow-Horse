@@ -101,8 +101,9 @@ export interface Task {
 export interface Message {
   id: string;
   project_id: string | null;
+  channel: string;
   direction: string;
-  wa_message_id: string | null;
+  external_message_id: string | null;
   phone_number: string;
   message_type: string;
   content: string | null;

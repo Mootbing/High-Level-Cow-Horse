@@ -1,0 +1,26 @@
+{
+  "name": "clarmi-imessage-agent",
+  "version": "1.0.0",
+  "description": "Always-on iMessage listener for Clarmi Design Studio",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@photon-ai/imessage-kit": "^2.1.2",
+    "better-sqlite3": "^11.0.0",
+    "axios": "^1.13.2",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.0",
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

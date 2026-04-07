@@ -59,7 +59,7 @@ Return ONLY valid JSON (no markdown fences, no explanation) with this exact stru
 """
 
 
-async def _call_claude_with_tools(prompt: str, timeout: int = 120) -> str:
+async def _call_claude_with_tools(prompt: str, timeout: int = 300) -> str:
     """Shell out to claude CLI with MCP tool access."""
     cmd = ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", "mcp__clarmi-tools__audit_prospect_website"]
     # Strip ANTHROPIC_API_KEY from env so Claude CLI uses stored OAuth credentials

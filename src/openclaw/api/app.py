@@ -41,6 +41,7 @@ app.add_middleware(
 from openclaw.api.routers import (  # noqa: E402
     deployments,
     emails,
+    imessage,
     knowledge,
     messages,
     metrics,
@@ -51,6 +52,7 @@ from openclaw.api.routers import (  # noqa: E402
 
 app.include_router(prospects.router, prefix="/api/v1")
 app.include_router(projects.router, prefix="/api/v1")
+app.include_router(imessage.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(emails.router, prefix="/api/v1")
 app.include_router(messages.router, prefix="/api/v1")

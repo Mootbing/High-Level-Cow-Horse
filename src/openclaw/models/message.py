@@ -1,4 +1,4 @@
-"""Message model — WhatsApp message log."""
+"""Message model — inbound/outbound message log (iMessage, WhatsApp)."""
 
 from __future__ import annotations
 
@@ -16,15 +16,16 @@ if TYPE_CHECKING:
 
 
 class Message(UUIDPrimaryKeyMixin, Base):
-    """Stores inbound and outbound WhatsApp messages."""
+    """Stores inbound and outbound messages across channels."""
 
     __tablename__ = "messages"
 
     project_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("projects.id"),
     )
+    channel: Mapped[str] = mapped_column(String(16), default="imessage")
     direction: Mapped[str] = mapped_column(String(8), nullable=False)
-    wa_message_id: Mapped[str | None] = mapped_column(String(128))
+    external_message_id: Mapped[str | None] = mapped_column(String(128))
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
     message_type: Mapped[str] = mapped_column(String(16), nullable=False)
     content: Mapped[str | None] = mapped_column()
@@ -37,6 +38,6 @@ class Message(UUIDPrimaryKeyMixin, Base):
 
     def __repr__(self) -> str:
         return (
-            f"<Message(id={self.id!r}, direction={self.direction!r}, "
-            f"phone_number={self.phone_number!r})>"
+            f"<Message(id={self.id!r}, channel={self.channel!r}, "
+            f"direction={self.direction!r}, phone_number={self.phone_number!r})>"
         )

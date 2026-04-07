@@ -45,8 +45,9 @@ async def list_messages(
             MessageRead(
                 id=m.id,
                 project_id=m.project_id,
+                channel=m.channel,
                 direction=m.direction,
-                wa_message_id=m.wa_message_id,
+                external_message_id=m.external_message_id,
                 phone_number=m.phone_number,
                 message_type=m.message_type,
                 content=m.content,

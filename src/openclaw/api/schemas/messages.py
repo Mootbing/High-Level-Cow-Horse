@@ -11,8 +11,9 @@ from .common import BaseSchema
 class MessageRead(BaseSchema):
     id: UUID
     project_id: UUID | None = None
+    channel: str = "imessage"
     direction: str
-    wa_message_id: str | None = None
+    external_message_id: str | None = None
     phone_number: str
     message_type: str
     content: str | None = None

@@ -41,6 +41,10 @@ class Settings(BaseSettings):
     PROSPECTING_LOCATIONS: str = ""   # Comma-separated: "Austin TX,Dallas TX"
     PROSPECTING_DAILY_LIMIT: int = 50
 
+    # iMessage Agent (uses @photon-ai/imessage-kit — no server needed)
+    IMESSAGE_WEBHOOK_SECRET: str = ""
+    OWNER_PHONE: str = "REDACTED_PASSWORD"
+
     # Postgres (for docker)
     POSTGRES_PASSWORD: str = "changeme"
 

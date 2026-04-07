@@ -11,7 +11,7 @@ export default function MessagesPage() {
     <div className="space-y-4 animate-in max-w-3xl">
       <div className="card-static">
         <h3 className="text-label flex items-center gap-2 mb-5">
-          <MessageSquare size={13} style={{ color: "var(--accent)" }} /> WhatsApp Messages
+          <MessageSquare size={13} style={{ color: "var(--accent)" }} /> Messages
         </h3>
 
         {isLoading ? (
@@ -42,6 +42,9 @@ export default function MessagesPage() {
                 <div className="flex items-center gap-2 mb-1">
                   <span className="text-[10px] font-medium" style={{ color: "var(--text-light)" }}>
                     {m.direction === "outbound" ? "Sent" : "Received"} &middot; {m.phone_number}
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: m.channel === "imessage" ? "rgba(52,199,89,0.12)" : "rgba(37,211,102,0.12)", color: m.channel === "imessage" ? "#34c759" : "#25d366" }}>
+                    {m.channel === "imessage" ? "iMessage" : "WhatsApp"}
                   </span>
                   {m.project_name && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ backgroundColor: "var(--bg-alt)", color: "var(--text-muted)" }}>
