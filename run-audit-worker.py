@@ -21,12 +21,13 @@ if os.path.exists(env_path):
 REQUIRED = [
     "sqlalchemy",
     "asyncpg",
+    "greenlet",
     "structlog",
     "pydantic_settings",
     "httpx",
     "slugify",
     "PIL",
-    "greenlet",
+    "playwright",
 ]
 
 missing = []
