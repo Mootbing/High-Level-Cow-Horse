@@ -71,26 +71,23 @@ async def _process_next() -> bool:
             task.output_data = output or {}
             task.status = "completed"
             task.completed_at = datetime.now(UTC).replace(tzinfo=None)
+            await session.commit()
             logger.info("audit_task_done", task_id=str(task.id))
         except Exception as exc:
+            await session.rollback()
+            error_msg = str(exc)[:1000]
+            logger.error("audit_task_error", task_id=str(task.id), error=error_msg)
+
+            # Update task status in a fresh transaction
             task.retry_count += 1
-            error_msg = str(exc)[:500]
             if task.retry_count >= task.max_retries:
                 task.status = "failed"
-                task.error = error_msg
+                task.error = error_msg[:500]
                 task.completed_at = datetime.now(UTC).replace(tzinfo=None)
-                logger.error("audit_task_failed", task_id=str(task.id), error=error_msg)
             else:
                 task.status = "pending"
-                task.error = error_msg
-                logger.warning(
-                    "audit_task_retry",
-                    task_id=str(task.id),
-                    retry=task.retry_count,
-                    error=error_msg,
-                )
-
-        await session.commit()
+                task.error = error_msg[:500]
+            await session.commit()
         return True
 
 
