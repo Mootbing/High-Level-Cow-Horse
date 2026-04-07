@@ -17,13 +17,10 @@ COPY pyproject.toml .
 COPY src/ src/
 RUN pip install --no-cache-dir -e .
 
+# Install Playwright Chromium for website auditing
+RUN playwright install --with-deps chromium
+
 # Copy MCP config so Claude CLI can access clarmi-tools
 COPY .mcp.json .
-
-# Railway volume mount point for Claude CLI credentials
-# Attach a Railway volume at /root/.claude so OAuth tokens persist across deploys
-VOLUME ["/root/.claude"]
-
-EXPOSE 8001
 
 CMD ["python", "-m", "openclaw.audit_worker"]
