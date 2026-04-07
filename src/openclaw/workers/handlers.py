@@ -8,8 +8,12 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 from typing import TYPE_CHECKING, Any, Callable, Awaitable
+
+# Strip ANTHROPIC_API_KEY so Claude CLI uses stored OAuth credentials
+_CLEAN_ENV = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
 from uuid import UUID
 
 import structlog
@@ -48,6 +52,7 @@ async def _call_claude(prompt: str, timeout: int = 60) -> str:
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=_CLEAN_ENV,
     )
     if proc.returncode != 0:
         raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {proc.stderr[:300]}")
@@ -70,9 +75,11 @@ async def _call_claude_with_tools(prompt: str, cwd: str | None = None, timeout: 
         text=True,
         timeout=timeout,
         cwd=cwd,
+        env=_CLEAN_ENV,
     )
     if proc.returncode != 0:
-        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {proc.stderr[:500]}")
+        detail = proc.stderr[:500] or proc.stdout[:500]
+        raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {detail}")
 
     try:
         claude_output = json.loads(proc.stdout)
