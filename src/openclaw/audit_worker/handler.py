@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import subprocess
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
@@ -61,12 +62,15 @@ Return ONLY valid JSON (no markdown fences, no explanation) with this exact stru
 async def _call_claude_with_tools(prompt: str, timeout: int = 120) -> str:
     """Shell out to claude CLI with MCP tool access."""
     cmd = ["claude", "-p", prompt, "--output-format", "json", "--allowedTools", "mcp__clarmi-tools__audit_prospect_website"]
+    # Strip ANTHROPIC_API_KEY from env so Claude CLI uses stored OAuth credentials
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     proc = await asyncio.to_thread(
         subprocess.run,
         cmd,
         capture_output=True,
         text=True,
         timeout=timeout,
+        env=env,
     )
     if proc.returncode != 0:
         detail = proc.stderr[:500] or proc.stdout[:500]
