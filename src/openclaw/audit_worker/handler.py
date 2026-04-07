@@ -72,6 +72,13 @@ async def _call_claude_with_tools(prompt: str, timeout: int = 120) -> str:
         timeout=timeout,
         env=env,
     )
+    logger.info(
+        "claude_cli_result",
+        returncode=proc.returncode,
+        stdout_len=len(proc.stdout),
+        stderr_preview=proc.stderr[:300] if proc.stderr else "",
+        stdout_preview=proc.stdout[:300] if proc.stdout else "",
+    )
     if proc.returncode != 0:
         detail = proc.stderr[:500] or proc.stdout[:500]
         raise RuntimeError(f"claude CLI failed (exit {proc.returncode}): {detail}")
