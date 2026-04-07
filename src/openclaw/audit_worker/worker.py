@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, UTC
+from datetime import datetime, timedelta, UTC
 
 import structlog
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from openclaw.audit_worker.handler import handle_website_audit
 from openclaw.db.session import async_session_factory
@@ -15,6 +15,28 @@ from openclaw.models.task import Task
 logger = structlog.get_logger()
 
 POLL_INTERVAL = 5  # seconds
+STALE_TASK_MINUTES = 10  # tasks stuck in_progress longer than this get reset
+
+
+async def _recover_stale_tasks() -> int:
+    """Reset tasks stuck in 'in_progress' (crashed worker) back to pending."""
+    cutoff = datetime.now(UTC).replace(tzinfo=None) - timedelta(minutes=STALE_TASK_MINUTES)
+    async with async_session_factory() as session:
+        result = await session.execute(
+            update(Task)
+            .where(
+                Task.agent_type == "website_audit",
+                Task.status == "in_progress",
+                Task.started_at < cutoff,
+                Task.retry_count < Task.max_retries,
+            )
+            .values(status="pending", error="Recovered: worker crashed or timed out")
+        )
+        count = result.rowcount
+        if count:
+            await session.commit()
+            logger.info("recovered_stale_tasks", count=count)
+        return count
 
 
 async def _process_next() -> bool:
@@ -22,7 +44,11 @@ async def _process_next() -> bool:
     async with async_session_factory() as session:
         stmt = (
             select(Task)
-            .where(Task.status == "pending", Task.agent_type == "website_audit")
+            .where(
+                Task.agent_type == "website_audit",
+                Task.status.in_(["pending", "failed"]),
+                Task.retry_count < Task.max_retries,
+            )
             .order_by(Task.priority.asc(), Task.created_at.asc())
             .limit(1)
             .with_for_update(skip_locked=True)
@@ -71,6 +97,8 @@ async def _process_next() -> bool:
 async def run_audit_worker():
     """Poll loop — runs until cancelled."""
     logger.info("audit_worker_started")
+    # On startup, recover any tasks left stuck by a previous crash
+    await _recover_stale_tasks()
     while True:
         try:
             processed = await _process_next()
