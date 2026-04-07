@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { sql } from "@/lib/db";
 
 const ALLOWED_ORIGINS = [
-  "https://clarmi.com",
-  "https://www.clarmi.com",
+  "https://clarmi.studio",
+  "https://www.clarmi.studio",
   "http://localhost:3000",
 ];
 
