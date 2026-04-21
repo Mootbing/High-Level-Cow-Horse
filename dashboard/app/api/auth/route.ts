@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
 
-const PASSWORD = process.env.DASH_PASSWORD || "REDACTED_PASSWORD";
+const PASSWORD = process.env.DASH_PASSWORD;
 
 export async function POST(request: Request) {
+  if (!PASSWORD) {
+    return NextResponse.json({ ok: false, error: "Server misconfigured" }, { status: 500 });
+  }
+
   const { password } = await request.json();
 
   if (password === PASSWORD) {
